@@ -1,0 +1,51 @@
+Copyright 2016 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+file except in compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+This product includes/uses software developed at The Apache Software Foundation (http://www.apache.org/).
+License: Apache 2.0
+
+This product includes/uses TestNG (https://testng.org//)
+License: Apache 2.0
+
+This product includes/uses Jolokia (https://jolokia.org/)
+Copyright 2009-2010 Roland Huss
+License: Apache 2.0
+
+This product includes/uses Chart.js (https://chartjs.org/)
+Copyright (c) 2013-2016 Nick Downie
+License: MIT
+
+This product includes/uses argparse4j (https://argparse4j.github.io/)
+Copyright (C) 2011, 2014, 2015 Tatsuhiro Tsujikawa
+License: MIT
+
+This product includes/uses SLF4J (https://slf4j.org/)
+Copyright (c) 2004-2013 QOS.ch
+License: MIT
+
+This product includes/uses JSON (https://json.org/)
+Copyright (c) 2002 JSON.org
+License: http://www.json.org/license.html
+
+This product includes/uses JUnit (https://http://junit.org/)
+Copyright 2002-2016 JUnit
+License: Eclipse Public License 1.0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
