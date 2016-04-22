@@ -7,7 +7,6 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package com.linkedin.kmf.services;
 
 import org.slf4j.Logger;
@@ -22,7 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class MetricsExportService implements Service {
-  private static final Logger log = LoggerFactory.getLogger(MetricsExportService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsExportService.class);
 
   private final List<String> _metricNames;
   private final int _reportIntervalSec;
@@ -38,7 +37,7 @@ public class MetricsExportService implements Service {
   @Override
   public void start() {
     if (_metricNames.size() == 0) {
-      log.info("MetricsExport service is not started because metric-to-export list is empty.");
+      LOG.info("MetricsExport service is not started because metric-to-export list is empty.");
       return;
     }
 
@@ -48,11 +47,11 @@ public class MetricsExportService implements Service {
         try {
           exportMetrics();
         } catch (Exception e) {
-          log.error("Failed to export metrics", e);
+          LOG.error("Failed to export metrics", e);
         }
       }
     }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS);
-    log.info("MetricsExport service started");
+    LOG.info("MetricsExport service started");
   }
 
   public void exportMetrics() {
@@ -61,13 +60,13 @@ public class MetricsExportService implements Service {
       String attributeName = metricName.substring(metricName.lastIndexOf(":") + 1);
       builder.append(attributeName + " " + getMBeanAttributeValue(metricName) + "\t");
     }
-    log.info(builder.toString());
+    LOG.info(builder.toString());
   }
 
   @Override
   public void stop() {
     _reportExecutor.shutdown();
-    log.info("MetricsExport service stoppped");
+    LOG.info("MetricsExport service stoppped");
   }
 
   @Override
@@ -82,7 +81,7 @@ public class MetricsExportService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    log.info("ExportMetrics service shutdown completed");
+    LOG.info("ExportMetrics service shutdown completed");
   }
 
   public Object getMBeanAttributeValue(String metricName) {

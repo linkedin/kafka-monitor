@@ -43,10 +43,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConsumeService implements Service {
-  private static final Logger log = LoggerFactory.getLogger(ConsumeService.class);
-  public static final String MetricGrpName = "consume-metrics";
+  private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
+  private static final String METRIC_GROUP_NAME = "consume-metrics";
 
-  public final ConsumeMetrics _sensors;
+  private final ConsumeMetrics _sensors;
   private final BaseConsumer _consumer;
   private final Thread _thread;
   private final int _latencyPercentileMaxMs;
@@ -68,15 +68,14 @@ public class ConsumeService implements Service {
     if (consumerClassName.equals(NewConsumer.class.getCanonicalName())) {
       consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
       consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-      consumerProps.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "range");
-      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-" + new Random().nextInt(100000));
+      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
       consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
       consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-      consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer-" + (new Random()).nextInt());
+      consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
       Utils.overrideIfDefined(consumerProps, ServiceConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     } else if (consumerClassName.equals(OldConsumer.class.getCanonicalName())){
       consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
-      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-" + (new Random()).nextInt());
+      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer");
       consumerProps.put("auto.commit.enable", "false");
       consumerProps.put("zookeeper.connect", zkConnect);
     }
@@ -91,14 +90,14 @@ public class ConsumeService implements Service {
         try {
           consume();
         } catch (Exception e) {
-          log.error("Consume service failed", e);
+          LOG.error("Consume service failed", e);
         }
       }
     });
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(jmxPrefix));
+    reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
     _sensors = new ConsumeMetrics(metrics);
   }
@@ -112,7 +111,7 @@ public class ConsumeService implements Service {
         record = _consumer.receive();
       } catch (Exception e) {
         _sensors.consumeError.record();
-        log.debug("Failed to receive message", e);
+        LOG.debug("Failed to receive message", e);
         continue;
       }
 
@@ -153,7 +152,7 @@ public class ConsumeService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
-      log.info("Consume service started");
+      LOG.info("Consume service started");
     }
   }
 
@@ -161,7 +160,7 @@ public class ConsumeService implements Service {
   public void stop() {
     if (_running.compareAndSet(true, false)) {
       _consumer.close();
-      log.info("Consume service shutdown stopped");
+      LOG.info("Consume service shutdown stopped");
     }
   }
 
@@ -172,7 +171,7 @@ public class ConsumeService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    log.info("Consume service shutdown completed");
+    LOG.info("Consume service shutdown completed");
   }
 
   @Override
@@ -181,46 +180,43 @@ public class ConsumeService implements Service {
   }
 
   private class ConsumeMetrics {
-    public final Metrics metrics;
-    public final Sensor bytesConsumed;
-    public final Sensor consumeError;
-    public final Sensor recordsConsumed;
-    public final Sensor recordsDuplicated;
-    public final Sensor recordsLost;
-    public final Sensor recordsDelay;
+    private final Sensor bytesConsumed;
+    private final Sensor consumeError;
+    private final Sensor recordsConsumed;
+    private final Sensor recordsDuplicated;
+    private final Sensor recordsLost;
+    private final Sensor recordsDelay;
 
     public ConsumeMetrics(Metrics metrics) {
-      this.metrics = metrics;
-
       bytesConsumed = metrics.sensor("bytes-consumed");
-      bytesConsumed.add(new MetricName("bytes-consumed-rate", MetricGrpName), new Rate());
+      bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME), new Rate());
 
       consumeError = metrics.sensor("consume-error");
-      consumeError.add(new MetricName("consume-error-rate", MetricGrpName), new Rate());
-      consumeError.add(new MetricName("consume-error-total", MetricGrpName), new Total());
+      consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME), new Rate());
+      consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME), new Total());
 
       recordsConsumed = metrics.sensor("records-consumed");
-      recordsConsumed.add(new MetricName("records-consumed-rate", MetricGrpName), new Rate());
-      recordsConsumed.add(new MetricName("records-consumed-total", MetricGrpName), new Total());
+      recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME), new Rate());
+      recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME), new Total());
 
       recordsDuplicated = metrics.sensor("records-duplicated");
-      recordsDuplicated.add(new MetricName("records-duplicated-rate", MetricGrpName), new Rate());
-      recordsDuplicated.add(new MetricName("records-duplicated-total", MetricGrpName), new Total());
+      recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME), new Rate());
+      recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME), new Total());
 
       recordsLost = metrics.sensor("records-lost");
-      recordsLost.add(new MetricName("records-lost-rate", MetricGrpName), new Rate());
-      recordsLost.add(new MetricName("records-lost-total", MetricGrpName), new Total());
+      recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME), new Rate());
+      recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME), new Total());
 
       recordsDelay = metrics.sensor("records-delay");
-      recordsDelay.add(new MetricName("records-delay-avg", MetricGrpName), new Avg());
-      recordsDelay.add(new MetricName("records-delay-max", MetricGrpName), new Max());
+      recordsDelay.add(new MetricName("records-delay-avg", METRIC_GROUP_NAME), new Avg());
+      recordsDelay.add(new MetricName("records-delay-max", METRIC_GROUP_NAME), new Max());
 
       // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
       int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
       int sizeInBytes = 4 * bucketNum;
       recordsDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
-        new Percentile(new MetricName("records-delay-99th", MetricGrpName), 99.0),
-        new Percentile(new MetricName("records-delay-999th", MetricGrpName), 99.9)));
+        new Percentile(new MetricName("records-delay-99th", METRIC_GROUP_NAME), 99.0),
+        new Percentile(new MetricName("records-delay-999th", METRIC_GROUP_NAME), 99.9)));
     }
 
   }

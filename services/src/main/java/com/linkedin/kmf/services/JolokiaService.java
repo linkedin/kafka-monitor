@@ -7,7 +7,6 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package com.linkedin.kmf.services;
 
 import org.jolokia.jvmagent.JolokiaServer;
@@ -20,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 // Jolokia server allows user to query jmx metric value with HTTP request
 public class JolokiaService implements Service {
-  private static final Logger log = LoggerFactory.getLogger(JettyService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
 
   private final JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
@@ -33,7 +32,7 @@ public class JolokiaService implements Service {
   public void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
-      log.info("Jolokia service started at port 8778");
+      LOG.info("Jolokia service started at port 8778");
     }
   }
 
@@ -41,7 +40,7 @@ public class JolokiaService implements Service {
     if (_isRunning.compareAndSet(true, false)) {
       _jolokiaServer.stop();
       ;
-      log.info("Jolokia service stopped");
+      LOG.info("Jolokia service stopped");
     }
   }
 

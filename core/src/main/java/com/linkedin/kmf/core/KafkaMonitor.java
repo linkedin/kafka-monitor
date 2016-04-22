@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Properties;
 
 public class KafkaMonitor {
-  private static final Logger log = LoggerFactory.getLogger(KafkaMonitor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
 
   private final List<Test> _tests;
   private final List<Service> _services;
@@ -71,7 +71,7 @@ public class KafkaMonitor {
 
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      log.info("USAGE: java [options] KafkaMonitor kmf.properties");
+      LOG.info("USAGE: java [options] KafkaMonitor kmf.properties");
       return;
     }
 
@@ -88,7 +88,7 @@ public class KafkaMonitor {
 
     KafkaMonitor kafkaMonitor = new KafkaMonitor(testProps);
     kafkaMonitor.start();
-    log.info("KafkaMonitor started");
+    LOG.info("KafkaMonitor started");
 
     kafkaMonitor.awaitShutdown();
   }

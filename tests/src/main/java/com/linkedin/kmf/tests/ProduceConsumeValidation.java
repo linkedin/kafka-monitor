@@ -36,7 +36,7 @@ import static net.sourceforge.argparse4j.impl.Arguments.store;
  */
 
 public class ProduceConsumeValidation implements Test {
-  private static final Logger log = LoggerFactory.getLogger(ProduceConsumeValidation.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ProduceConsumeValidation.class);
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
@@ -60,7 +60,7 @@ public class ProduceConsumeValidation implements Test {
     _produceService.start();
     _consumeService.start();
     _exportMetricsService.start();
-    log.info("ProduceConsumeValidation test started");
+    LOG.info("ProduceConsumeValidation test started");
   }
 
   @Override
@@ -68,7 +68,7 @@ public class ProduceConsumeValidation implements Test {
     _produceService.stop();
     _consumeService.stop();
     _exportMetricsService.stop();
-    log.info("ProduceConsumeValidation test stopped");
+    LOG.info("ProduceConsumeValidation test stopped");
   }
 
   /** Get the command-line argument parser. */

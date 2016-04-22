@@ -44,8 +44,7 @@ The goal of adding Kafka Monitor framework is to make it as easy as possible to 
 
 A typical test may start some producers/consumers, take predefined sequence of actions periodically, report metrics, and validate metrics against some assertions. For example, Kafka Monitor can start one producer, one consumer, and bounce a random broker (say if it is monitoring a test cluster) every 5 minutes; the availability and message loss rate can be exposed via JMX metrics that can be collected and displayed on a health dashboard in real-time; and an alert is triggered if message loss rate is larger than 0.
 
-
-To allow tests to be composable from reusable modules, we implement the logic of periodic/long-running actions in services. A service will execute the action in its own thread and export metrics. We have the following services to start with:
+To allow tests to be composed from reusable modules, we implement the logic of periodic/long-running actions in services. A service will execute the action in its own thread and export metrics. We have the following services to start with:
 
 - Produce service, which produces message to kafka and export produce rate and availability.
 - Consume service, which consumes message from kafka and export message loss rate, message duplicate rate and end-to-end latency. This service depends on the produce service to provide messages that encode certain information.
@@ -68,9 +67,6 @@ To measure end-to-end latency, message payload will also contain timestamp at th
 
 To measure availability of produce service, producer keeps track of the message produce_rate and error_rate. Error_rate will be positive if an exception is thrown and caught when producer produces messages. Availability is measured as average of per-partition availability. per-partition availability will be measured as produce_rate/(produce_rate + error_rate), if produce_rate > 0; otherwise per-partition availability is 0, since no message is produced in the time interval used to measure the rate. By default this time interval is 30 seconds.
 
-
-### JMX metrics
-
 Here are a few example JMX metrics provided by ProduceService and ConsumerService:
 
 - ConsumeByteRate
@@ -85,21 +81,15 @@ Here are a few example JMX metrics provided by ProduceService and ConsumerServic
 - ProduceAvailability
 
 
-### Future Work
-
-
+## Future Work
 Here are a few things that we plan to work on to make Kafka Monitor more useful to users.
 
-- Integration with Graphite to achieve monitor capability
+### Integration with Graphite to achieve monitor capability
 Currently kafka monitor doesn’t provide the monitoring capability similar to inGraph. While this is not directly useful to users at LinkedIn, it will be extremely helpful to users of kafka monitor to be able to monitor every jmx metrics in kafka, similar to what we get from inGraph. We plan to integrate with Graphite to achieve this ability in Kafka Monitor.
 
-### Additional client classes
-We plan to support more client classes in Kafka Monitor. New consumer should be supported. In LinkedIn we also plan to support Likafka-client, which will be open sourced soon.
-
 ### Custom event scheduler
-We plan to implement a framework that allows user to schedule actions (e.g. cluster rolling bounce, broker hard kill) and assertions (e.g. no message loss, no message reorder) while using Kafka Monitor to monitor cluster’s health.
+We plan to implement a service that allows user to schedule actions (e.g. cluster rolling bounce, broker hard kill) to be executed at regular interval. This can be used together with other services to make assertions (e.g. no message loss, no message reorder) about kafka cluster's performance while these actions are taking place.
 
 ### Automatic cluster deployment
-
-Another ambitious goal is to be able to automatically deploy kafka cluster given the git hash of open source kafka. Together with the monitoring capability and the Custom event scheduler, this would allow us to do long running test of various kafka commit using real cluster and real-world data. This is not possible with unit test or Ducktape system test that is not used by open source kafka community.
+Another future work is to provide capability to deploy kafka cluster using Apache Kafka with user-specified git hash value. When used with other services, this capability allows us to do long running test of a range of Apache Kafka version in real cluster using real-world data. This would allow us to capture bugs that are missed by Apache Kafka's unit tests or integration tests.
 

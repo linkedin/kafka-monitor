@@ -20,30 +20,26 @@ import java.util.Properties;
  */
 public class NewConsumer implements BaseConsumer {
 
-  private final KafkaConsumer<String, String> consumer;
-  private Iterator<ConsumerRecord<String, String>> recordIter;
+  private final KafkaConsumer<String, String> _consumer;
+  private Iterator<ConsumerRecord<String, String>> _recordIter;
 
   public NewConsumer(String topic, Properties consumerProperties) {
-    consumer = new KafkaConsumer<>(consumerProperties);
-    consumer.subscribe(Arrays.asList(topic));
-    consumer.poll(0);
+    _consumer = new KafkaConsumer<>(consumerProperties);
+    _consumer.subscribe(Arrays.asList(topic));
   }
 
   @Override
   public BaseConsumerRecord receive() throws Exception {
-    if ((recordIter == null || !recordIter.hasNext()))
-      recordIter = consumer.poll(60000).iterator();
+    if ((_recordIter == null || !_recordIter.hasNext()))
+      _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
 
-    if (!recordIter.hasNext())
-      return null;
-
-    ConsumerRecord<String, String> record = recordIter.next();
+    ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
   }
 
   @Override
   public void close() {
-    consumer.close();
+    _consumer.close();
   }
 
 }

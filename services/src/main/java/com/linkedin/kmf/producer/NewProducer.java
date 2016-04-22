@@ -17,22 +17,22 @@ import java.util.Properties;
 
 public class NewProducer implements BaseProducer {
 
-  private final KafkaProducer<String, String> producer;
+  private final KafkaProducer<String, String> _producer;
 
   public NewProducer(Properties producerProps) {
-    producer = new KafkaProducer<>(producerProps);
+    _producer = new KafkaProducer<>(producerProps);
   }
 
   @Override
   public RecordMetadata send(BaseProducerRecord baseRecord) throws Exception {
     ProducerRecord<String, String> record =
       new ProducerRecord<>(baseRecord.topic(), baseRecord.partition(), baseRecord.key(), baseRecord.value());
-    return producer.send(record).get();
+    return _producer.send(record).get();
   }
 
   @Override
   public void close() {
-    producer.close();
+    _producer.close();
   }
 
 }

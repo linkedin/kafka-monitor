@@ -7,7 +7,6 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package com.linkedin.kmf.services;
 
 import org.eclipse.jetty.server.Server;
@@ -19,7 +18,7 @@ import java.util.Properties;
 
 // Jetty server that serves html files.
 public class JettyService implements Service {
-  private static final Logger log = LoggerFactory.getLogger(JettyService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
 
   private final Server _jettyServer;
 
@@ -37,18 +36,18 @@ public class JettyService implements Service {
   public void start() {
     try {
       _jettyServer.start();
-      log.info("Jetty service started at port 8000");
+      LOG.info("Jetty service started at port 8000");
     } catch (Exception e) {
-      log.error("Failed to start Jetty server", e);
+      LOG.error("Failed to start Jetty server", e);
     }
   }
 
   public void stop() {
     try {
       _jettyServer.stop();
-      log.info("Jetty service stopped");
+      LOG.info("Jetty service stopped");
     } catch (Exception e) {
-      log.error("Failed to stop Jetty server", e);
+      LOG.error("Failed to stop Jetty server", e);
     }
   }
 

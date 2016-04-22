@@ -10,37 +10,37 @@
 package com.linkedin.kmf.producer;
 
 public class BaseProducerRecord {
-  private final String topic;
-  private final Integer partition;
-  private final String key;
-  private final String value;
+  private final String _topic;
+  private final Integer _partition;
+  private final String _key;
+  private final String _value;
 
   public BaseProducerRecord(String topic, Integer partition, String key, String value) {
-    this.topic = topic;
-    this.partition = partition;
-    this.key = key;
-    this.value = value;
+    _topic = topic;
+    _partition = partition;
+    _key = key;
+    _value = value;
   }
 
   public String topic() {
-    return topic;
+    return _topic;
   }
 
   public Integer partition() {
-    return partition;
+    return _partition;
   }
 
   public String key() {
-    return key;
+    return _key;
   }
 
   public String value() {
-    return value;
+    return _value;
   }
 
   @Override
   public String toString() {
-    return "record(topic:" + topic + ",partition:" + partition + ",key:" + key + ",value:" + value + ")";
+    return "record(topic:" + _topic + ",partition:" + _partition + ",key:" + _key + ",value:" + _value + ")";
   }
 
 }

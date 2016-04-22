@@ -39,10 +39,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ProduceService implements Service {
-  private static final Logger log = LoggerFactory.getLogger(ProduceService.class);
-  public static final String MetricGrpName = "produce-metrics";
+  private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
+  public static final String METRIC_GROUP_NAME = "produce-metrics";
 
-  public final ProduceMetrics _sensors;
+  private final ProduceMetrics _sensors;
   private final BaseProducer _producer;
   private final ScheduledExecutorService _executor;
   private final int _produceDelayMs;
@@ -91,7 +91,7 @@ public class ProduceService implements Service {
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(jmxPrefix));
+    reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
     _sensors = new ProduceMetrics(metrics);
   }
@@ -104,7 +104,7 @@ public class ProduceService implements Service {
         _executor.scheduleWithFixedDelay(new ProduceRunnable(partition),
           _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
       }
-      log.info("Produce service started");
+      LOG.info("Produce service started");
     }
   }
 
@@ -113,7 +113,7 @@ public class ProduceService implements Service {
     if (_running.compareAndSet(true, false)) {
       _executor.shutdown();
       _producer.close();
-      log.info("Produce service stopped");
+      LOG.info("Produce service stopped");
     }
   }
 
@@ -124,7 +124,7 @@ public class ProduceService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    log.info("Produce service shutdown completed");
+    LOG.info("Produce service shutdown completed");
   }
 
   @Override
@@ -145,33 +145,33 @@ public class ProduceService implements Service {
       recordsProducedPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("records-produced-partition-" + partition);
-        sensor.add(new MetricName("records-produced-rate-partition-" + partition, MetricGrpName), new Rate());
+        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME), new Rate());
         recordsProducedPerPartition.put(partition, sensor);
       }
 
       produceErrorPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("produce-error-partition-" + partition);
-        sensor.add(new MetricName("produce-error-rate-partition-" + partition, MetricGrpName), new Rate());
+        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME), new Rate());
         produceErrorPerPartition.put(partition, sensor);
       }
 
       recordsProduced = metrics.sensor("records-produced");
-      recordsProduced.add(new MetricName("records-produced-rate", MetricGrpName), new Rate());
-      recordsProduced.add(new MetricName("records-produced-total", MetricGrpName), new Total());
+      recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME), new Rate());
+      recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME), new Total());
 
       produceError = metrics.sensor("produce-error");
-      produceError.add(new MetricName("produce-error-rate", MetricGrpName), new Rate());
-      produceError.add(new MetricName("produce-error-total", MetricGrpName), new Total());
+      produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME), new Rate());
+      produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME), new Total());
 
-      metrics.addMetric(new MetricName("produce-availability-avg", MetricGrpName),
+      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME),
         new Measurable() {
           @Override
           public double measure(MetricConfig config, long now) {
             double availabilitySum = 0.0;
             for (int partition = 0; partition < _partitionNum; partition++) {
-              double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, MetricGrpName)).value();
-              double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, MetricGrpName)).value();
+              double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME)).value();
+              double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
               if (new Double(produceError).isNaN()) {
                 produceError = 0;
@@ -214,7 +214,7 @@ public class ProduceService implements Service {
       } catch (Exception e) {
         _sensors.produceError.record();
         _sensors.produceErrorPerPartition.get(_partition).record();
-        log.debug("Failed to send message", e);
+        LOG.debug("Failed to send message", e);
       }
     }
   }

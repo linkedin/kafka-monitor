@@ -26,7 +26,7 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class Utils {
-  private static final Logger log = LoggerFactory.getLogger(Utils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
@@ -40,10 +40,11 @@ public class Utils {
       ZooKeeper zk = new ZooKeeper(zkUrl, 3000, null);
       String path = "/brokers/topics/" + topic;
       String data = new String(zk.getData(path, false, new Stat()));
+      zk.close();
       int partitionNum = (new JSONObject(data)).getJSONObject("partitions").keySet().size();
       return partitionNum;
     } catch (Exception e) {
-      log.error("Error when getting data from zookeeper", e);
+      LOG.error("Error when getting data from zookeeper", e);
       return -1;
     }
   }
@@ -104,7 +105,7 @@ public class Utils {
       encoder.flush();
     }
     catch (IOException e){
-      log.error("Unable to serialize avro record due to error " + e);
+      LOG.error("Unable to serialize avro record due to error " + e);
     }
     return out.toString();
   }

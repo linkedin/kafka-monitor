@@ -11,7 +11,7 @@ package com.linkedin.kmf.services;
 
 public interface Service {
 
-  static String jmxPrefix = "kmf.services";
+  static final String JMX_PREFIX = "kmf.services";
 
   void start();
 
