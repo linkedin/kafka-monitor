@@ -14,7 +14,10 @@ import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.tests.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,8 +78,17 @@ public class KafkaMonitor {
       return;
     }
 
-    InputStream is = new FileInputStream(args[0]);
-    Map<String,Object> result = new ObjectMapper().readValue(is, Map.class);
+
+    StringBuffer buffer = new StringBuffer();
+    try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+      String line;
+      while ((line = br.readLine()) != null) {
+        if (!line.startsWith("#"))
+          buffer.append(line);
+      }
+    }
+
+    Map<String,Object> result = new ObjectMapper().readValue(buffer.toString(), Map.class);
     Map<String, Properties> testProps = new HashMap<>();
 
     for (Map.Entry<String, Object> entry: result.entrySet()) {
