@@ -21,9 +21,9 @@ import kafka.serializer.StringDecoder;
 import java.util.Properties;
 
 /*
- * Wrap around the old consumer from Apache Kafka and implement the #BaseConsumer interface
+ * Wrap around the old consumer from Apache Kafka and implement the #KMBaseConsumer interface
  */
-public class OldConsumer implements BaseConsumer {
+public class OldConsumer implements KMBaseConsumer {
 
   private final ConsumerConnector _connector;
   private final KafkaStream<String, String> _stream;

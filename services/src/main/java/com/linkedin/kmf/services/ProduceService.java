@@ -10,7 +10,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.producer.BaseProducer;
+import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.NewProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -43,7 +43,7 @@ public class ProduceService implements Service {
   public static final String METRIC_GROUP_NAME = "produce-metrics";
 
   private final ProduceMetrics _sensors;
-  private final BaseProducer _producer;
+  private final KMBaseProducer _producer;
   private final ScheduledExecutorService _executor;
   private final int _produceDelayMs;
   private final Map<Integer, AtomicLong> _nextIndexPerPartition;
@@ -83,7 +83,7 @@ public class ProduceService implements Service {
 
     if (producerConfigFile.length() > 0)
       producerProps = Utils.loadProps(producerConfigFile, producerProps);
-    _producer = (BaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
+    _producer = (KMBaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
 
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new HashMap<>();

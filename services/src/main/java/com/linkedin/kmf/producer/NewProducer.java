@@ -15,7 +15,10 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 
 import java.util.Properties;
 
-public class NewProducer implements BaseProducer {
+/*
+ * Wrap around the new producer from Apache Kafka and implement the #KMBaseProducer interface
+ */
+public class NewProducer implements KMBaseProducer {
 
   private final KafkaProducer<String, String> _producer;
 

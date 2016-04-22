@@ -16,9 +16,9 @@ import java.util.Iterator;
 import java.util.Properties;
 
 /*
- * Wrap around the new consumer from Apache Kafka and implement the #BaseConsumer interface
+ * Wrap around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
  */
-public class NewConsumer implements BaseConsumer {
+public class NewConsumer implements KMBaseConsumer {
 
   private final KafkaConsumer<String, String> _consumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;

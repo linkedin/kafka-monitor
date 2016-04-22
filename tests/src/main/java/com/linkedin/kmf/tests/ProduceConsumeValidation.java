@@ -40,26 +40,26 @@ public class ProduceConsumeValidation implements Test {
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
-  private final MetricsExportService _exportMetricsService;
+  private final MetricsExportService _metricsExportService;
 
   public ProduceConsumeValidation(Properties props) throws Exception {
     _produceService = new ProduceService(props);
     _consumeService = new ConsumeService(props);
-    _exportMetricsService = new MetricsExportService(props);
+    _metricsExportService = new MetricsExportService(props);
   }
 
   @Override
   public void awaitShutdown() {
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
-    _exportMetricsService.awaitShutdown();
+    _metricsExportService.awaitShutdown();
   }
 
   @Override
   public void start() {
     _produceService.start();
     _consumeService.start();
-    _exportMetricsService.start();
+    _metricsExportService.start();
     LOG.info("ProduceConsumeValidation test started");
   }
 
@@ -67,7 +67,7 @@ public class ProduceConsumeValidation implements Test {
   public void stop() {
     _produceService.stop();
     _consumeService.stop();
-    _exportMetricsService.stop();
+    _metricsExportService.stop();
     LOG.info("ProduceConsumeValidation test stopped");
   }
 

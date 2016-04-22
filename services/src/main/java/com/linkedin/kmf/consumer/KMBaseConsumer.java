@@ -7,16 +7,14 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-package com.linkedin.kmf.producer;
-
-import org.apache.kafka.clients.producer.RecordMetadata;
+package com.linkedin.kmf.consumer;
 
 /**
- * A base producer used to abstract different producer classes
+ * A base consumer used to abstract different consumer classes
  */
-public interface BaseProducer {
+public interface KMBaseConsumer {
 
-  RecordMetadata send(BaseProducerRecord record) throws Exception;
+  BaseConsumerRecord receive() throws Exception;
 
   void close();
 

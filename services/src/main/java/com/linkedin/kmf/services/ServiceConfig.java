@@ -36,7 +36,7 @@ public class ServiceConfig extends AbstractConfig {
   // configs of produce service
   public static final String PRODUCER_CLASS_CONFIG = "produce.producer.class";
   public static final String PRODUCER_CLASS_DOC = "Producer class that will be instantiated as producer in the produce service. "
-                                                  + "It can be NewProducer, or full class name of any class that implements the BaseProducer interface. ";
+                                                  + "It can be NewProducer, or full class name of any class that implements the KMBaseProducer interface. ";
 
   public static final String PRODUCER_ID_CONFIG = "produce.producer.id";
   public static final String PRODUCER_ID_DOC = "Client id that will be used in the record sent by produce service.";
@@ -57,7 +57,7 @@ public class ServiceConfig extends AbstractConfig {
   // configs of consume service
   public static final String CONSUME_CLASS_CONFIG = "consume.consumer.class";
   public static final String CONSUME_CLASS_DOC = "Consumer class that will be instantiated as consumer in the consume service. "
-    + "It can be NewConsumer, OldConsumer, or full class name of any class that implements the BaseConsumer interface.";
+    + "It can be NewConsumer, OldConsumer, or full class name of any class that implements the KMBaseConsumer interface.";
 
   public static final String LATENCY_PERCENTILE_MAX_MS_CONFIG = "consume.latency.percentile.max.ms";
   public static final String LATENCY_PERCENTILE_MAX_MS_DOC = "This is used to derive the bucket number used to configure latency percentile metric. "

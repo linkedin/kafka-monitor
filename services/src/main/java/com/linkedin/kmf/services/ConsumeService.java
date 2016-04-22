@@ -11,7 +11,7 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Protocol;
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.consumer.BaseConsumer;
+import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
@@ -47,7 +47,7 @@ public class ConsumeService implements Service {
   private static final String METRIC_GROUP_NAME = "consume-metrics";
 
   private final ConsumeMetrics _sensors;
-  private final BaseConsumer _consumer;
+  private final KMBaseConsumer _consumer;
   private final Thread _thread;
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
@@ -82,7 +82,7 @@ public class ConsumeService implements Service {
 
     if (consumerConfigFile.length() > 0)
       consumerProps = Utils.loadProps(consumerConfigFile, consumerProps);
-    _consumer = (BaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
+    _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
     _thread = new Thread(new Runnable() {
       @Override
