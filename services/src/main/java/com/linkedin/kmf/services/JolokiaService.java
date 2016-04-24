@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
@@ -21,10 +22,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class JolokiaService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
 
+  private final String _name;
   private final JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
 
   public JolokiaService(Properties props) throws Exception {
+    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
+      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
     _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
     _isRunning = new AtomicBoolean(false);
   }
@@ -32,15 +36,14 @@ public class JolokiaService implements Service {
   public void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
-      LOG.info("Jolokia service started at port 8778");
+      LOG.info(_name + " started at port 8778");
     }
   }
 
   public void stop() {
     if (_isRunning.compareAndSet(true, false)) {
       _jolokiaServer.stop();
-      ;
-      LOG.info("Jolokia service stopped");
+      LOG.info(_name + " stopped");
     }
   }
 

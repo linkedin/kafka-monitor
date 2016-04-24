@@ -1,0 +1,43 @@
+/**
+ * Copyright 2016 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
+package com.linkedin.kmf.services.configs;
+
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigDef;
+import java.util.Map;
+
+public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
+
+  private static final ConfigDef CONFIG;
+
+  public static final String REPORT_METRICS_NAMES_CONFIG = "report.metrics.names";
+  public static final String REPORT_METRICS_NAMES_DOC = "A list of JMX metrics that will be reported by DefaultMetricsReporterService. "
+                                                  + "The list should be in the form <code>metricName1:attribute1,metricName1:attribute2,...<code>";
+
+  public static final String REPORT_METRICS_INTERVAL_SEC_CONFIG = "report.metrics.interval.sec";
+  public static final String REPORT_METRICS_INTERVAL_SEC_DOC = "The interval in second by which DefaultMetricsReporterService will report the metrics values.";
+
+  static {
+    CONFIG = new ConfigDef().define(REPORT_METRICS_NAMES_CONFIG,
+                                    ConfigDef.Type.LIST,
+                                    ConfigDef.Importance.HIGH,
+                                    REPORT_METRICS_NAMES_DOC)
+                            .define(REPORT_METRICS_INTERVAL_SEC_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    ConfigDef.Importance.LOW,
+                                    REPORT_METRICS_INTERVAL_SEC_DOC);
+
+  }
+
+  public DefaultMetricsReporterServiceConfig(Map<?, ?> props) {
+    super(CONFIG, props);
+  }
+}

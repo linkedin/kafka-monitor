@@ -29,8 +29,8 @@ public class NewConsumer implements KMBaseConsumer {
   }
 
   @Override
-  public BaseConsumerRecord receive() throws Exception {
-    if ((_recordIter == null || !_recordIter.hasNext()))
+  public BaseConsumerRecord receive() {
+    if (_recordIter == null || !_recordIter.hasNext())
       _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
 
     ConsumerRecord<String, String> record = _recordIter.next();

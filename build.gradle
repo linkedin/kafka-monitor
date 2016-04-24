@@ -2,9 +2,15 @@ allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
   apply plugin: 'java'
+  apply plugin: 'checkstyle'
   repositories {
     mavenCentral()
   }
+
+  checkstyle {
+    configFile = new File(rootDir, "checkstyle/checkstyle.xml")
+  }
+  test.dependsOn('checkstyleMain', 'checkstyleTest')
 }
 
 project(':services') {
@@ -66,4 +72,6 @@ project(':core') {
   }
 }
 
-task checkDependencyVersions
+task wrapper(type: Wrapper) {
+   gradleVersion = '2.11'
+}

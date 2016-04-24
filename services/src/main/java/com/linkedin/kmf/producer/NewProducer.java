@@ -14,6 +14,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 /*
  * Wrap around the new producer from Apache Kafka and implement the #KMBaseProducer interface
@@ -27,10 +28,11 @@ public class NewProducer implements KMBaseProducer {
   }
 
   @Override
-  public RecordMetadata send(BaseProducerRecord baseRecord) throws Exception {
+  public RecordMetadata send(BaseProducerRecord baseRecord, boolean sync) throws Exception {
     ProducerRecord<String, String> record =
       new ProducerRecord<>(baseRecord.topic(), baseRecord.partition(), baseRecord.key(), baseRecord.value());
-    return _producer.send(record).get();
+    Future<RecordMetadata> future = _producer.send(record);
+    return sync ? future.get() : null;
   }
 
   @Override

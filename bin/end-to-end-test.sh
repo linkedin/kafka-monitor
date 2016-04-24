@@ -9,4 +9,4 @@
 
 base_dir=$(dirname $0)
 
-exec $base_dir/kmf-run-class.sh com/linkedin/kmf/tests/ProduceConsumeValidation $@
+exec $base_dir/kmf-run-class.sh com/linkedin/kmf/tests/BasicEndToEndTest $@

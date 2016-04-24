@@ -11,13 +11,14 @@ package com.linkedin.kmf.consumer;
 
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerConnector;
+import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
-import kafka.consumer.Whitelist;
 import kafka.message.MessageAndMetadata;
 import kafka.serializer.StringDecoder;
-
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /*
@@ -26,13 +27,14 @@ import java.util.Properties;
 public class OldConsumer implements KMBaseConsumer {
 
   private final ConsumerConnector _connector;
-  private final KafkaStream<String, String> _stream;
   private final ConsumerIterator<String, String> _iter;
 
   public OldConsumer(String topic, Properties consumerProperties) {
-    _connector = Consumer.create(new ConsumerConfig(consumerProperties));
-    _stream = _connector.createMessageStreamsByFilter(new Whitelist(topic), 1, new StringDecoder(null), new StringDecoder(null)).head();
-    _iter = _stream.iterator();
+    _connector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProperties));
+    Map<String, Integer> topicCountMap = new HashMap<>();
+    topicCountMap.put(topic, 1);
+    Map<String, List<KafkaStream<String, String>>> kafkaStreams = _connector.createMessageStreams(topicCountMap, new StringDecoder(null), new StringDecoder(null));
+    _iter = kafkaStreams.get(topic).get(0).iterator();
   }
 
   @Override

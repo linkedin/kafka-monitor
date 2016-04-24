@@ -14,7 +14,7 @@ import org.apache.avro.Schema.Field;
 
 import java.util.Arrays;
 
-public class Protocol {
+public class DefaultTopicSchema {
 
   public static final Field TOPIC_FIELD = new Field("topic", Schema.create(Schema.Type.STRING), null, null);
 

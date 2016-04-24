@@ -9,12 +9,14 @@
  */
 package com.linkedin.kmf.tests;
 
+import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
+import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
+import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
-import com.linkedin.kmf.services.MetricsExportService;
+import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.ProduceService;
-import com.linkedin.kmf.services.ServiceConfig;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -25,34 +27,29 @@ import java.util.Properties;
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
 /*
- * The ProduceConsumeValidation test is intended to monitor the health and performance of kafka brokers. It creates
+ * The BasicEndToEndTest test is intended to monitor the health and performance of kafka brokers. It creates
  * one producer and one consumer with the given configuration, produces messages with increasing integer in the
  * message String, consumes messages, and keeps track of number of lost messages, duplicate messages, e2e latency,
  * throughput, etc.
  *
- * ProduceConsumeValidation test exports these metrics via JMX. It also periodically report metrics if DEBUG level logging
+ * BasicEndToEndTest test exports these metrics via JMX. It also periodically report metrics if DEBUG level logging
  * is enabled. This information can be used by other application to trigger alert when kafka brokers fail. It also
  * allows users to track end-to-end performance, e.g. latency and throughput.
  */
 
-public class ProduceConsumeValidation implements Test {
-  private static final Logger LOG = LoggerFactory.getLogger(ProduceConsumeValidation.class);
+public class BasicEndToEndTest implements Test {
+  private static final Logger LOG = LoggerFactory.getLogger(BasicEndToEndTest.class);
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
-  private final MetricsExportService _metricsExportService;
+  private final DefaultMetricsReporterService _metricsExportService;
+  private final String _name;
 
-  public ProduceConsumeValidation(Properties props) throws Exception {
+  public BasicEndToEndTest(Properties props) throws Exception {
+    _name = props.containsKey(TEST_NAME_OVERRIDE_CONFIG) ? (String) props.get(TEST_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
     _produceService = new ProduceService(props);
     _consumeService = new ConsumeService(props);
-    _metricsExportService = new MetricsExportService(props);
-  }
-
-  @Override
-  public void awaitShutdown() {
-    _produceService.awaitShutdown();
-    _consumeService.awaitShutdown();
-    _metricsExportService.awaitShutdown();
+    _metricsExportService = new DefaultMetricsReporterService(props);
   }
 
   @Override
@@ -60,7 +57,7 @@ public class ProduceConsumeValidation implements Test {
     _produceService.start();
     _consumeService.start();
     _metricsExportService.start();
-    LOG.info("ProduceConsumeValidation test started");
+    LOG.info(_name + " started");
   }
 
   @Override
@@ -68,7 +65,19 @@ public class ProduceConsumeValidation implements Test {
     _produceService.stop();
     _consumeService.stop();
     _metricsExportService.stop();
-    LOG.info("ProduceConsumeValidation test stopped");
+    LOG.info(_name + " stopped");
+  }
+
+  @Override
+  public boolean isRunning() {
+    return _produceService.isRunning() && _consumeService.isRunning();
+  }
+
+  @Override
+  public void awaitShutdown() {
+    _produceService.awaitShutdown();
+    _consumeService.awaitShutdown();
+    _metricsExportService.awaitShutdown();
   }
 
   /** Get the command-line argument parser. */
@@ -192,44 +201,48 @@ public class ProduceConsumeValidation implements Test {
     Properties props = new Properties();
 
     // produce service config
-    props.put(ServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
-    props.put(ServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
+    props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
+    props.put(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
     if (res.getString("producerClassName") != null)
-      props.put(ServiceConfig.PRODUCER_CLASS_CONFIG, res.getString("producerClassName"));
+      props.put(ProduceServiceConfig.PRODUCER_CLASS_CONFIG, res.getString("producerClassName"));
     if (res.getString("topic") != null)
-      props.put(ServiceConfig.TOPIC_CONFIG, res.getString("topic"));
+      props.put(ProduceServiceConfig.TOPIC_CONFIG, res.getString("topic"));
     if (res.getString("producerId") != null)
-      props.put(ServiceConfig.PRODUCER_ID_CONFIG, res.getString("producerId"));
+      props.put(ProduceServiceConfig.PRODUCER_ID_CONFIG, res.getString("producerId"));
     if (res.getString("recordDelayMs") != null)
-      props.put(ServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG, res.getString("recordDelayMs"));
+      props.put(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG, res.getString("recordDelayMs"));
     if (res.getString("recordSize") != null)
-      props.put(ServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
+      props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
     if (res.getString("producerConfig") != null)
-      props.put(ServiceConfig.PRODUCER_PROPS_FILE_CONFIG, res.getString("producerConfig"));
-    props.put(ServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
+      props.put(ProduceServiceConfig.PRODUCER_PROPS_FILE_CONFIG, res.getString("producerConfig"));
+    props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
     // consume service config
     if (res.getString("consumerConfig") != null)
-      props.put(ServiceConfig.CONSUMER_PROPS_FILE_CONFIG, res.getString("consumerConfig"));
+      props.put(ConsumeServiceConfig.CONSUMER_PROPS_FILE_CONFIG, res.getString("consumerConfig"));
     if (res.getString("consumerClassName") != null)
-      props.put(ServiceConfig.CONSUME_CLASS_CONFIG, res.getString("consumerClassName"));
+      props.put(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG, res.getString("consumerClassName"));
     if (res.getString("latencyPercentileMaxMs") != null)
-      props.put(ServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG, res.getString("latencyPercentileMaxMs"));
+      props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG, res.getString("latencyPercentileMaxMs"));
     if (res.getString("latencyPercentileGranularityMs") != null)
-      props.put(ServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
+      props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
 
     // metrics export service config
     if (res.getString("reportIntervalSec") != null)
-      props.put(ServiceConfig.EXPORT_METRICS_REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
+      props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
 
-    props.put(ServiceConfig.EXPORT_METRICS_NAMES_CONFIG,
+    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG,
               "kmf.services:type=produce-metrics:produce-availability-avg" +
               ",kmf.services:type=produce-metrics:records-produced-total" +
+              ",kmf.services:type=consume-metrics:records-consumed-total" +
               ",kmf.services:type=consume-metrics:records-lost-total" +
               ",kmf.services:type=consume-metrics:records-duplicated-total" +
-              ",kmf.services:type=consume-metrics:records-delay-avg");
+              ",kmf.services:type=consume-metrics:records-delay-avg" +
+              ",kmf.services:type=produce-metrics:records-produced-rate" +
+              ",kmf.services:type=produce-metrics:produce-error-rate" +
+              ",kmf.services:type=consume-metrics:consume-error-rate");
 
-    ProduceConsumeValidation test = new ProduceConsumeValidation(props);
+    BasicEndToEndTest test = new BasicEndToEndTest(props);
     test.start();
 
     JolokiaService jolokiaService = new JolokiaService(new Properties());

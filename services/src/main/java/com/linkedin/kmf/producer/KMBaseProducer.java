@@ -16,7 +16,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
  */
 public interface KMBaseProducer {
 
-  RecordMetadata send(BaseProducerRecord record) throws Exception;
+  RecordMetadata send(BaseProducerRecord record, boolean sync) throws Exception;
 
   void close();
 

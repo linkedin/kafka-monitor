@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
+import com.linkedin.kmf.services.configs.JettyServiceConfig;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
@@ -20,34 +22,38 @@ import java.util.Properties;
 public class JettyService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
 
+  private final String _name;
   private final Server _jettyServer;
+  private final int _port;
 
   public JettyService(Properties props) {
-    ServiceConfig config = new ServiceConfig(props);
-    int port = config.getInt(ServiceConfig.PORT_CONFIG);
-    _jettyServer = new Server(port);
-    ResourceHandler resource_handler = new ResourceHandler();
-    resource_handler.setDirectoriesListed(true);
-    resource_handler.setWelcomeFiles(new String[]{"index.html"});
-    resource_handler.setResourceBase("webapp");
-    _jettyServer.setHandler(resource_handler);
+    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
+      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
+    JettyServiceConfig config = new JettyServiceConfig(props);
+    _port = config.getInt(JettyServiceConfig.PORT_CONFIG);
+    _jettyServer = new Server(_port);
+    ResourceHandler resourceHandler = new ResourceHandler();
+    resourceHandler.setDirectoriesListed(true);
+    resourceHandler.setWelcomeFiles(new String[]{"index.html"});
+    resourceHandler.setResourceBase("webapp");
+    _jettyServer.setHandler(resourceHandler);
   }
 
   public void start() {
     try {
       _jettyServer.start();
-      LOG.info("Jetty service started at port 8000");
+      LOG.info(_name + " started at port " + _port);
     } catch (Exception e) {
-      LOG.error("Failed to start Jetty server", e);
+      LOG.error(_name + " failed to start", e);
     }
   }
 
   public void stop() {
     try {
       _jettyServer.stop();
-      LOG.info("Jetty service stopped");
+      LOG.info(_name + " stopped");
     } catch (Exception e) {
-      LOG.error("Failed to stop Jetty server", e);
+      LOG.error(_name + " failed to stop", e);
     }
   }
 
