@@ -45,21 +45,18 @@ public class BasicEndToEndTest implements Test {
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
-  private final DefaultMetricsReporterService _metricsExportService;
   private final String _name;
 
   public BasicEndToEndTest(Properties props, String name) throws Exception {
     _name = name;
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
-    _metricsExportService = new DefaultMetricsReporterService(props, name);
   }
 
   @Override
   public void start() {
     _produceService.start();
     _consumeService.start();
-    _metricsExportService.start();
     LOG.info(_name + "/BasicEndToEndTest started");
   }
 
@@ -67,7 +64,6 @@ public class BasicEndToEndTest implements Test {
   public void stop() {
     _produceService.stop();
     _consumeService.stop();
-    _metricsExportService.stop();
     LOG.info(_name + "/BasicEndToEndTest stopped");
   }
 
@@ -80,7 +76,6 @@ public class BasicEndToEndTest implements Test {
   public void awaitShutdown() {
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
-    _metricsExportService.awaitShutdown();
   }
 
   /** Get the command-line argument parser. */
@@ -230,10 +225,13 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("latencyPercentileGranularityMs") != null)
       props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
 
-    // metrics export service config
-    if (res.getString("reportIntervalSec") != null)
-      props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
+    BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
+    test.start();
 
+    // metrics export service config
+    props = new Properties();
+    if (res.getString("reportIntervalSec") != null)
+      props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
       "kmf.services:type=produce-metrics,name=*:produce-availability-avg",
       "kmf.services:type=produce-metrics,name=*:records-produced-total",
@@ -244,11 +242,10 @@ public class BasicEndToEndTest implements Test {
       "kmf.services:type=produce-metrics,name=*:records-produced-rate",
       "kmf.services:type=produce-metrics,name=*:produce-error-rate",
       "kmf.services:type=consume-metrics,name=*:consume-error-rate");
+    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
-    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG, metrics);
-
-    BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
-    test.start();
+    DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
+    metricsReporterService.start();
 
     JolokiaService jolokiaService = new JolokiaService(new Properties(), "end-to-end");
     jolokiaService.start();

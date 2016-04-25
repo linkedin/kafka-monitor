@@ -18,27 +18,27 @@ public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String REPORT_METRICS_NAMES_CONFIG = "report.metrics.filter";
-  public static final String REPORT_METRICS_NAMES_DOC = "A list of objectName/attributeName pairs used to filter the metrics "
+  public static final String REPORT_METRICS_CONFIG = "report.metrics.list";
+  public static final String REPORT_METRICS_DOC = "A list of objectName/attributeName pairs used to filter the metrics "
                                                         + "that will be exported. Only metrics that match any pair in the list will be exported. "
                                                         + "Each pair is in the form <code>objectName:attributeName<code>, where objectName and "
                                                         + "attributeName can contain wild card. If no objectName/attributeName is specified, "
                                                         + "all metrics with JMX prefix kmf.services will be reported";
 
-  public static final String REPORT_METRICS_INTERVAL_SEC_CONFIG = "report.metrics.interval.sec";
-  public static final String REPORT_METRICS_INTERVAL_SEC_DOC = "The interval in second by which DefaultMetricsReporterService will report the metrics values.";
+  public static final String REPORT_INTERVAL_SEC_CONFIG = "report.interval.sec";
+  public static final String REPORT_INTERVAL_SEC_DOC = "The interval in second by which DefaultMetricsReporterService will report the metrics values.";
 
   static {
-    CONFIG = new ConfigDef().define(REPORT_METRICS_NAMES_CONFIG,
+    CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
                                     ConfigDef.Type.LIST,
                                     Arrays.asList("kmf.services:*:*"),
                                     ConfigDef.Importance.MEDIUM,
-                                    REPORT_METRICS_NAMES_DOC)
-                            .define(REPORT_METRICS_INTERVAL_SEC_CONFIG,
+                                    REPORT_METRICS_DOC)
+                            .define(REPORT_INTERVAL_SEC_CONFIG,
                                     ConfigDef.Type.INT,
                                     1,
                                     ConfigDef.Importance.LOW,
-                                    REPORT_METRICS_INTERVAL_SEC_DOC);
+                                    REPORT_INTERVAL_SEC_DOC);
 
   }
 

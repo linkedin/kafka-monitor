@@ -36,8 +36,8 @@ public class DefaultMetricsReporterService implements Service {
   public DefaultMetricsReporterService(Properties props, String name) {
     _name = name;
     DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(props);
-    _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG);
-    _reportIntervalSec = config.getInt(DefaultMetricsReporterServiceConfig.REPORT_METRICS_INTERVAL_SEC_CONFIG);
+    _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
+    _reportIntervalSec = config.getInt(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
   }
 
