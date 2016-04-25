@@ -70,8 +70,9 @@ public class ProduceService implements Service {
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
     _partitionNum = Utils.getPartitionNumForTopic(zkConnect, _topic);
 
-    if (_partitionNum < 0)
-      throw new RuntimeException("Can not find valid partition number for topic " + _topic + ". Please verify that the topic has been created.");
+    if (_partitionNum <= 0)
+      throw new RuntimeException("Can not find valid partition number for topic " + _topic +
+        ". Please verify that the topic has been created. Ideally the partition number should be a multiple of number of brokers in the cluster.");
 
     Properties producerProps = new Properties();
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
