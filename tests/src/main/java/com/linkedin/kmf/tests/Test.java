@@ -11,9 +11,6 @@ package com.linkedin.kmf.tests;
 
 public interface Test {
 
-  public static final String TEST_NAME_OVERRIDE_CONFIG = "test.name.override";
-  public static final String TEST_NAME_OVERRIDE_DOC = "If specified, this name is used to identify individual test instance in the log.";
-
   void start();
 
   void stop();

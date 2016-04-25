@@ -11,7 +11,6 @@ package com.linkedin.kmf.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.tests.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
+  public static final String CLASS_NAME_CONFIG = "class.name";
 
   private final Map<String, Test> _tests;
   private final Map<String, Service> _services;
@@ -38,16 +38,16 @@ public class KafkaMonitor {
 
     for (Map.Entry<String, Properties> entry : testProps.entrySet()) {
       String name = entry.getKey();
-      String className = name.lastIndexOf('-') != -1 ? name.substring(0, name.lastIndexOf('-')) : name;
       Properties props = entry.getValue();
+      if (!props.containsKey(CLASS_NAME_CONFIG))
+        throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
+      String className = (String) props.get(CLASS_NAME_CONFIG);
 
       if (className.startsWith(Test.class.getPackage().getName())) {
-        props.put(Test.TEST_NAME_OVERRIDE_CONFIG, name);
-        Test test = (Test) Class.forName(className).getConstructor(Properties.class).newInstance(props);
+        Test test = (Test) Class.forName(className).getConstructor(Properties.class, String.class).newInstance(props, name);
         _tests.put(name, test);
       } else {
-        props.put(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG, name);
-        Service service = (Service) Class.forName(className).getConstructor(Properties.class).newInstance(props);
+        Service service = (Service) Class.forName(className).getConstructor(Properties.class, String.class).newInstance(props, name);
         _services.put(name, service);
       }
     }

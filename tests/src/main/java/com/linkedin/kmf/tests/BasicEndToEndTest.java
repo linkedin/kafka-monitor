@@ -22,6 +22,9 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
@@ -45,11 +48,11 @@ public class BasicEndToEndTest implements Test {
   private final DefaultMetricsReporterService _metricsExportService;
   private final String _name;
 
-  public BasicEndToEndTest(Properties props) throws Exception {
-    _name = props.containsKey(TEST_NAME_OVERRIDE_CONFIG) ? (String) props.get(TEST_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
-    _produceService = new ProduceService(props);
-    _consumeService = new ConsumeService(props);
-    _metricsExportService = new DefaultMetricsReporterService(props);
+  public BasicEndToEndTest(Properties props, String name) throws Exception {
+    _name = name;
+    _produceService = new ProduceService(props, name);
+    _consumeService = new ConsumeService(props, name);
+    _metricsExportService = new DefaultMetricsReporterService(props, name);
   }
 
   @Override
@@ -57,7 +60,7 @@ public class BasicEndToEndTest implements Test {
     _produceService.start();
     _consumeService.start();
     _metricsExportService.start();
-    LOG.info(_name + " started");
+    LOG.info(_name + "/BasicEndToEndTest started");
   }
 
   @Override
@@ -65,7 +68,7 @@ public class BasicEndToEndTest implements Test {
     _produceService.stop();
     _consumeService.stop();
     _metricsExportService.stop();
-    LOG.info(_name + " stopped");
+    LOG.info(_name + "/BasicEndToEndTest stopped");
   }
 
   @Override
@@ -231,24 +234,26 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
 
-    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG,
-              "kmf.services:type=produce-metrics:produce-availability-avg" +
-              ",kmf.services:type=produce-metrics:records-produced-total" +
-              ",kmf.services:type=consume-metrics:records-consumed-total" +
-              ",kmf.services:type=consume-metrics:records-lost-total" +
-              ",kmf.services:type=consume-metrics:records-duplicated-total" +
-              ",kmf.services:type=consume-metrics:records-delay-avg" +
-              ",kmf.services:type=produce-metrics:records-produced-rate" +
-              ",kmf.services:type=produce-metrics:produce-error-rate" +
-              ",kmf.services:type=consume-metrics:consume-error-rate");
+    List<String> metrics = Arrays.asList(
+      "kmf.services:type=produce-metrics,name=*:produce-availability-avg",
+      "kmf.services:type=produce-metrics,name=*:records-produced-total",
+      "kmf.services:type=consume-metrics,name=*:records-consumed-total",
+      "kmf.services:type=consume-metrics,name=*:records-lost-total",
+      "kmf.services:type=consume-metrics,name=*:records-duplicated-total",
+      "kmf.services:type=consume-metrics,name=*:records-delay-ms-avg",
+      "kmf.services:type=produce-metrics,name=*:records-produced-rate",
+      "kmf.services:type=produce-metrics,name=*:produce-error-rate",
+      "kmf.services:type=consume-metrics,name=*:consume-error-rate");
 
-    BasicEndToEndTest test = new BasicEndToEndTest(props);
+    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG, metrics);
+
+    BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
     test.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new Properties());
+    JolokiaService jolokiaService = new JolokiaService(new Properties(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new Properties());
+    JettyService jettyService = new JettyService(new Properties(), "end-to-end");
     jettyService.start();
 
     test.awaitShutdown();

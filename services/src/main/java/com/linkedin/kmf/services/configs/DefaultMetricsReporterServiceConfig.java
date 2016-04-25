@@ -11,15 +11,19 @@ package com.linkedin.kmf.services.configs;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+import java.util.Arrays;
 import java.util.Map;
 
 public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String REPORT_METRICS_NAMES_CONFIG = "report.metrics.names";
-  public static final String REPORT_METRICS_NAMES_DOC = "A list of JMX metrics that will be reported by DefaultMetricsReporterService. "
-                                                  + "The list should be in the form <code>metricName1:attribute1,metricName1:attribute2,...<code>";
+  public static final String REPORT_METRICS_NAMES_CONFIG = "report.metrics.filter";
+  public static final String REPORT_METRICS_NAMES_DOC = "A list of objectName/attributeName pairs used to filter the metrics "
+                                                        + "that will be exported. Only metrics that match any pair in the list will be exported. "
+                                                        + "Each pair is in the form <code>objectName:attributeName<code>, where objectName and "
+                                                        + "attributeName can contain wild card. If no objectName/attributeName is specified, "
+                                                        + "all metrics with JMX prefix kmf.services will be reported";
 
   public static final String REPORT_METRICS_INTERVAL_SEC_CONFIG = "report.metrics.interval.sec";
   public static final String REPORT_METRICS_INTERVAL_SEC_DOC = "The interval in second by which DefaultMetricsReporterService will report the metrics values.";
@@ -27,7 +31,8 @@ public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_NAMES_CONFIG,
                                     ConfigDef.Type.LIST,
-                                    ConfigDef.Importance.HIGH,
+                                    Arrays.asList("kmf.services:*:*"),
+                                    ConfigDef.Importance.MEDIUM,
                                     REPORT_METRICS_NAMES_DOC)
                             .define(REPORT_METRICS_INTERVAL_SEC_CONFIG,
                                     ConfigDef.Type.INT,

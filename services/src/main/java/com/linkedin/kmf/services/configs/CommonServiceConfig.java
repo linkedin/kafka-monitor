@@ -22,7 +22,4 @@ public class CommonServiceConfig {
   public static final String TOPIC_CONFIG = "topic";
   public static final String TOPIC_DOC = "Topic to be used by the service.";
 
-  public static final String SERVICE_NAME_OVERRIDE_CONFIG = "service.name.override";
-  public static final String SERVICE_NAME_OVERRIDE_DOC = "If specified, this name is used to identify individual service instance in the log.";
-
 }

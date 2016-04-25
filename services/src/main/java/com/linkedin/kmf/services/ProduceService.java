@@ -10,7 +10,6 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
@@ -56,9 +55,8 @@ public class ProduceService implements Service {
   private final String _producerId;
   private final AtomicBoolean _running;
 
-  public ProduceService(Properties props) throws Exception {
-    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
-      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
+  public ProduceService(Properties props, String name) throws Exception {
+    _name = name;
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
@@ -100,7 +98,9 @@ public class ProduceService implements Service {
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-    _sensors = new ProduceMetrics(metrics);
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", _name);
+    _sensors = new ProduceMetrics(metrics, tags);
   }
 
   @Override
@@ -111,7 +111,7 @@ public class ProduceService implements Service {
         _executor.scheduleWithFixedDelay(new ProduceRunnable(partition),
           _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
       }
-      LOG.info(_name + " started");
+      LOG.info(_name + "/ProduceService started");
     }
   }
 
@@ -120,7 +120,7 @@ public class ProduceService implements Service {
     if (_running.compareAndSet(true, false)) {
       _executor.shutdown();
       _producer.close();
-      LOG.info(_name + " stopped");
+      LOG.info(_name + "/ProduceService stopped");
     }
   }
 
@@ -131,7 +131,7 @@ public class ProduceService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    LOG.info(_name + " shutdown completed");
+    LOG.info(_name + "/ProduceService shutdown completed");
   }
 
   @Override
@@ -146,37 +146,37 @@ public class ProduceService implements Service {
     private final Map<Integer, Sensor> _recordsProducedPerPartition;
     private final Map<Integer, Sensor> _produceErrorPerPartition;
 
-    public ProduceMetrics(Metrics metrics) {
+    public ProduceMetrics(Metrics metrics, Map<String, String> tags) {
       this.metrics = metrics;
 
       _recordsProducedPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("records-produced-partition-" + partition);
-        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME), new Rate());
+        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags), new Rate());
         _recordsProducedPerPartition.put(partition, sensor);
       }
 
       _produceErrorPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("produce-error-partition-" + partition);
-        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME), new Rate());
+        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags), new Rate());
         _produceErrorPerPartition.put(partition, sensor);
       }
 
       _recordsProduced = metrics.sensor("records-produced");
-      _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME), new Rate());
-      _recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME), new Total());
+      _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME, tags), new Total());
 
       _produceError = metrics.sensor("produce-error");
-      _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME), new Rate());
-      _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME), new Total());
+      _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, tags), new Total());
 
-      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME),
+      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, tags),
         (config, now) -> {
           double availabilitySum = 0.0;
           for (int partition = 0; partition < _partitionNum; partition++) {
-            double recordsProduced1 = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME)).value();
-            double produceError1 = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME)).value();
+            double recordsProduced1 = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+            double produceError1 = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
             // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
             if (new Double(produceError1).isNaN()) {
               produceError1 = 0;

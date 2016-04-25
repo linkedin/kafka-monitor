@@ -9,15 +9,18 @@
  */
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +33,8 @@ public class DefaultMetricsReporterService implements Service {
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
 
-  public DefaultMetricsReporterService(Properties props) {
-    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
-      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
+  public DefaultMetricsReporterService(Properties props, String name) {
+    _name = name;
     DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(props);
     _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_NAMES_CONFIG);
     _reportIntervalSec = config.getInt(DefaultMetricsReporterServiceConfig.REPORT_METRICS_INTERVAL_SEC_CONFIG);
@@ -41,26 +43,21 @@ public class DefaultMetricsReporterService implements Service {
 
   @Override
   public void start() {
-    if (_metricNames.size() == 0) {
-      LOG.info(_name + " is not started because there is not metric to report.");
-      return;
-    }
-
     _executor.scheduleAtFixedRate(() -> {
         try {
           reportMetrics();
         } catch (Exception e) {
-          LOG.error(_name + " failed to report metrics", e);
+          LOG.error(_name + "/DefaultMetricsReporterService failed to report metrics", e);
         }
       }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
-    LOG.info(_name + " started");
+    LOG.info(_name + "/DefaultMetricsReporterService started");
   }
 
   @Override
   public void stop() {
     _executor.shutdown();
-    LOG.info(_name + " stopped");
+    LOG.info(_name + "/DefaultMetricsReporterService stopped");
   }
 
   @Override
@@ -75,29 +72,58 @@ public class DefaultMetricsReporterService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    LOG.info(_name + " shutdown completed");
+    LOG.info(_name + "/DefaultMetricsReporterService shutdown completed");
   }
 
   private void reportMetrics() {
     StringBuilder builder = new StringBuilder();
     for (String metricName: _metricNames) {
-      builder.append(metricName.substring(metricName.lastIndexOf(":") + 1));
-      builder.append(" ");
-      builder.append(getMBeanAttributeValue(metricName));
-      builder.append(" \t");
+      String mbeanExpr = metricName.substring(0, metricName.lastIndexOf(":"));
+      String attributeExpr = metricName.substring(metricName.lastIndexOf(":") + 1);
+      List<MbeanAttributeValue> attributeValues = getMBeanAttributeValues(mbeanExpr, attributeExpr);
+      for (MbeanAttributeValue attributeValue: attributeValues) {
+        builder.append(attributeValue.toString());
+        builder.append("\n");
+      }
     }
     LOG.info(builder.toString());
   }
 
-  private Object getMBeanAttributeValue(String metricName) {
-    int splitIndex = metricName.lastIndexOf(':');
-    String name = metricName.substring(0, splitIndex);
-    String attribute = metricName.substring(splitIndex + 1);
+  private List<MbeanAttributeValue> getMBeanAttributeValues(String mbeanExpr, String attributeExpr) {
+    List<MbeanAttributeValue> values = new ArrayList<>();
     MBeanServer server = ManagementFactory.getPlatformMBeanServer();
     try {
-      return server.getAttribute(new ObjectName(name), attribute);
+      Set<ObjectName> mbeanNames = server.queryNames(new ObjectName(mbeanExpr), null);
+      for (ObjectName mbeanName: mbeanNames) {
+        MBeanInfo mBeanInfo = server.getMBeanInfo(mbeanName);
+        MBeanAttributeInfo[] attributeInfos = mBeanInfo.getAttributes();
+        for (MBeanAttributeInfo attributeInfo: attributeInfos) {
+          if (attributeInfo.getName().equals(attributeExpr) || attributeExpr.length() == 0 || attributeExpr.equals("*")) {
+            double value = (Double) server.getAttribute(mbeanName, attributeInfo.getName());
+            values.add(new MbeanAttributeValue(mbeanName.getCanonicalName(), attributeInfo.getName(), value));
+          }
+        }
+      }
     } catch (Exception e) {
-      return null;
+      LOG.error("", e);
+    }
+    return values;
+  }
+
+  private class MbeanAttributeValue {
+    private final String _mbean;
+    private final String _attribute;
+    private final double _value;
+
+    public MbeanAttributeValue(String mbean, String attribute, double value) {
+      _mbean = mbean;
+      _attribute = attribute;
+      _value = value;
+    }
+
+    @Override
+    public String toString() {
+      return _mbean + ":" + _attribute + "=" + _value;
     }
   }
 

@@ -9,13 +9,11 @@
  */
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Properties;
 
 // Jetty server that serves html files.
@@ -26,9 +24,8 @@ public class JettyService implements Service {
   private final Server _jettyServer;
   private final int _port;
 
-  public JettyService(Properties props) {
-    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
-      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
+  public JettyService(Properties props, String name) {
+    _name = name;
     JettyServiceConfig config = new JettyServiceConfig(props);
     _port = config.getInt(JettyServiceConfig.PORT_CONFIG);
     _jettyServer = new Server(_port);
@@ -42,18 +39,18 @@ public class JettyService implements Service {
   public void start() {
     try {
       _jettyServer.start();
-      LOG.info(_name + " started at port " + _port);
+      LOG.info(_name + "/JettyService started at port " + _port);
     } catch (Exception e) {
-      LOG.error(_name + " failed to start", e);
+      LOG.error(_name + "/JettyService failed to start", e);
     }
   }
 
   public void stop() {
     try {
       _jettyServer.stop();
-      LOG.info(_name + " stopped");
+      LOG.info(_name + "/JettyService stopped");
     } catch (Exception e) {
-      LOG.error(_name + " failed to stop", e);
+      LOG.error(_name + "/JettyService failed to stop", e);
     }
   }
 

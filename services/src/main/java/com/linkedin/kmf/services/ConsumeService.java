@@ -11,7 +11,6 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.DefaultTopicSchema;
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
@@ -56,9 +55,8 @@ public class ConsumeService implements Service {
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
 
-  public ConsumeService(Properties props) throws Exception {
-    _name = props.containsKey(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) ?
-      (String) props.get(CommonServiceConfig.SERVICE_NAME_OVERRIDE_CONFIG) : this.getClass().getSimpleName();
+  public ConsumeService(Properties props, String name) throws Exception {
+    _name = name;
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
@@ -97,7 +95,7 @@ public class ConsumeService implements Service {
         try {
           consume();
         } catch (Exception e) {
-          LOG.error(_name + " failed", e);
+          LOG.error(_name + "/ConsumeService failed", e);
         }
       }
     });
@@ -106,7 +104,9 @@ public class ConsumeService implements Service {
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-    _sensors = new ConsumeMetrics(metrics);
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", _name);
+    _sensors = new ConsumeMetrics(metrics, tags);
   }
 
   private void consume() throws Exception {
@@ -118,7 +118,7 @@ public class ConsumeService implements Service {
         record = _consumer.receive();
       } catch (Exception e) {
         _sensors._consumeError.record();
-        LOG.debug(_name + " failed to receive message", e);
+        LOG.debug(_name + "/ConsumeService failed to receive message", e);
         // Avoid busy while loop
         Thread.sleep(100);
         continue;
@@ -161,7 +161,7 @@ public class ConsumeService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
-      LOG.info(_name + " started");
+      LOG.info(_name + "/ConsumeService started");
     }
   }
 
@@ -169,7 +169,7 @@ public class ConsumeService implements Service {
   public void stop() {
     if (_running.compareAndSet(true, false)) {
       _consumer.close();
-      LOG.info(_name + " stopped");
+      LOG.info(_name + "/ConsumeService stopped");
     }
   }
 
@@ -180,7 +180,7 @@ public class ConsumeService implements Service {
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
-    LOG.info(_name + " shutdown completed");
+    LOG.info(_name + "/ConsumeService shutdown completed");
   }
 
   @Override
@@ -196,36 +196,36 @@ public class ConsumeService implements Service {
     private final Sensor _recordsLost;
     private final Sensor _recordsDelay;
 
-    public ConsumeMetrics(Metrics metrics) {
+    public ConsumeMetrics(Metrics metrics, Map<String, String> tags) {
       _bytesConsumed = metrics.sensor("bytes-consumed");
-      _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME), new Rate());
+      _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, tags), new Rate());
 
       _consumeError = metrics.sensor("consume-error");
-      _consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME), new Rate());
-      _consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME), new Total());
+      _consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME, tags), new Total());
 
       _recordsConsumed = metrics.sensor("records-consumed");
-      _recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME), new Rate());
-      _recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME), new Total());
+      _recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME, tags), new Total());
 
       _recordsDuplicated = metrics.sensor("records-duplicated");
-      _recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME), new Rate());
-      _recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME), new Total());
+      _recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME, tags), new Total());
 
       _recordsLost = metrics.sensor("records-lost");
-      _recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME), new Rate());
-      _recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME), new Total());
+      _recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME, tags), new Total());
 
       _recordsDelay = metrics.sensor("records-delay");
-      _recordsDelay.add(new MetricName("records-delay-avg", METRIC_GROUP_NAME), new Avg());
-      _recordsDelay.add(new MetricName("records-delay-max", METRIC_GROUP_NAME), new Max());
+      _recordsDelay.add(new MetricName("records-delay-ms-avg", METRIC_GROUP_NAME, tags), new Avg());
+      _recordsDelay.add(new MetricName("records-delay-ms-max", METRIC_GROUP_NAME, tags), new Max());
 
       // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
       int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
       int sizeInBytes = 4 * bucketNum;
       _recordsDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
-        new Percentile(new MetricName("records-delay-99th", METRIC_GROUP_NAME), 99.0),
-        new Percentile(new MetricName("records-delay-999th", METRIC_GROUP_NAME), 99.9)));
+        new Percentile(new MetricName("records-delay-ms-99th", METRIC_GROUP_NAME, tags), 99.0),
+        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, tags), 99.9)));
     }
 
   }

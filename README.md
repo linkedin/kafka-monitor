@@ -36,7 +36,7 @@ Open ```localhost:8000/index.html``` in your web browser
 
 You can edit webapp/index.html to easily add new metrics to be displayed.
 
-### Query metric value (e.g. availability) via HTTP request
+### Query metric value (e.g. service availability) via HTTP request
 ```
 curl localhost:8778/jolokia/read/kmf.services:type=produce-metrics/produce-availability-avg
 ```
