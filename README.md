@@ -16,7 +16,7 @@ building in order to support both Java 7 and Java 8 at runtime.
 
 ### Build Kafka Monitor
 ```
-$ go get github.com/linkedin/kafka-monitor
+$ git clone https://github.com/linkedin/kafka-monitor.git
 $ cd kafka-monitor 
 $ ./gradlew jar
 ```
@@ -38,7 +38,7 @@ You can edit webapp/index.html to easily add new metrics to be displayed.
 
 ### Query metric value (e.g. service availability) via HTTP request
 ```
-curl localhost:8778/jolokia/read/kmf.services:type=produce-metrics/produce-availability-avg
+curl localhost:8778/jolokia/read/kmf.services:type=produce-metrics,name=*/produce-availability-avg
 ```
 
 You can query other JMX metric value as well by substituting object-name and
