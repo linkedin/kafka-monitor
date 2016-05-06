@@ -16,43 +16,48 @@
   <script type="text/javascript" src="/js/Chart.js"></script>
   <script type="text/javascript" src="/js/json2.js"></script>
   <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
   <script type="text/javascript" src="/js/jolokia-min.js"></script>
   <script type="text/javascript" src="/js/jolokia-simple-min.js"></script>
 </head>
 
 <body>
+
   <h1 style="text-align:center">Kafka Monitor GUI</h1>
 
-  <div style="margin-left:30px">
-    <table id="table" width="100%"> </table>
-  </div>
+  <div id="tabs">
+    <ul>
+      <li><a href="#figureTab"><span>Metrics Figure</span></a></li>
+      <li><a href="#valueTab"><span>Metrics Table</span></a></li>
+    </ul>
 
+
+    <div id="figureTab">
+      <div style="margin-left:30px" >
+        <tr><h3>Search for figure:  <input type="text" id="search"></h3></tr>
+        <table id="figureTable" width="100%" align="center"></table>
+      </div>
+    </div>
+
+    <div id="valueTab">
+      <table id="valueTable" style="font-size:20px" align="center"></table>
+    </div>
+  </div>
 </body>
 
-<style type="text/css">
-
-text {
-  font-family: "Times New Roman";
-  font-size: 20px;
-  text-align: center;
-}
-
-</style>
-
-
 <script>
-
   function createCanvas(name, cells) {
     var div = document.createElement("div");
     div.align = "center";
-    div.style.width = document.body.clientWidth/2 + "px";
+    div.style.width = (document.body.clientWidth - 100) / 2 + "px";
     div.style.height = "300px";
     div.style.display = "table-cell";
 
     if (cells.length == 0) {
-      var row = document.getElementById("table").insertRow(-1);
-      cells.push(row.insertCell(-1));
-      cells.push(row.insertCell(-1));
+      var row = document.getElementById("figureTable").insertRow();
+      cells.push(row.insertCell());
+      cells.push(row.insertCell());
     }
 
     cells[0].appendChild(div);
@@ -82,6 +87,19 @@ text {
     return canvas
   }
 
+  function createSearchBox(){
+    var $rows = $('#figureTable td');
+    $('#search').keyup(function() {
+      var val = '^(?=.*\\b' + $.trim($(this).val()).split(/\s+/).join('\\b)(?=.*\\b') + ').*$';
+      var reg = RegExp(val, 'i');
+
+      $rows.show().filter(function() {
+        var text = $(this).text().replace(/\s+/g, ' ');
+        return !reg.test(text);
+      }).hide();
+    });
+  }
+
   function getDefaultLine() {
     var startingLabel = [];
     var startingData = [];
@@ -101,7 +119,31 @@ text {
     }
   }
 
-  function createCharts(mbeans) {
+  function createMetricsTable(mbeans) {
+    var table = document.getElementById("valueTable");
+    var cells = {};
+    var row = table.insertRow();
+    var nameCell = row.insertCell();
+    var valueCell = row.insertCell();
+
+    nameCell.style.width = '300px';
+    nameCell.innerHTML = 'Metric Name';
+    valueCell.style.width = '300px';
+    valueCell.innerHTML = 'Value';
+
+    $(mbeans).each(function (idx, mbean) {
+      var row = table.insertRow();
+      var nameCell = row.insertCell();
+      var valueCell = row.insertCell();
+      nameCell.style.backgroundColor = "#E0E0E0";
+      valueCell.style.backgroundColor = "#E0E0E0";
+      nameCell.innerHTML = mbean.attribute;
+      cells[mbean.attribute] = valueCell;
+    });
+    return cells;
+  }
+
+  function createMetricsCharts(mbeans) {
     var charts = {};
     var cells = [];
 
@@ -114,7 +156,7 @@ text {
     return charts;
   }
 
-  function pollAndUpdateCharts(mbeans, charts) {
+  function updateChartAndValueTable(mbeans, charts, cells) {
     var requests = $.map(mbeans, function (mbean) {
       return {
         type: "read",
@@ -133,6 +175,7 @@ text {
           label = "";
         charts[attribute].addData([values[attribute]], label);
         charts[attribute].removeData();
+        cells[attribute].innerHTML = values[attribute];
       });
     });
   }
@@ -153,10 +196,15 @@ text {
 
   var ip = location.host.split(':')[0];
   var j4p = new Jolokia({url: "http://" + ip + ":8778/jolokia"});
-  var monitoredCharts = createCharts(monitoredMbeans);
+  var charts = createMetricsCharts(monitoredMbeans);
+  var cells = createMetricsTable(monitoredMbeans);
+  createSearchBox();
+
+  // Initialize tab
+  $('#tabs').tabs($.fn.tabs.tabProps);
 
   setInterval(function () {
-    pollAndUpdateCharts(monitoredMbeans, monitoredCharts);
+    updateChartAndValueTable(monitoredMbeans, charts, cells);
   }, pollIntervalMs);
 
 </script>
