@@ -21,11 +21,8 @@ import org.slf4j.LoggerFactory;
 import kafka.utils.ZkUtils;
 import scala.collection.Seq;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
-import java.util.Properties;
 
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
