@@ -55,7 +55,7 @@ public class ProduceService implements Service {
   private final String _producerId;
   private final AtomicBoolean _running;
 
-  public ProduceService(Properties props, String name) throws Exception {
+  public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     Map producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);

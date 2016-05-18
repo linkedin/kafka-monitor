@@ -13,6 +13,8 @@ import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -24,7 +26,7 @@ public class JolokiaService implements Service {
   private final JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
 
-  public JolokiaService(Properties props, String name) throws Exception {
+  public JolokiaService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
     _isRunning = new AtomicBoolean(false);

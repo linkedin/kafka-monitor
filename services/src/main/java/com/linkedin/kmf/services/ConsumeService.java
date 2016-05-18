@@ -55,7 +55,7 @@ public class ConsumeService implements Service {
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
 
-  public ConsumeService(Properties props, String name) throws Exception {
+  public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     Map consumerPropsOverride = (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG);
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);

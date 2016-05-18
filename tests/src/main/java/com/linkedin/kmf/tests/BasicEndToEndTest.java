@@ -24,7 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 
@@ -48,7 +50,7 @@ public class BasicEndToEndTest implements Test {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public BasicEndToEndTest(Properties props, String name) throws Exception {
+  public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
@@ -197,7 +199,7 @@ public class BasicEndToEndTest implements Test {
     ArgumentParser parser = argParser();
     Namespace res = parser.parseArgs(args);
 
-    Properties props = new Properties();
+    Map<String, Object> props = new HashMap<>();
 
     // produce service config
     props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
@@ -230,7 +232,7 @@ public class BasicEndToEndTest implements Test {
     test.start();
 
     // metrics export service config
-    props = new Properties();
+    props = new HashMap<>();
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
@@ -248,10 +250,10 @@ public class BasicEndToEndTest implements Test {
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new Properties(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new Properties(), "end-to-end");
+    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
     jettyService.start();
 
     test.awaitShutdown();

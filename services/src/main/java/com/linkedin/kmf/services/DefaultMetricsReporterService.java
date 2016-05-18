@@ -19,6 +19,7 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -33,7 +34,7 @@ public class DefaultMetricsReporterService implements Service {
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
 
-  public DefaultMetricsReporterService(Properties props, String name) {
+  public DefaultMetricsReporterService(Map<String, Object> props, String name) {
     _name = name;
     DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(props);
     _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
