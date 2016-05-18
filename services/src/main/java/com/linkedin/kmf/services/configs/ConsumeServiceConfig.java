@@ -39,9 +39,8 @@ public class ConsumeServiceConfig extends AbstractConfig {
   public static final String LATENCY_PERCENTILE_GRANULARITY_MS_DOC = "This is used to derive the bucket number used to configure latency percentile metric. "
                                                                      + "The latency at the specified percentile should be multiple of this value.";
 
-  public static final String CONSUMER_PROPS_FILE_CONFIG = "consume.consumer.props.file";
-  public static final String CONSUMER_PROPS_FILE_DOC = "The properties specified in the file will be used to config consumer used in consume service. "
-                                                       + " The properties in the file will be overridden by properties specified as command line argument.";
+  public static final String CONSUMER_PROPS_CONFIG = "consume.consumer.props";
+  public static final String CONSUMER_PROPS_DOC = "The properties used to config consumer in consume service.";
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
@@ -61,7 +60,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.STRING,
                                     NewConsumer.class.getCanonicalName(),
                                     ConfigDef.Importance.LOW,
-                              CONSUMER_CLASS_DOC)
+                                    CONSUMER_CLASS_DOC)
                             .define(LATENCY_PERCENTILE_MAX_MS_CONFIG,
                                     ConfigDef.Type.INT,
                                     5000,
@@ -71,12 +70,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     1,
                                     ConfigDef.Importance.LOW,
-                                    LATENCY_PERCENTILE_GRANULARITY_MS_DOC)
-                            .define(CONSUMER_PROPS_FILE_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    "",
-                                    ConfigDef.Importance.LOW,
-                                    CONSUMER_PROPS_FILE_DOC);
+                                    LATENCY_PERCENTILE_GRANULARITY_MS_DOC);
 
   }
 

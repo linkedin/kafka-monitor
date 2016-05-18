@@ -46,9 +46,8 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCE_THREAD_NUM_CONFIG = "produce.thread.num";
   public static final String PRODUCE_THREAD_NUM_DOC = "Number of threads that produce service uses to send records.";
 
-  public static final String PRODUCER_PROPS_FILE_CONFIG = "produce.producer.props.file";
-  public static final String PRODUCER_PROPS_FILE_DOC = "The properties specified in the file will be used to config producer used in produce service. "
-                                                       + " The properties in the file will be overridden by properties specified as command line argument.";
+  public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
+  public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
@@ -93,12 +92,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     5,
                                     ConfigDef.Importance.LOW,
-                                    PRODUCE_THREAD_NUM_DOC)
-                            .define(PRODUCER_PROPS_FILE_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    "",
-                                    ConfigDef.Importance.LOW,
-                                    PRODUCER_PROPS_FILE_DOC);
+                                    PRODUCE_THREAD_NUM_DOC);
 
   }
 

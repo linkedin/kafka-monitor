@@ -22,10 +22,11 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
@@ -212,12 +213,12 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("recordSize") != null)
       props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
     if (res.getString("producerConfig") != null)
-      props.put(ProduceServiceConfig.PRODUCER_PROPS_FILE_CONFIG, res.getString("producerConfig"));
+      props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
     // consume service config
     if (res.getString("consumerConfig") != null)
-      props.put(ConsumeServiceConfig.CONSUMER_PROPS_FILE_CONFIG, res.getString("consumerConfig"));
+      props.put(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG, Utils.loadProps(res.getString("consumerConfig")));
     if (res.getString("consumerClassName") != null)
       props.put(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG, res.getString("consumerClassName"));
     if (res.getString("latencyPercentileMaxMs") != null)

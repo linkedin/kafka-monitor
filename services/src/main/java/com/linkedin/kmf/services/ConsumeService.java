@@ -57,11 +57,11 @@ public class ConsumeService implements Service {
 
   public ConsumeService(Properties props, String name) throws Exception {
     _name = name;
+    Map consumerPropsOverride = (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG);
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    String consumerConfigFile = config.getString(ConsumeServiceConfig.CONSUMER_PROPS_FILE_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
@@ -85,8 +85,8 @@ public class ConsumeService implements Service {
       consumerProps.put("zookeeper.connect", zkConnect);
     }
 
-    if (consumerConfigFile.length() > 0)
-      consumerProps = Utils.loadProps(consumerConfigFile, consumerProps);
+    if (consumerPropsOverride != null)
+      consumerProps.putAll(consumerPropsOverride);
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
     _thread = new Thread(new Runnable() {

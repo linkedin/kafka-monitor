@@ -46,19 +46,6 @@ public class Utils {
   }
 
   /**
-   * Read a properties file from the given path
-   * @param filename The path of the file to read
-   */
-  public static Properties loadProps(String filename, Properties defaults) throws IOException {
-    Properties props = defaults != null ? defaults : new Properties();
-    try (InputStream propStream = new FileInputStream(filename)) {
-      props.load(propStream);
-    }
-
-    return props;
-  }
-
-  /**
    * @param timestamp time in Ms when this message is generated
    * @param topic     topic this message is sent to
    * @param idx       index is consecutive numbers used by KafkaMonitor to determine duplicate or lost messages
