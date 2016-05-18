@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
-  private static final String METRIC_GROUP_NAME = "produce-metrics";
+  private static final String METRIC_GROUP_NAME = "produce-service";
 
   private final String _name;
   private final ProduceMetrics _sensors;

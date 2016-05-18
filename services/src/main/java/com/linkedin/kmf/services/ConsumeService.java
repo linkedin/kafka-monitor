@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
-  private static final String METRIC_GROUP_NAME = "consume-metrics";
+  private static final String METRIC_GROUP_NAME = "consume-service";
 
   private final String _name;
   private final ConsumeMetrics _sensors;

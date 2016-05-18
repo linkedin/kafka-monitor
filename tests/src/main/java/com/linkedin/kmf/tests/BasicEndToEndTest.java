@@ -235,15 +235,15 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
-      "kmf.services:type=produce-metrics,name=*:produce-availability-avg",
-      "kmf.services:type=produce-metrics,name=*:records-produced-total",
-      "kmf.services:type=consume-metrics,name=*:records-consumed-total",
-      "kmf.services:type=consume-metrics,name=*:records-lost-total",
-      "kmf.services:type=consume-metrics,name=*:records-duplicated-total",
-      "kmf.services:type=consume-metrics,name=*:records-delay-ms-avg",
-      "kmf.services:type=produce-metrics,name=*:records-produced-rate",
-      "kmf.services:type=produce-metrics,name=*:produce-error-rate",
-      "kmf.services:type=consume-metrics,name=*:consume-error-rate");
+      "kmf.services:type=produce-service,name=*:produce-availability-avg",
+      "kmf.services:type=produce-service,name=*:records-produced-total",
+      "kmf.services:type=consume-service,name=*:records-consumed-total",
+      "kmf.services:type=consume-service,name=*:records-lost-total",
+      "kmf.services:type=consume-service,name=*:records-duplicated-total",
+      "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
+      "kmf.services:type=produce-service,name=*:records-produced-rate",
+      "kmf.services:type=produce-service,name=*:produce-error-rate",
+      "kmf.services:type=consume-service,name=*:consume-error-rate");
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
