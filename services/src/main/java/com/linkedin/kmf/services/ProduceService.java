@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
-  private static final String METRIC_GROUP_NAME = "produce-metrics";
+  private static final String METRIC_GROUP_NAME = "produce-service";
 
   private final String _name;
   private final ProduceMetrics _sensors;
@@ -55,12 +55,12 @@ public class ProduceService implements Service {
   private final String _producerId;
   private final AtomicBoolean _running;
 
-  public ProduceService(Properties props, String name) throws Exception {
+  public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
+    Map producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    String producerConfigFile = config.getString(ProduceServiceConfig.PRODUCER_PROPS_FILE_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     int threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
@@ -87,8 +87,8 @@ public class ProduceService implements Service {
       producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     }
 
-    if (producerConfigFile.length() > 0)
-      producerProps = Utils.loadProps(producerConfigFile, producerProps);
+    if (producerPropsOverride != null)
+      producerProps.putAll(producerPropsOverride);
     _producer = (KMBaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
 
     _running = new AtomicBoolean(false);

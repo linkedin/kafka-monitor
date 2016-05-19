@@ -37,6 +37,7 @@ project(':services') {
     from (configurations.runtime) {
     }
     into "build/dependant-libs"
+    duplicatesStrategy 'exclude'
   }
 
   jar {

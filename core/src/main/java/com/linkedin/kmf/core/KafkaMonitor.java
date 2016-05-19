@@ -19,7 +19,6 @@ import java.io.FileReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -32,22 +31,22 @@ public class KafkaMonitor {
   private final Map<String, Service> _services;
   private final ScheduledExecutorService _executor;
 
-  public KafkaMonitor(Map<String, Properties> testProps) throws Exception {
+  public KafkaMonitor(Map<String, Map> testProps) throws Exception {
     _tests = new HashMap<>();
     _services = new HashMap<>();
 
-    for (Map.Entry<String, Properties> entry : testProps.entrySet()) {
+    for (Map.Entry<String, Map> entry : testProps.entrySet()) {
       String name = entry.getKey();
-      Properties props = entry.getValue();
+      Map props = entry.getValue();
       if (!props.containsKey(CLASS_NAME_CONFIG))
         throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
       String className = (String) props.get(CLASS_NAME_CONFIG);
 
       if (className.startsWith(Test.class.getPackage().getName())) {
-        Test test = (Test) Class.forName(className).getConstructor(Properties.class, String.class).newInstance(props, name);
+        Test test = (Test) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _tests.put(name, test);
       } else {
-        Service service = (Service) Class.forName(className).getConstructor(Properties.class, String.class).newInstance(props, name);
+        Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _services.put(name, service);
       }
     }
@@ -125,17 +124,8 @@ public class KafkaMonitor {
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Object> result = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    Map<String, Properties> testProps = new HashMap<>();
-
-    for (Map.Entry<String, Object> entry: result.entrySet()) {
-      String testClassName = entry.getKey();
-      Properties props = new Properties();
-      props.putAll((Map<?, ?>) entry.getValue());
-      testProps.put(testClassName, props);
-    }
-
-    KafkaMonitor kafkaMonitor = new KafkaMonitor(testProps);
+    Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
+    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
     kafkaMonitor.start();
     LOG.info("KafkaMonitor started");
 

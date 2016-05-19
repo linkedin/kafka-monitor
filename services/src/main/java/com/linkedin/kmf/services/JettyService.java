@@ -14,7 +14,8 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Properties;
+
+import java.util.Map;
 
 // Jetty server that serves html files.
 public class JettyService implements Service {
@@ -24,7 +25,7 @@ public class JettyService implements Service {
   private final Server _jettyServer;
   private final int _port;
 
-  public JettyService(Properties props, String name) {
+  public JettyService(Map<String, Object> props, String name) {
     _name = name;
     JettyServiceConfig config = new JettyServiceConfig(props);
     _port = config.getInt(JettyServiceConfig.PORT_CONFIG);

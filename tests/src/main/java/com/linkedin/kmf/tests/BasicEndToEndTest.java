@@ -22,10 +22,12 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
+
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
@@ -47,7 +49,7 @@ public class BasicEndToEndTest implements Test {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public BasicEndToEndTest(Properties props, String name) throws Exception {
+  public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
@@ -196,7 +198,7 @@ public class BasicEndToEndTest implements Test {
     ArgumentParser parser = argParser();
     Namespace res = parser.parseArgs(args);
 
-    Properties props = new Properties();
+    Map<String, Object> props = new HashMap<>();
 
     // produce service config
     props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
@@ -212,12 +214,12 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("recordSize") != null)
       props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
     if (res.getString("producerConfig") != null)
-      props.put(ProduceServiceConfig.PRODUCER_PROPS_FILE_CONFIG, res.getString("producerConfig"));
+      props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
     // consume service config
     if (res.getString("consumerConfig") != null)
-      props.put(ConsumeServiceConfig.CONSUMER_PROPS_FILE_CONFIG, res.getString("consumerConfig"));
+      props.put(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG, Utils.loadProps(res.getString("consumerConfig")));
     if (res.getString("consumerClassName") != null)
       props.put(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG, res.getString("consumerClassName"));
     if (res.getString("latencyPercentileMaxMs") != null)
@@ -229,28 +231,28 @@ public class BasicEndToEndTest implements Test {
     test.start();
 
     // metrics export service config
-    props = new Properties();
+    props = new HashMap<>();
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
-      "kmf.services:type=produce-metrics,name=*:produce-availability-avg",
-      "kmf.services:type=produce-metrics,name=*:records-produced-total",
-      "kmf.services:type=consume-metrics,name=*:records-consumed-total",
-      "kmf.services:type=consume-metrics,name=*:records-lost-total",
-      "kmf.services:type=consume-metrics,name=*:records-duplicated-total",
-      "kmf.services:type=consume-metrics,name=*:records-delay-ms-avg",
-      "kmf.services:type=produce-metrics,name=*:records-produced-rate",
-      "kmf.services:type=produce-metrics,name=*:produce-error-rate",
-      "kmf.services:type=consume-metrics,name=*:consume-error-rate");
+      "kmf.services:type=produce-service,name=*:produce-availability-avg",
+      "kmf.services:type=produce-service,name=*:records-produced-total",
+      "kmf.services:type=consume-service,name=*:records-consumed-total",
+      "kmf.services:type=consume-service,name=*:records-lost-total",
+      "kmf.services:type=consume-service,name=*:records-duplicated-total",
+      "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
+      "kmf.services:type=produce-service,name=*:records-produced-rate",
+      "kmf.services:type=produce-service,name=*:produce-error-rate",
+      "kmf.services:type=consume-service,name=*:consume-error-rate");
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new Properties(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new Properties(), "end-to-end");
+    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
     jettyService.start();
 
     test.awaitShutdown();

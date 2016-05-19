@@ -21,11 +21,8 @@ import org.slf4j.LoggerFactory;
 import kafka.utils.ZkUtils;
 import scala.collection.Seq;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
-import java.util.Properties;
 
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
@@ -43,19 +40,6 @@ public class Utils {
     int partition = zkUtils.getPartitionsForTopics(topics).apply(topic).size();
     zkUtils.close();
     return partition;
-  }
-
-  /**
-   * Read a properties file from the given path
-   * @param filename The path of the file to read
-   */
-  public static Properties loadProps(String filename, Properties defaults) throws IOException {
-    Properties props = defaults != null ? defaults : new Properties();
-    try (InputStream propStream = new FileInputStream(filename)) {
-      props.load(propStream);
-    }
-
-    return props;
   }
 
   /**

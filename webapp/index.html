@@ -184,14 +184,14 @@
   var dataNum = 30;
   var pollIntervalMs = 1000;
   var monitoredMbeans = [
-    {name: "kmf.services:type=produce-metrics,name=*", attribute: "produce-availability-avg"},
-    {name: "kmf.services:type=produce-metrics,name=*", attribute: "records-produced-rate"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-lost-rate"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-duplicated-rate"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-delay-ms-avg"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-delay-ms-99th"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-delay-ms-999th"},
-    {name: "kmf.services:type=consume-metrics,name=*", attribute: "records-delay-ms-max"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-availability-avg"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "records-produced-rate"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-lost-rate"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-duplicated-rate"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-avg"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-99th"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-999th"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-max"},
   ];
 
   var ip = location.host.split(':')[0];
