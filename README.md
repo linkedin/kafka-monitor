@@ -11,8 +11,8 @@ any change to your application.
 ## Getting Started
 
 ### Prerequisites
-Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
-building in order to support both Java 7 and Java 8 at runtime.
+Kafka Monitor requires Gradle 2.0 or higher. Java 8 should be used for
+both compilation and execution.
 
 ### Build Kafka Monitor
 ```
