@@ -249,10 +249,10 @@ public class BasicEndToEndTest implements Test {
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(new HashMap<String, Object>(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
+    JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
     jettyService.start();
 
     test.awaitShutdown();

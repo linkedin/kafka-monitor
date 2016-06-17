@@ -62,11 +62,15 @@ public class KafkaMonitor {
       entry.getValue().start();
     }
 
-    _executor.scheduleAtFixedRate(() -> {
-        try {
-          checkHealth();
-        } catch (Exception e) {
-          LOG.error("Failed to check health of tests and services", e);
+    _executor.scheduleAtFixedRate(
+      new Runnable() {
+        @Override
+        public void run() {
+          try {
+            checkHealth();
+          } catch (Exception e) {
+            LOG.error("Failed to check health of tests and services", e);
+          }
         }
       }, 10, 10, TimeUnit.SECONDS
     );

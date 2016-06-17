@@ -3,6 +3,9 @@ allprojects {
   apply plugin: 'eclipse'
   apply plugin: 'java'
   apply plugin: 'checkstyle'
+
+  sourceCompatibility = 1.7
+
   repositories {
     mavenCentral()
   }
@@ -21,7 +24,7 @@ project(':services') {
     compile 'org.apache.kafka:kafka_2.11:0.9.0.1'
     compile 'org.apache.kafka:kafka-clients:0.9.0.1'
     compile 'org.testng:testng:6.8.8'
-    compile 'org.eclipse.jetty:jetty-server:9.3.8.v20160314'
+    compile 'org.eclipse.jetty:jetty-server:8.1.19.v20160209'
     compile 'org.json:json:20140107'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.7.1'
     compile 'junit:junit:4.6'

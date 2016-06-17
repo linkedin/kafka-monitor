@@ -11,8 +11,8 @@ any change to your application.
 ## Getting Started
 
 ### Prerequisites
-Kafka Monitor requires Gradle 2.0 or higher. Java 8 should be used for
-both compilation and execution.
+Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
+building in order to support both Java 7 and Java 8 at runtime.
 
 ### Build Kafka Monitor
 ```
@@ -38,7 +38,7 @@ You can edit webapp/index.html to easily add new metrics to be displayed.
 
 ### Query metric value (e.g. service availability) via HTTP request
 ```
-curl localhost:8778/jolokia/read/kmf.services:type=produce-metrics,name=*/produce-availability-avg
+curl localhost:8778/jolokia/read/kmf.services:type=produce-service,name=*/produce-availability-avg
 ```
 
 You can query other JMX metric value as well by substituting object-name and

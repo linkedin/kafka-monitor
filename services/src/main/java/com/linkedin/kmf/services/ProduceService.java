@@ -18,6 +18,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -147,7 +148,7 @@ public class ProduceService implements Service {
     private final Map<Integer, Sensor> _recordsProducedPerPartition;
     private final Map<Integer, Sensor> _produceErrorPerPartition;
 
-    public ProduceMetrics(Metrics metrics, Map<String, String> tags) {
+    public ProduceMetrics(Metrics metrics, final Map<String, String> tags) {
       this.metrics = metrics;
 
       _recordsProducedPerPartition = new HashMap<>();
@@ -173,23 +174,27 @@ public class ProduceService implements Service {
       _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, tags), new Total());
 
       metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, tags),
-        (config, now) -> {
-          double availabilitySum = 0.0;
-          for (int partition = 0; partition < _partitionNum; partition++) {
-            double recordsProduced1 = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
-            double produceError1 = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
-            // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
-            if (new Double(produceError1).isNaN()) {
-              produceError1 = 0;
+        new Measurable() {
+          @Override
+          public double measure(MetricConfig config, long now) {
+            double availabilitySum = 0.0;
+            for (int partition = 0; partition < _partitionNum; partition++) {
+              double recordsProduced1 = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              double produceError1 = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
+              if (new Double(produceError1).isNaN()) {
+                produceError1 = 0;
+              }
+              // If there is either succeeded or failed produce to a partition, consider its availability as 0.
+              if (recordsProduced1 + produceError1 > 0) {
+                availabilitySum += recordsProduced1 / (recordsProduced1 + produceError1);
+              }
             }
-            // If there is either succeeded or failed produce to a partition, consider its availability as 0.
-            if (recordsProduced1 + produceError1 > 0) {
-              availabilitySum += recordsProduced1 / (recordsProduced1 + produceError1);
-            }
+            // Assign equal weight to per-partition availability when calculating overall availability
+            return availabilitySum / _partitionNum;
           }
-          // Assign equal weight to per-partition availability when calculating overall availability
-          return availabilitySum / _partitionNum;
-        });
+        }
+      );
     }
   }
 
