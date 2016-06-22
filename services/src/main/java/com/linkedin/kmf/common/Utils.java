@@ -9,20 +9,25 @@
  */
 package com.linkedin.kmf.common;
 
+import kafka.utils.ZKStringSerializer$;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
-import org.apache.kafka.common.security.JaasUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import kafka.utils.ZkUtils;
 import scala.collection.Seq;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Properties;
 
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
@@ -35,10 +40,10 @@ public class Utils {
    * @return the number of partitions of the given topic
    */
   public static int getPartitionNumForTopic(String zkUrl, String topic) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, 30000, 30000, JaasUtils.isZkSecurityEnabled());
     Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
-    int partition = zkUtils.getPartitionsForTopics(topics).apply(topic).size();
-    zkUtils.close();
+    ZkClient zkclient = new ZkClient(zkUrl, 30000, 30000, ZKStringSerializer$.MODULE$);
+    int partition = ZkUtils.getPartitionsForTopics(zkclient, topics).apply(topic).size();
+    zkclient.close();
     return partition;
   }
 
@@ -73,6 +78,14 @@ public class Utils {
     record.put(DefaultTopicSchema.PRODUCER_ID_FIELD.name(), jsonObject.getString(DefaultTopicSchema.PRODUCER_ID_FIELD.name()));
     record.put(DefaultTopicSchema.CONTENT_FIELD.name(), jsonObject.getString(DefaultTopicSchema.CONTENT_FIELD.name()));
     return record;
+  }
+
+  public static Properties loadProps(String filename) throws IOException, FileNotFoundException {
+    Properties props = new Properties();
+    try (InputStream propStream = new FileInputStream(filename)) {
+      props.load(propStream);
+    }
+    return props;
   }
 
   public static String jsonFromGenericRecord(GenericRecord record) {

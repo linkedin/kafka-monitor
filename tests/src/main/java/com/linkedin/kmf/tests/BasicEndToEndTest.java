@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.tests;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
@@ -22,7 +23,6 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;

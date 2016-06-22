@@ -9,10 +9,6 @@
  */
 package com.linkedin.kmf.consumer;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Properties;
 
 /*
@@ -20,26 +16,18 @@ import java.util.Properties;
  */
 public class NewConsumer implements KMBaseConsumer {
 
-  private final KafkaConsumer<String, String> _consumer;
-  private Iterator<ConsumerRecord<String, String>> _recordIter;
-
-  public NewConsumer(String topic, Properties consumerProperties) {
-    _consumer = new KafkaConsumer<>(consumerProperties);
-    _consumer.subscribe(Arrays.asList(topic));
+  public NewConsumer(String topic, Properties consumerProperties) throws Exception {
+    throw new Exception("New consumer is not supported in kafka-0.8.2.2");
   }
 
   @Override
-  public BaseConsumerRecord receive() {
-    if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
-
-    ConsumerRecord<String, String> record = _recordIter.next();
-    return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
+  public BaseConsumerRecord receive() throws Exception {
+    return null;
   }
 
   @Override
   public void close() {
-    _consumer.close();
+
   }
 
 }

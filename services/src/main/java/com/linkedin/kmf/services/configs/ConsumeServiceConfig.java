@@ -9,7 +9,7 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import com.linkedin.kmf.consumer.NewConsumer;
+import com.linkedin.kmf.consumer.OldConsumer;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import java.util.Map;
@@ -58,7 +58,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     TOPIC_DOC)
                             .define(CONSUMER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    NewConsumer.class.getCanonicalName(),
+                                    OldConsumer.class.getCanonicalName(),
                                     ConfigDef.Importance.LOW,
                                     CONSUMER_CLASS_DOC)
                             .define(LATENCY_PERCENTILE_MAX_MS_CONFIG,
