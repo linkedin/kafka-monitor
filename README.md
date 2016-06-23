@@ -14,6 +14,13 @@ any change to your application.
 Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
 building in order to support both Java 7 and Java 8 at runtime.
 
+Note: In order to run Kafka Monitor, you need to create a topic manually
+that is dedicated for use by Kafka Monitor. The topic should be specified in
+either the config file or the command line parameters in the examples below.
+For best performance the number of partitions in the topic should be
+proportational to the number of brokers in the cluster. We may avoid this
+manual step in the future by automatically creating topics in Kafka Monitor.
+
 ### Build Kafka Monitor
 ```
 $ git clone https://github.com/linkedin/kafka-monitor.git
