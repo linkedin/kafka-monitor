@@ -113,13 +113,13 @@ public class KafkaMonitor {
 
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] KafkaMonitor kmf.properties");
+      LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.properties");
       return;
     }
 
 
     StringBuilder buffer = new StringBuilder();
-    try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+    try (BufferedReader br = new BufferedReader(new FileReader(args[0].trim()))) {
       String line;
       while ((line = br.readLine()) != null) {
         if (!line.startsWith("#"))
