@@ -13,9 +13,15 @@ pushd %~dp0
 set BASE_DIR=%CD%
 popd
 
-set COMMAND=%BASE_DIR%\kmf-run-class.bat com/linkedin/kmf/core/KafkaMonitor %* 
 
-echo basedir: %BASE_DIR%
+IF [%1] EQU [] (
+	echo USAGE: %0 config/kafka-monitor.properties
+	EXIT /B 1
+)
+
+set COMMAND=%BASE_DIR%\kmf-run-class.bat com.linkedin.kmf.core.KafkaMonitor %* 
+
+rem echo basedir: %BASE_DIR%
 
 %COMMAND%
 
