@@ -66,7 +66,7 @@ public class DefaultMetricsReporterService implements Service {
 
   @Override
   public boolean isRunning() {
-    return _executor.isTerminated();
+    return !_executor.isShutdown();
   }
 
   @Override
