@@ -68,25 +68,32 @@ public class ConsumeService implements Service {
     _running = new AtomicBoolean(false);
 
     Properties consumerProps = new Properties();
+
+    // Assign default config. This has the lowest priority.
+    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+    consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
+    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
     if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName())) {
       consumerClassName = NewConsumer.class.getCanonicalName();
-      consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-      consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
-      consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-      consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
-      consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     } else if (consumerClassName.equals(OldConsumer.class.getCanonicalName()) || consumerClassName.equals(OldConsumer.class.getSimpleName())) {
       consumerClassName = OldConsumer.class.getCanonicalName();
-      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
-      consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer");
+      // The name/value of these configs are changed in the new consumer.
       consumerProps.put("auto.commit.enable", "false");
-      consumerProps.put("zookeeper.connect", zkConnect);
+      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
     }
 
+    // Assign config specified for ConsumeService.
+    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
+    consumerProps.put("zookeeper.connect", zkConnect);
+
+    // Assign config specified for consumer. This has the highest priority.
     if (consumerPropsOverride != null)
       consumerProps.putAll(consumerPropsOverride);
+
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
     _thread = new Thread(new Runnable() {

@@ -76,20 +76,27 @@ public class ProduceService implements Service {
         ". Please verify that the topic has been created. Ideally the partition number should be a multiple of number of brokers in the cluster.");
 
     Properties producerProps = new Properties();
+
+    // Assign default config. This has the lowest priority.
+    producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
+    producerProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+    producerProps.put(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "true");
+    producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
+    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       producerClass = NewProducer.class.getCanonicalName();
-      producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
-      producerProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-      producerProps.put(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "true");
-      producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
-      producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-      producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-      producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
-      producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     }
 
+    // Assign config specified for ProduceService.
+    producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
+    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
+
+    // Assign config specified for producer. This has the highest priority.
     if (producerPropsOverride != null)
       producerProps.putAll(producerPropsOverride);
+
     _producer = (KMBaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
 
     _running = new AtomicBoolean(false);
