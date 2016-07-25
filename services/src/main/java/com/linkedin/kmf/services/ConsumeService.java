@@ -76,10 +76,12 @@ public class ConsumeService implements Service {
       consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     } else if (consumerClassName.equals(OldConsumer.class.getCanonicalName()) || consumerClassName.equals(OldConsumer.class.getSimpleName())) {
       consumerClassName = OldConsumer.class.getCanonicalName();
+      // The name/value of these configs are changed in the new consumer.
       consumerProps.put("auto.commit.enable", "false");
+      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
     }
     consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
     consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
 
