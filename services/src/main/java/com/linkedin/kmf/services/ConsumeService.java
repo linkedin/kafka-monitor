@@ -20,6 +20,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -54,6 +55,7 @@ public class ConsumeService implements Service {
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
+  private final int _latencySlaMs;
 
   public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -63,6 +65,7 @@ public class ConsumeService implements Service {
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
+    _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _running = new AtomicBoolean(false);
@@ -125,7 +128,7 @@ public class ConsumeService implements Service {
         record = _consumer.receive();
       } catch (Exception e) {
         _sensors._consumeError.record();
-        LOG.debug(_name + "/ConsumeService failed to receive message", e);
+        LOG.debug(_name + "/ConsumeService failed to receive record", e);
         // Avoid busy while loop
         Thread.sleep(100);
         continue;
@@ -146,6 +149,9 @@ public class ConsumeService implements Service {
       _sensors._recordsConsumed.record();
       _sensors._bytesConsumed.record(record.value().length());
       _sensors._recordsDelay.record(currMs - prevMs);
+
+      if (currMs - prevMs > _latencySlaMs)
+        _sensors._recordsDelayed.record();
 
       if (index == -1L || !nextIndexes.containsKey(partition)) {
         nextIndexes.put(partition, -1L);
@@ -196,43 +202,72 @@ public class ConsumeService implements Service {
   }
 
   private class ConsumeMetrics {
+    public final Metrics metrics;
     private final Sensor _bytesConsumed;
     private final Sensor _consumeError;
     private final Sensor _recordsConsumed;
     private final Sensor _recordsDuplicated;
     private final Sensor _recordsLost;
     private final Sensor _recordsDelay;
+    private final Sensor _recordsDelayed;
 
-    public ConsumeMetrics(Metrics metrics, Map<String, String> tags) {
+    public ConsumeMetrics(Metrics metrics, final Map<String, String> tags) {
+      this.metrics = metrics;
+
       _bytesConsumed = metrics.sensor("bytes-consumed");
-      _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, tags), new Rate());
+      _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
 
       _consumeError = metrics.sensor("consume-error");
-      _consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME, tags), new Total());
+      _consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME, "The average number of errors per second", tags), new Rate());
+      _consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME, "The total number of errors", tags), new Total());
 
       _recordsConsumed = metrics.sensor("records-consumed");
-      _recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME, tags), new Total());
+      _recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, "The average number of records per second that are consumed", tags), new Rate());
+      _recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME, "The total number of records that are consumed", tags), new Total());
 
       _recordsDuplicated = metrics.sensor("records-duplicated");
-      _recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME, tags), new Total());
+      _recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME, "The average number of records per second that are duplicated", tags), new Rate());
+      _recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME, "The total number of records that are duplicated", tags), new Total());
 
       _recordsLost = metrics.sensor("records-lost");
-      _recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME, tags), new Total());
+      _recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME, "The average number of records per second that are lost", tags), new Rate());
+      _recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME, "The total number of records that are lost", tags), new Total());
+
+      _recordsDelayed = metrics.sensor("records-delayed");
+      _recordsDelayed.add(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, "The average number of records per second that are either lost or arrive after maximum allowed latency under SLA", tags), new Rate());
+      _recordsDelayed.add(new MetricName("records-delayed-total", METRIC_GROUP_NAME, "The total number of records that are either lost or arrive after maximum allowed latency under SLA", tags), new Total());
 
       _recordsDelay = metrics.sensor("records-delay");
-      _recordsDelay.add(new MetricName("records-delay-ms-avg", METRIC_GROUP_NAME, tags), new Avg());
-      _recordsDelay.add(new MetricName("records-delay-ms-max", METRIC_GROUP_NAME, tags), new Max());
+      _recordsDelay.add(new MetricName("records-delay-ms-avg", METRIC_GROUP_NAME, "The average latency of records from producer to consumer", tags), new Avg());
+      _recordsDelay.add(new MetricName("records-delay-ms-max", METRIC_GROUP_NAME, "The maximum latency of records from producer to consumer", tags), new Max());
 
       // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
       int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
       int sizeInBytes = 4 * bucketNum;
       _recordsDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
-        new Percentile(new MetricName("records-delay-ms-99th", METRIC_GROUP_NAME, tags), 99.0),
-        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, tags), 99.9)));
+        new Percentile(new MetricName("records-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile latency of records from producer to consumer", tags), 99.0),
+        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, "The 999th percentile latency of records from producer to consumer", tags), 99.9)));
+
+      metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
+        new Measurable() {
+          @Override
+          public double measure(MetricConfig config, long now) {
+            double recordsConsumedRate = _sensors.metrics.metrics().get(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsLostRate = _sensors.metrics.metrics().get(new MetricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsDelayedRate = _sensors.metrics.metrics().get(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
+
+            if (new Double(recordsLostRate).isNaN())
+              recordsLostRate = 0;
+            if (new Double(recordsDelayedRate).isNaN())
+              recordsDelayedRate = 0;
+
+            double consumeAvailability = recordsConsumedRate + recordsLostRate > 0 ?
+              (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
+
+            return consumeAvailability;
+          }
+        }
+      );
     }
 
   }
