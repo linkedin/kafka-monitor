@@ -162,40 +162,40 @@ public class ProduceService implements Service {
       _recordsProducedPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("records-produced-partition-" + partition);
-        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags), new Rate());
+        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, "The average number of records per second that are produced to this partition", tags), new Rate());
         _recordsProducedPerPartition.put(partition, sensor);
       }
 
       _produceErrorPerPartition = new HashMap<>();
       for (int partition = 0; partition < _partitionNum; partition++) {
         Sensor sensor = metrics.sensor("produce-error-partition-" + partition);
-        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags), new Rate());
+        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, "The average number of errors per second when producing to this partition", tags), new Rate());
         _produceErrorPerPartition.put(partition, sensor);
       }
 
       _recordsProduced = metrics.sensor("records-produced");
-      _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME, tags), new Total());
+      _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME, "The average number of records per second that are produced", tags), new Rate());
+      _recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME, "The total number of records that are produced", tags), new Total());
 
       _produceError = metrics.sensor("produce-error");
-      _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME, tags), new Rate());
-      _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, tags), new Total());
+      _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME, "The average number of errors per second", tags), new Rate());
+      _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, "The total number of errors", tags), new Total());
 
-      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, tags),
+      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, "The average produce availability", tags),
         new Measurable() {
           @Override
           public double measure(MetricConfig config, long now) {
             double availabilitySum = 0.0;
             for (int partition = 0; partition < _partitionNum; partition++) {
-              double recordsProduced1 = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
-              double produceError1 = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
-              if (new Double(produceError1).isNaN()) {
-                produceError1 = 0;
+              if (new Double(produceError).isNaN()) {
+                produceError = 0;
               }
               // If there is either succeeded or failed produce to a partition, consider its availability as 0.
-              if (recordsProduced1 + produceError1 > 0) {
-                availabilitySum += recordsProduced1 / (recordsProduced1 + produceError1);
+              if (recordsProduced + produceError > 0) {
+                availabilitySum += recordsProduced / (recordsProduced + produceError);
               }
             }
             // Assign equal weight to per-partition availability when calculating overall availability

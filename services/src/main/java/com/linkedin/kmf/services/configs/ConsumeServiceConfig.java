@@ -42,6 +42,10 @@ public class ConsumeServiceConfig extends AbstractConfig {
   public static final String CONSUMER_PROPS_CONFIG = "consume.consumer.props";
   public static final String CONSUMER_PROPS_DOC = "The properties used to config consumer in consume service.";
 
+  public static final String LATENCY_SLA_MS_CONFIG = "consume.latency.sla.ms";
+  public static final String LATENCY_SLA_MS_DOC = "The maximum latency of message delivery under SLA. Consume availability is measured "
+                                                  + "as the fraction of messages that are either lost or whose delivery latency exceeds this value";
+
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
@@ -70,7 +74,12 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     1,
                                     ConfigDef.Importance.LOW,
-                                    LATENCY_PERCENTILE_GRANULARITY_MS_DOC);
+                                    LATENCY_PERCENTILE_GRANULARITY_MS_DOC)
+                            .define(LATENCY_SLA_MS_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    20000,
+                                    ConfigDef.Importance.MEDIUM,
+                                    LATENCY_SLA_MS_DOC);
 
   }
 
