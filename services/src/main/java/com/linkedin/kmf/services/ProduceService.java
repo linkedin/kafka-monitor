@@ -69,11 +69,15 @@ public class ProduceService implements Service {
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
-    _partitionNum = Utils.getPartitionNumForTopic(zkConnect, _topic);
 
-    if (_partitionNum <= 0)
-      throw new RuntimeException("Can not find valid partition number for topic " + _topic +
-        ". Please verify that the topic has been created. Ideally the partition number should be a multiple of number of brokers in the cluster.");
+    int existingPartitionCount = Utils.getPartitionNumForTopic(zkConnect, _topic);
+
+    if (existingPartitionCount <= 0) {
+      _partitionNum = Utils.createMonitoringTopic(zkConnect, _topic, new Properties());
+    } else {
+      _partitionNum = existingPartitionCount;
+    }
+
 
     Properties producerProps = new Properties();
 

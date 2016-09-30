@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.common;
 
+import java.util.Properties;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -19,6 +20,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import kafka.utils.ZkUtils;
+import kafka.admin.AdminUtils;
 import scala.collection.Seq;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +28,9 @@ import java.util.Arrays;
 
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
+
+  private static final int ZK_CONNECTION_TIMEOUT = 30_000;
+  private static final int ZK_SESSION_TIMEOUT = 30_000;
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
@@ -35,12 +40,52 @@ public class Utils {
    * @return the number of partitions of the given topic
    */
   public static int getPartitionNumForTopic(String zkUrl, String topic) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, 30000, 30000, JaasUtils.isZkSecurityEnabled());
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT, ZK_CONNECTION_TIMEOUT, JaasUtils.isZkSecurityEnabled());
     Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
     int partition = zkUtils.getPartitionsForTopics(topics).apply(topic).size();
     zkUtils.close();
     return partition;
   }
+
+  /**
+   * Create the topic that the monitor uses to monitor the cluster.  This method attempts to create a topic so that all
+   * the brokers in the cluster will have two partitions.
+   *
+   * @param zkUrl zookeeper connection url
+   * @param topic topic name
+   * @param topicConfig if this is null or empty or min.insync.replicas is not specified then min.insync.replicas will
+   *                    be set to 3.
+   * @return the number of partitions created
+   */
+  public static int createMonitoringTopic(String zkUrl, String topic, Properties topicConfig) {
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT, ZK_CONNECTION_TIMEOUT, JaasUtils.isZkSecurityEnabled());
+    try {
+      //TODO: throw exception? check that we have the correct number of partitions?
+      if (AdminUtils.topicExists(zkUtils, topic)) {
+        LOG.warn("Monitoring topic \"" + topic + "\" already exists.");
+        return getPartitionNumForTopic(zkUrl, topic);
+      }
+
+      int brokerCount = zkUtils.getAllBrokersInCluster().size();
+      int partitionCount = brokerCount * 2;
+
+      // see min.insync.replicas
+      if (topicConfig == null) {
+        topicConfig = new Properties();
+      }
+      if (!topicConfig.contains("min.insync.replicas")) {
+        topicConfig.setProperty("min.insync.replicas", "" + 3);
+      }
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, 3 /* replication factor*/, new Properties());
+
+      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions.");
+
+      return partitionCount;
+    } finally {
+      zkUtils.close();
+    }
+  }
+
 
   /**
    * @param timestamp time in Ms when this message is generated
