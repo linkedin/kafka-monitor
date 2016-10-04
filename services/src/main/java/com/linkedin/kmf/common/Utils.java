@@ -10,6 +10,7 @@
 package com.linkedin.kmf.common;
 
 import java.util.Properties;
+import kafka.server.KafkaConfig;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -49,36 +50,39 @@ public class Utils {
 
   /**
    * Create the topic that the monitor uses to monitor the cluster.  This method attempts to create a topic so that all
-   * the brokers in the cluster will have two partitions.
+   * the brokers in the cluster will have partitionFactor partitions.  If the topic exists, but has different parameters
+   * then this does nothing to update the parameters.
    *
    * @param zkUrl zookeeper connection url
    * @param topic topic name
-   * @param topicConfig if this is null or empty or min.insync.replicas is not specified then min.insync.replicas will
-   *                    be set to 3.
+   * @param minIsr the minimum number of in-sync replicas for the topic
+   * @param replicationFactor the replication factor for the topic
+   * @param partitionFactor This is multiplied by the number brokers to compute the number of partitions in the topic.
    * @return the number of partitions created
    */
-  public static int createMonitoringTopic(String zkUrl, String topic, Properties topicConfig) {
+  public static int createMonitoringTopicIfNotExists(String zkUrl, String topic, int minIsr, int replicationFactor,
+      int partitionFactor) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT, ZK_CONNECTION_TIMEOUT, JaasUtils.isZkSecurityEnabled());
     try {
-      //TODO: throw exception? check that we have the correct number of partitions?
       if (AdminUtils.topicExists(zkUtils, topic)) {
-        LOG.warn("Monitoring topic \"" + topic + "\" already exists.");
+        LOG.info("Monitoring topic \"" + topic + "\" already exists.");
         return getPartitionNumForTopic(zkUrl, topic);
       }
 
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
-      int partitionCount = brokerCount * 2;
 
-      // see min.insync.replicas
-      if (topicConfig == null) {
-        topicConfig = new Properties();
+      if (partitionFactor <= 0) {
+        throw new IllegalArgumentException("Partition factor must be greater than zero, but was configured for " +
+            partitionFactor + ".");
       }
-      if (!topicConfig.contains("min.insync.replicas")) {
-        topicConfig.setProperty("min.insync.replicas", "" + 3);
-      }
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, 3 /* replication factor*/, new Properties());
+      int partitionCount = brokerCount * partitionFactor;
 
-      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions.");
+      Properties topicConfig = new Properties();
+      topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(minIsr));
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, new Properties());
+
+      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " + minIsr
+          + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
     } finally {

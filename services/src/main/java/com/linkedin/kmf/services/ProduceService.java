@@ -73,11 +73,23 @@ public class ProduceService implements Service {
     int existingPartitionCount = Utils.getPartitionNumForTopic(zkConnect, _topic);
 
     if (existingPartitionCount <= 0) {
-      _partitionNum = Utils.createMonitoringTopic(zkConnect, _topic, new Properties());
+      if (config.getBoolean(ProduceServiceConfig.CREATE_AUTO_TOPIC_CONFIG)) {
+        int autoTopicMinISR = config.getInt(ProduceServiceConfig.AUTO_TOPIC_MIN_ISR_CONFIG);
+        int autoTopicReplicationFactor = config.getInt(ProduceServiceConfig.AUTO_TOPIC_REPLICATION_FACTOR_CONFIG);
+        int autoTopicPartitionFactor = config.getInt(ProduceServiceConfig.REBALANCE_PARTITION_MULTIPLE_CONFIG);
+        _partitionNum =
+            Utils.createMonitoringTopicIfNotExists(zkConnect, _topic, autoTopicMinISR, autoTopicReplicationFactor,
+                autoTopicPartitionFactor);
+      } else {
+         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
+             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be"+
+             " a multiple of number" +
+             " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.CREATE_AUTO_TOPIC_CONFIG +
+             " to be true.");
+      }
     } else {
       _partitionNum = existingPartitionCount;
     }
-
 
     Properties producerProps = new Properties();
 
