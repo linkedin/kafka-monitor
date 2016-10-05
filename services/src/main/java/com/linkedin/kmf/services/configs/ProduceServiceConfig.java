@@ -49,9 +49,6 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
-  public static final String AUTO_TOPIC_MIN_ISR_CONFIG = "produce.topic.autoTopicMinIsr";
-  public static final String AUTO_TOPIC_MIN_ISR_DOC = "When a topic is created automatically this is the min ISR for the topic.";
-
   public static final String AUTO_TOPIC_REPLICATION_FACTOR_CONFIG = "produce.topic.autoTopicReplicationFactor";
   public static final String AUTO_TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
       + "replication factor used.";
@@ -66,10 +63,10 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String REBALANCE_THRESHOLD_CONFIG = "produce.topic.rebalanceThreshold";
   public static final String REBALANCE_THRESHOLD_DOC = "Determines the number of partitions per broker in the ideal case.";
 
-  public static final String CREATE_AUTO_TOPIC_CONFIG = "produce.topic.autoTopicCreationEnabled";
-  public static final String CREATE_AUTO_TOPIC_DOC = "When true this automatically creates the topic mentioned by \"" +
-      TOPIC_CONFIG + "\" with replication factor \"" + AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of \"" +
-      AUTO_TOPIC_MIN_ISR_CONFIG + "\" with number of brokers * \"" + REBALANCE_PARTITION_MULTIPLE_CONFIG +
+  public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
+  public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+      TOPIC_CONFIG + "\" with replication factor \"" + AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
+      AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + REBALANCE_PARTITION_MULTIPLE_CONFIG +
       "\" partitions.";
 
   static {
@@ -86,11 +83,10 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     "kafka-monitor-topic",
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
-                            .define(CREATE_AUTO_TOPIC_CONFIG,
+                            .define(AUTO_TOPIC_CREATION_ENABLED_CONFIG,
                                     ConfigDef.Type.BOOLEAN,
-                                    false, //default
-                                    ConfigDef.Importance.MEDIUM,
-                                    CREATE_AUTO_TOPIC_DOC)
+                                    false,
+                                    ConfigDef.Importance.MEDIUM, AUTO_TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewProducer.class.getCanonicalName(),
@@ -121,14 +117,9 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     5,
                                     ConfigDef.Importance.LOW,
                                     PRODUCE_THREAD_NUM_DOC)
-                            .define(AUTO_TOPIC_MIN_ISR_CONFIG,
-                                    ConfigDef.Type.INT,
-                                    -1,
-                                    ConfigDef.Importance.LOW,
-                                    AUTO_TOPIC_MIN_ISR_DOC)
                             .define(AUTO_TOPIC_REPLICATION_FACTOR_CONFIG,
                                     ConfigDef.Type.INT,
-                                    3,
+                                    1,
                                     ConfigDef.Importance.LOW,
                                     AUTO_TOPIC_REPLICATION_FACTOR_DOC)
                             .define(REBALANCE_ENABLED_CONFIG,
