@@ -40,11 +40,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+
+/**
+ * Kafka monitoring utilities.
+ */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
-  public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
-  public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
+  private static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
+  private static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
@@ -95,7 +99,7 @@ public class Utils {
       int minIsr = Math.max(replicationFactor - 1, 1);
       Properties topicConfig = new Properties();
       topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(minIsr));
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, new Properties());
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig);
 
       LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " + minIsr
           + " and replication factor of " + replicationFactor + ".");
@@ -116,7 +120,7 @@ public class Utils {
    * @return an initialized KafkaConsumer
    */
 
-  private static KafkaConsumer<?,?> constructClientForMetadata(String brokerList, String zkUrl, String topic) {
+  private static KafkaConsumer<?, ?> constructClientForMetadata(String brokerList, String zkUrl, String topic) {
 
     Properties consumerProps = new Properties();
 
@@ -203,7 +207,7 @@ public class Utils {
           brokerToPartitionCount.put(broker, 0);
         }
         int count = brokerToPartitionCount.get(node.id());
-           brokerToPartitionCount.put(broker, count + 1);
+        brokerToPartitionCount.put(broker, count + 1);
       }
 
       leaders.add(partitionInfo.replicas()[0].id());

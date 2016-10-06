@@ -98,12 +98,11 @@ public class ProduceService implements Service {
             Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, autoTopicReplicationFactor,
                 autoTopicPartitionFactor));
       } else {
-         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
-             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be"+
-             " a multiple of number" +
-             " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG
-             +
-             " to be true.");
+        throw new RuntimeException("Can not find valid partition number for topic " + _topic +
+            ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
+            " a multiple of number" +
+            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG +
+            " to be true.");
       }
     } else {
       _partitionNum.set(existingPartitionCount);
