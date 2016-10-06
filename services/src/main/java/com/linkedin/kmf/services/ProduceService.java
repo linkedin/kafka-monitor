@@ -145,9 +145,6 @@ public class ProduceService implements Service {
     tags.put("name", _name);
     _sensors = new ProduceMetrics(metrics, tags);
 
-    if (config.getBoolean(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG)) {
-      _executor.scheduleWithFixedDelay(new TopicRebalancer(), 10, 10, TimeUnit.MINUTES);
-    }
   }
 
   @Override
@@ -283,37 +280,6 @@ public class ProduceService implements Service {
         _sensors._produceError.record();
         _sensors._produceErrorPerPartition.get(_partition).record();
         LOG.debug(_name + " failed to send message", e);
-      }
-    }
-  }
-
-  /**
-   * Runs this periodically to rebalance the monitored topic across brokers and to reassign leaders to brokers so that the
-   * monitored topic is sampling all the brokers evenly.
-   */
-  private final class TopicRebalancer implements Runnable {
-
-    @Override
-    public void run() {
-      try {
-
-        if (Utils.monitoredTopicNeedsRebalance(_zkConnect, _topic, _brokerList, _rebalanceThreshold)) {
-          LOG.info("Topic rebalance started.");
-          /* TODO: if number of partitons falls below threshold then create new partitions
-             TODO: if a broker does not have enough partitions then assign it partitions from brokers that have excess
-             TODO: if a broker is not a leader of some partition then make it a leader of some partition by finding out
-             TODO:    which broker is a leader of more than one partiton.  Does this involve moving partitions among brokers?
-             TODO: run a preferred election
-             TODO: if new partitions were created then
-             TODO:    create new produce runnables
-             TODO:    create new metrics
-             TODO:    increment _PartitionNum
-          */
-          LOG.info("Topic rebalance complete.");
-        }
-
-      } catch (Exception e) {
-        LOG.error("Topic rebalance failed with exception.", e);
       }
     }
   }

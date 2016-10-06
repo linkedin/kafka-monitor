@@ -85,7 +85,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     TOPIC_DOC)
                             .define(AUTO_TOPIC_CREATION_ENABLED_CONFIG,
                                     ConfigDef.Type.BOOLEAN,
-                                    false,
+                                    true,
                                     ConfigDef.Importance.MEDIUM, AUTO_TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,

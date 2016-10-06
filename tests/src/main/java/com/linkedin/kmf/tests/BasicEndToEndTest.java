@@ -216,11 +216,8 @@ public class BasicEndToEndTest implements Test {
       props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
     if (res.getString("producerConfig") != null)
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
-    if (res.getBoolean("autoTopicCreationEnabled") != null) {
+    if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
-    } else {
-      props.put(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG, true);
-    }
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
