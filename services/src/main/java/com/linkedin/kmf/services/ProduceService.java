@@ -14,6 +14,9 @@ import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.NewProducer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
@@ -39,6 +42,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+
+/**
+ * This sets up the producers used by Kafka Monitoring and some of the reported metrics.
+ */
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
@@ -49,19 +56,25 @@ public class ProduceService implements Service {
   private final ScheduledExecutorService _executor;
   private final int _produceDelayMs;
   private final boolean _sync;
-  private final Map<Integer, AtomicLong> _nextIndexPerPartition;
-  private final int _partitionNum;
+  /** This can be updated while running when new partitions are added to the monitored topic. */
+  private final ConcurrentMap<Integer, AtomicLong> _nextIndexPerPartition;
+  /** This is the last thing that should be updated after adding new partitions. */
+  private final AtomicInteger _partitionNum;
   private final int _recordSize;
   private final String _topic;
   private final String _producerId;
   private final AtomicBoolean _running;
+  private final String _zkConnect;
+  private final String _brokerList;
+  private final double _rebalanceThreshold;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     Map producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-    String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
-    String brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
+    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
+    _rebalanceThreshold = config.getDouble(ProduceServiceConfig.REBALANCE_THRESHOLD_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     int threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
@@ -69,11 +82,31 @@ public class ProduceService implements Service {
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
-    _partitionNum = Utils.getPartitionNumForTopic(zkConnect, _topic);
+    _partitionNum = new AtomicInteger(0);
 
-    if (_partitionNum <= 0)
-      throw new RuntimeException("Can not find valid partition number for topic " + _topic +
-        ". Please verify that the topic has been created. Ideally the partition number should be a multiple of number of brokers in the cluster.");
+    if (_rebalanceThreshold < 1) {
+      throw new IllegalArgumentException("Rebalance threshold must be greater than one but is set to " + _rebalanceThreshold + ".");
+    }
+
+    int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+
+    if (existingPartitionCount <= 0) {
+      if (config.getBoolean(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG)) {
+        int autoTopicReplicationFactor = config.getInt(ProduceServiceConfig.AUTO_TOPIC_REPLICATION_FACTOR_CONFIG);
+        int autoTopicPartitionFactor = config.getInt(ProduceServiceConfig.REBALANCE_PARTITION_MULTIPLE_CONFIG);
+        _partitionNum.set(
+            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, autoTopicReplicationFactor,
+                autoTopicPartitionFactor));
+      } else {
+        throw new RuntimeException("Can not find valid partition number for topic " + _topic +
+            ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
+            " a multiple of number" +
+            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG +
+            " to be true.");
+      }
+    } else {
+      _partitionNum.set(existingPartitionCount);
+    }
 
     Properties producerProps = new Properties();
 
@@ -92,7 +125,7 @@ public class ProduceService implements Service {
 
     // Assign config specified for ProduceService.
     producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
-    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
+    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, _brokerList);
 
     // Assign config specified for producer. This has the highest priority.
     if (producerPropsOverride != null)
@@ -101,7 +134,7 @@ public class ProduceService implements Service {
     _producer = (KMBaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
 
     _running = new AtomicBoolean(false);
-    _nextIndexPerPartition = new HashMap<>();
+    _nextIndexPerPartition = new ConcurrentHashMap<>();
     _executor = Executors.newScheduledThreadPool(threadsNum);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -111,18 +144,24 @@ public class ProduceService implements Service {
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
     _sensors = new ProduceMetrics(metrics, tags);
+
   }
 
   @Override
   public void start() {
     if (_running.compareAndSet(false, true)) {
-      for (int partition = 0; partition < _partitionNum; partition++) {
-        _nextIndexPerPartition.put(partition, new AtomicLong(0));
-        _executor.scheduleWithFixedDelay(new ProduceRunnable(partition),
-          _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+      int partitionNum = _partitionNum.get();
+      for (int partition = 0; partition < partitionNum; partition++) {
+        scheduleProduceRunnable(partition);
       }
       LOG.info(_name + "/ProduceService started");
     }
+  }
+
+  private void scheduleProduceRunnable(int partition) {
+    _nextIndexPerPartition.put(partition, new AtomicLong(0));
+    _executor.scheduleWithFixedDelay(new ProduceRunnable(partition),
+        _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
   }
 
   @Override
@@ -153,24 +192,20 @@ public class ProduceService implements Service {
     public final Metrics metrics;
     private final Sensor _recordsProduced;
     private final Sensor _produceError;
-    private final Map<Integer, Sensor> _recordsProducedPerPartition;
-    private final Map<Integer, Sensor> _produceErrorPerPartition;
+    private final ConcurrentMap<Integer, Sensor> _recordsProducedPerPartition;
+    private final ConcurrentMap<Integer, Sensor> _produceErrorPerPartition;
+    private final Map<String, String> _tags;
 
     public ProduceMetrics(Metrics metrics, final Map<String, String> tags) {
       this.metrics = metrics;
+      this._tags = tags;
 
-      _recordsProducedPerPartition = new HashMap<>();
-      for (int partition = 0; partition < _partitionNum; partition++) {
-        Sensor sensor = metrics.sensor("records-produced-partition-" + partition);
-        sensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, "The average number of records per second that are produced to this partition", tags), new Rate());
-        _recordsProducedPerPartition.put(partition, sensor);
-      }
+      _recordsProducedPerPartition = new ConcurrentHashMap<>();
+      _produceErrorPerPartition = new ConcurrentHashMap<>();
 
-      _produceErrorPerPartition = new HashMap<>();
-      for (int partition = 0; partition < _partitionNum; partition++) {
-        Sensor sensor = metrics.sensor("produce-error-partition-" + partition);
-        sensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, "The average number of errors per second when producing to this partition", tags), new Rate());
-        _produceErrorPerPartition.put(partition, sensor);
+      int partitionNum = _partitionNum.get();
+      for (int partition = 0; partition < partitionNum; partition++) {
+        addPartitionSensors(partition);
       }
 
       _recordsProduced = metrics.sensor("records-produced");
@@ -186,11 +221,12 @@ public class ProduceService implements Service {
           @Override
           public double measure(MetricConfig config, long now) {
             double availabilitySum = 0.0;
-            for (int partition = 0; partition < _partitionNum; partition++) {
+            int partitionNum = _partitionNum.get();
+            for (int partition = 0; partition < partitionNum; partition++) {
               double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
-              if (new Double(produceError).isNaN()) {
+              if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
                 produceError = 0;
               }
               // If there is either succeeded or failed produce to a partition, consider its availability as 0.
@@ -199,10 +235,22 @@ public class ProduceService implements Service {
               }
             }
             // Assign equal weight to per-partition availability when calculating overall availability
-            return availabilitySum / _partitionNum;
+            return availabilitySum / partitionNum;
           }
         }
       );
+    }
+
+    void addPartitionSensors(int partition) {
+      Sensor recordsProducedSensor = metrics.sensor("records-produced-partition-" + partition);
+      recordsProducedSensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME,
+          "The average number of records per second that are produced to this partition", _tags), new Rate());
+      _recordsProducedPerPartition.put(partition, recordsProducedSensor);
+
+      Sensor errorsSensor = metrics.sensor("produce-error-partition-" + partition);
+      errorsSensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME,
+          "The average number of errors per second when producing to this partition", _tags), new Rate());
+      _produceErrorPerPartition.put(partition, errorsSensor);
     }
   }
 

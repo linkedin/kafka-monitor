@@ -49,6 +49,26 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
+  public static final String AUTO_TOPIC_REPLICATION_FACTOR_CONFIG = "produce.topic.autoTopicReplicationFactor";
+  public static final String AUTO_TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
+      + "replication factor used.";
+
+  public static final String REBALANCE_ENABLED_CONFIG = "produce.topic.rebalanceEnabled";
+  public static final String REBALANCE_ENABLED_DOC = "Periodically move leaders and replica assignments so they are "
+      + "evenly spread amongst brokers.";
+
+  public static final String REBALANCE_PARTITION_MULTIPLE_CONFIG = "produce.topic.rebalancePartitionMultiple";
+  public static final String REBALANCE_PARTITION_MULTIPLE_DOC = "Determines the number of partitions per broker in the ideal case.";
+
+  public static final String REBALANCE_THRESHOLD_CONFIG = "produce.topic.rebalanceThreshold";
+  public static final String REBALANCE_THRESHOLD_DOC = "Determines the number of partitions per broker in the ideal case.";
+
+  public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
+  public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+      TOPIC_CONFIG + "\" with replication factor \"" + AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
+      AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + REBALANCE_PARTITION_MULTIPLE_CONFIG +
+      "\" partitions.";
+
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
@@ -63,6 +83,10 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     "kafka-monitor-topic",
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
+                            .define(AUTO_TOPIC_CREATION_ENABLED_CONFIG,
+                                    ConfigDef.Type.BOOLEAN,
+                                    true,
+                                    ConfigDef.Importance.MEDIUM, AUTO_TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewProducer.class.getCanonicalName(),
@@ -92,7 +116,27 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     5,
                                     ConfigDef.Importance.LOW,
-                                    PRODUCE_THREAD_NUM_DOC);
+                                    PRODUCE_THREAD_NUM_DOC)
+                            .define(AUTO_TOPIC_REPLICATION_FACTOR_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    ConfigDef.Importance.LOW,
+                                    AUTO_TOPIC_REPLICATION_FACTOR_DOC)
+                            .define(REBALANCE_ENABLED_CONFIG,
+                                    ConfigDef.Type.BOOLEAN,
+                                    false,
+                                    ConfigDef.Importance.LOW,
+                                    REBALANCE_ENABLED_DOC)
+                            .define(REBALANCE_PARTITION_MULTIPLE_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    2,
+                                    ConfigDef.Importance.LOW,
+                                    REBALANCE_PARTITION_MULTIPLE_DOC)
+                            .define(REBALANCE_THRESHOLD_CONFIG,
+                                    ConfigDef.Type.DOUBLE,
+                                    1.5,
+                                    ConfigDef.Importance.LOW,
+                                    REBALANCE_THRESHOLD_DOC);
 
   }
 

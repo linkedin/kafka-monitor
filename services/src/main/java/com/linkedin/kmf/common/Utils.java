@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.common;
 
+import java.util.Properties;
+import kafka.server.KafkaConfig;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -19,13 +21,21 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import kafka.utils.ZkUtils;
+import kafka.admin.AdminUtils;
 import scala.collection.Seq;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+
+/**
+ * Kafka monitoring utilities.
+ */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
+
+  private static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
+  private static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
@@ -35,11 +45,56 @@ public class Utils {
    * @return the number of partitions of the given topic
    */
   public static int getPartitionNumForTopic(String zkUrl, String topic) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, 30000, 30000, JaasUtils.isZkSecurityEnabled());
-    Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
-    int partition = zkUtils.getPartitionsForTopics(topics).apply(topic).size();
-    zkUtils.close();
-    return partition;
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+    try {
+      Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
+      return zkUtils.getPartitionsForTopics(topics).apply(topic).size();
+    } finally {
+      zkUtils.close();
+    }
+  }
+
+  /**
+   * Create the topic that the monitor uses to monitor the cluster.  This method attempts to create a topic so that all
+   * the brokers in the cluster will have partitionFactor partitions.  If the topic exists, but has different parameters
+   * then this does nothing to update the parameters.
+   *
+   * TODO: Do we care about rack aware mode?  I would think no because we want to spread the topic over all brokers.
+   * @param zkUrl zookeeper connection url
+   * @param topic topic name
+   * @param replicationFactor the replication factor for the topic
+   * @param partitionFactor This is multiplied by the number brokers to compute the number of partitions in the topic.
+   * @return the number of partitions created
+   */
+  public static int createMonitoringTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
+      int partitionFactor) {
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+    try {
+      if (AdminUtils.topicExists(zkUtils, topic)) {
+        LOG.info("Monitoring topic \"" + topic + "\" already exists.");
+        return getPartitionNumForTopic(zkUrl, topic);
+      }
+
+      int brokerCount = zkUtils.getAllBrokersInCluster().size();
+
+      if (partitionFactor <= 0) {
+        throw new IllegalArgumentException("Partition factor must be greater than zero, but was configured for " +
+            partitionFactor + ".");
+      }
+      int partitionCount = brokerCount * partitionFactor;
+
+      int minIsr = Math.max(replicationFactor - 1, 1);
+      Properties topicConfig = new Properties();
+      topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(minIsr));
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig);
+
+      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " + minIsr
+          + " and replication factor of " + replicationFactor + ".");
+
+      return partitionCount;
+    } finally {
+      zkUtils.close();
+    }
   }
 
   /**
