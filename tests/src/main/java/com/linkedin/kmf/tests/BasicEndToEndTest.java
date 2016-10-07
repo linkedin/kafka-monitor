@@ -85,9 +85,20 @@ public class BasicEndToEndTest implements Test {
   private static ArgumentParser argParser() {
     ArgumentParser parser = ArgumentParsers.newArgumentParser("").defaultHelp(true).description("");
 
-    parser.addArgument("--topic").action(store()).required(false).type(String.class).metavar("TOPIC").dest("topic").help("Produce messages to this topic and consume message from this topic");
+    parser.addArgument("--topic")
+        .action(store())
+        .required(false)
+        .type(String.class)
+        .metavar("TOPIC")
+        .dest("topic")
+        .help("Produce messages to this topic and consume message from this topic");
 
-    parser.addArgument("--producer-id").action(store()).required(false).type(String.class).dest("producerId").help("The producerId will be used by producer client and encoded in the messages to the topic");
+    parser.addArgument("--producer-id")
+        .action(store())
+        .required(false)
+        .type(String.class)
+        .dest("producerId")
+        .help("The producerId will be used by producer client and encoded in the messages to the topic");
 
     parser.addArgument("--broker-list")
         .action(store())
