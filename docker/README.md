@@ -8,11 +8,22 @@ build will error out complaining of missing files.
 ### Build the container locally
 Decide where you would like the built container to be stored.  The 
 default is quay.io/coffeepac/kafak-monitor.  You can probably not
-write to this location so you should update the Makefile with your
-repository name.  
+write to this location so you should specifiy a new location either
+at the command line or in an environment variable
 
-When complete execute
+Using default tag/repo location
 ```
+make container
+```
+
+Using command line flags
+```
+make container -e TAG=0.2
+```
+
+Using environment variables
+```
+export PREFIX=quay.io/your_userid/kafka-monitor
 make container
 ```
 

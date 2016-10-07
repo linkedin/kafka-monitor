@@ -14,8 +14,8 @@
 
 all: push
 
-TAG = 0.1
-PREFIX = quay.io/coffeepac/kafka-monitor
+TAG ?= 0.1
+PREFIX ?= quay.io/samsung_cnct/kafka-monitor
 
 container:
 	cd ../ && \
