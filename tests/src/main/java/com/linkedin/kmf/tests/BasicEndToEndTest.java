@@ -49,8 +49,7 @@ public class BasicEndToEndTest implements Test {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public BasicEndToEndTest(Map<String, Object> props, String name)
-      throws Exception {
+  public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
@@ -83,126 +82,119 @@ public class BasicEndToEndTest implements Test {
 
   /** Get the command-line argument parser. */
   private static ArgumentParser argParser() {
-    ArgumentParser parser = ArgumentParsers.newArgumentParser("").defaultHelp(true).description("");
+    ArgumentParser parser = ArgumentParsers
+      .newArgumentParser("")
+      .defaultHelp(true)
+      .description("");
 
     parser.addArgument("--topic")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("TOPIC")
-        .dest("topic")
-        .help("Produce messages to this topic and consume message from this topic");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("TOPIC")
+      .dest("topic")
+      .help("Produce messages to this topic and consume message from this topic");
 
     parser.addArgument("--producer-id")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .dest("producerId")
-        .help("The producerId will be used by producer client and encoded in the messages to the topic");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .dest("producerId")
+      .help("The producerId will be used by producer client and encoded in the messages to the topic");
 
     parser.addArgument("--broker-list")
-        .action(store())
-        .required(true)
-        .type(String.class)
-        .metavar("HOST1:PORT1[,HOST2:PORT2[...]]")
-        .dest("brokerList")
-        .help("Comma-separated list of Kafka brokers in the form HOST1:PORT1,HOST2:PORT2,...");
+      .action(store())
+      .required(true)
+      .type(String.class)
+      .metavar("HOST1:PORT1[,HOST2:PORT2[...]]")
+      .dest("brokerList")
+      .help("Comma-separated list of Kafka brokers in the form HOST1:PORT1,HOST2:PORT2,...");
 
     parser.addArgument("--zookeeper")
-        .action(store())
-        .required(true)
-        .type(String.class)
-        .metavar("HOST:PORT")
-        .dest("zkConnect")
-        .help("The connection string for the zookeeper connection in the form host:port");
+      .action(store())
+      .required(true)
+      .type(String.class)
+      .metavar("HOST:PORT")
+      .dest("zkConnect")
+      .help("The connection string for the zookeeper connection in the form host:port");
 
     parser.addArgument("--record-size")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("RECORD_SIZE")
-        .dest("recordSize")
-        .help("The size of each record.");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("RECORD_SIZE")
+      .dest("recordSize")
+      .help("The size of each record.");
 
     parser.addArgument("--producer-class")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("PRODUCER_CLASS_NAME")
-        .dest("producerClassName")
-        .help("Specify the class of producer. Available choices include newProducer or class name");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("PRODUCER_CLASS_NAME")
+      .dest("producerClassName")
+      .help("Specify the class of producer. Available choices include newProducer or class name");
 
     parser.addArgument("--consumer-class")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("CONSUMER_CLASS_NAME")
-        .dest("consumerClassName")
-        .help("Specify the class of consumer. Available choices include oldConsumer, newConsumer, or class name");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("CONSUMER_CLASS_NAME")
+      .dest("consumerClassName")
+      .help("Specify the class of consumer. Available choices include oldConsumer, newConsumer, or class name");
 
     parser.addArgument("--producer.config")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("PRODUCER_CONFIG")
-        .dest("producerConfig")
-        .help("Producer config properties file.");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("PRODUCER_CONFIG")
+      .dest("producerConfig")
+      .help("Producer config properties file.");
 
     parser.addArgument("--consumer.config")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("CONSUMER_CONFIG")
-        .dest("consumerConfig")
-        .help("Consumer config properties file.");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("CONSUMER_CONFIG")
+      .dest("consumerConfig")
+      .help("Consumer config properties file.");
 
     parser.addArgument("--report-interval-sec")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("REPORT_INTERVAL_SEC")
-        .dest("reportIntervalSec")
-        .help("Interval in sec with which to export stats");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("REPORT_INTERVAL_SEC")
+      .dest("reportIntervalSec")
+      .help("Interval in sec with which to export stats");
 
     parser.addArgument("--record-delay-ms")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("RECORD_DELAY_MS")
-        .dest("recordDelayMs")
-        .help("The delay in ms before sending next record to the same partition");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("RECORD_DELAY_MS")
+      .dest("recordDelayMs")
+      .help("The delay in ms before sending next record to the same partition");
 
     parser.addArgument("--latency-percentile-max-ms")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("LATENCY_PERCENTILE_MAX_MS")
-        .dest("latencyPercentileMaxMs")
-        .help("The maximum value in ms expected for latency percentile metric. "
-            + "The percentile will be reported as Double.POSITIVE_INFINITY if its value exceeds the max value.");
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("LATENCY_PERCENTILE_MAX_MS")
+      .dest("latencyPercentileMaxMs")
+      .help("The maximum value in ms expected for latency percentile metric. " +
+            "The percentile will be reported as Double.POSITIVE_INFINITY if its value exceeds the max value.");
 
     parser.addArgument("--latency-percentile-granularity-ms")
-        .action(store())
-        .required(false)
-        .type(String.class)
-        .metavar("LATENCY_PERCENTILE_GRANULARITY_MS")
-        .dest("latencyPercentileGranularityMs")
-        .help(
-            "The granularity in ms of latency percentile metric. This is the width of the bucket used in percentile calculation.");
-
-    parser.addArgument("--auto-topic-creation")
-        .action(store())
-        .required(false)
-        .type(Boolean.class)
-        .metavar("AUTO_TOPIC_CREATION_ENABLED")
-        .dest("autoTopicCreationEnabled")
-        .help(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_DOC);
+      .action(store())
+      .required(false)
+      .type(String.class)
+      .metavar("LATENCY_PERCENTILE_GRANULARITY_MS")
+      .dest("latencyPercentileGranularityMs")
+      .help("The granularity in ms of latency percentile metric. This is the width of the bucket used in percentile calculation.");
 
     return parser;
   }
 
-  public static void main(String[] args)
-      throws Exception {
+  public static void main(String[] args) throws Exception {
     ArgumentParser parser = argParser();
     if (args.length == 0) {
       System.out.println(parser.formatHelp());
@@ -210,6 +202,7 @@ public class BasicEndToEndTest implements Test {
     }
 
     Namespace res = parser.parseArgs(args);
+
     Map<String, Object> props = new HashMap<>();
 
     // produce service config
@@ -229,6 +222,8 @@ public class BasicEndToEndTest implements Test {
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+    if (res.getBoolean("rebalanceEnabled") != null)
+      props.put(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG, res.getBoolean("rebalanceEnabled"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
@@ -241,7 +236,6 @@ public class BasicEndToEndTest implements Test {
       props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG, res.getString("latencyPercentileMaxMs"));
     if (res.getString("latencyPercentileGranularityMs") != null)
       props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
-
 
     BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
     test.start();

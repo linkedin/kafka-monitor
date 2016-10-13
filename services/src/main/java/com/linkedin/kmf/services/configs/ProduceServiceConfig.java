@@ -14,6 +14,8 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import java.util.Map;
 
+import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
+
 public class ProduceServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
@@ -57,16 +59,19 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String REBALANCE_ENABLED_DOC = "Periodically move leaders and replica assignments so they are "
       + "evenly spread amongst brokers.";
 
-  public static final String REBALANCE_PARTITION_MULTIPLE_CONFIG = "produce.topic.rebalancePartitionMultiple";
-  public static final String REBALANCE_PARTITION_MULTIPLE_DOC = "Determines the number of partitions per broker in the ideal case.";
+  public static final String REBALANCE_PARTITION_FACTOR_CONFIG = "produce.topic.rebalancePartitionFactor";
+  public static final String REBALANCE_PARTITION_FACTOR_DOC = "Determines the number of partitions per broker in the ideal case.";
 
   public static final String REBALANCE_THRESHOLD_CONFIG = "produce.topic.rebalanceThreshold";
   public static final String REBALANCE_THRESHOLD_DOC = "Determines the number of partitions per broker in the ideal case.";
 
+  public static final String REBALANCE_DELAY_MS_CONFIG = "produce.topic.rebalanceDelayMs";
+  public static final String REBALANCE_DELAY_MS_DOC = "The gap in ms between the times the cluster balance on the monitored topic is checked.";
+
   public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
   public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
       TOPIC_CONFIG + "\" with replication factor \"" + AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
-      AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + REBALANCE_PARTITION_MULTIPLE_CONFIG +
+      AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + REBALANCE_PARTITION_FACTOR_CONFIG +
       "\" partitions.";
 
   static {
@@ -115,11 +120,13 @@ public class ProduceServiceConfig extends AbstractConfig {
                             .define(PRODUCE_THREAD_NUM_CONFIG,
                                     ConfigDef.Type.INT,
                                     5,
+                                    atLeast(1),
                                     ConfigDef.Importance.LOW,
                                     PRODUCE_THREAD_NUM_DOC)
                             .define(AUTO_TOPIC_REPLICATION_FACTOR_CONFIG,
                                     ConfigDef.Type.INT,
                                     1,
+                                    atLeast(1),
                                     ConfigDef.Importance.LOW,
                                     AUTO_TOPIC_REPLICATION_FACTOR_DOC)
                             .define(REBALANCE_ENABLED_CONFIG,
@@ -127,16 +134,24 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     false,
                                     ConfigDef.Importance.LOW,
                                     REBALANCE_ENABLED_DOC)
-                            .define(REBALANCE_PARTITION_MULTIPLE_CONFIG,
+                            .define(REBALANCE_PARTITION_FACTOR_CONFIG,
                                     ConfigDef.Type.INT,
                                     2,
+                                    atLeast(1),
                                     ConfigDef.Importance.LOW,
-                                    REBALANCE_PARTITION_MULTIPLE_DOC)
+                                    REBALANCE_PARTITION_FACTOR_DOC)
                             .define(REBALANCE_THRESHOLD_CONFIG,
                                     ConfigDef.Type.DOUBLE,
-                                    1.5,
+                                    1.0,
+                                    atLeast(1.0),
                                     ConfigDef.Importance.LOW,
-                                    REBALANCE_THRESHOLD_DOC);
+                                    REBALANCE_THRESHOLD_DOC)
+                            .define(REBALANCE_DELAY_MS_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1000 * 60 * 10,
+                                    atLeast(0),
+                                    ConfigDef.Importance.LOW,
+                                    REBALANCE_DELAY_MS_DOC);
 
   }
 

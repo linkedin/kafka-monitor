@@ -42,60 +42,57 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-
-/**
- * This sets up the producers used by Kafka Monitoring and some of the reported metrics.
- */
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
 
   private final String _name;
   private final ProduceMetrics _sensors;
-  private final KMBaseProducer _producer;
-  private final ScheduledExecutorService _executor;
+  private volatile KMBaseProducer _producer;
+  private volatile ScheduledExecutorService _executor;
+  private final ScheduledExecutorService _rebalanceExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
   /** This can be updated while running when new partitions are added to the monitored topic. */
   private final ConcurrentMap<Integer, AtomicLong> _nextIndexPerPartition;
-  /** This is the last thing that should be updated after adding new partitions. */
+  /** This is the last thing that should be updated after adding new partition sensors. */
   private final AtomicInteger _partitionNum;
   private final int _recordSize;
   private final String _topic;
   private final String _producerId;
   private final AtomicBoolean _running;
-  private final String _zkConnect;
   private final String _brokerList;
-  private final double _rebalanceThreshold;
+  private final Map _producerPropsOverride;
+  private final String _producerClass;
+  private final int _threadsNum;
+  private final TopicRebalancer _topicRebalancer;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    Map producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
+    _producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    _rebalanceThreshold = config.getDouble(ProduceServiceConfig.REBALANCE_THRESHOLD_CONFIG);
-    String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
-    int threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
+    double rebalanceThreshold = config.getDouble(ProduceServiceConfig.REBALANCE_THRESHOLD_CONFIG);
+    _producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
+    _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
     _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
     _partitionNum = new AtomicInteger(0);
+    _running = new AtomicBoolean(false);
+    _nextIndexPerPartition = new ConcurrentHashMap<>();
 
-    if (_rebalanceThreshold < 1) {
-      throw new IllegalArgumentException("Rebalance threshold must be greater than one but is set to " + _rebalanceThreshold + ".");
-    }
-
-    int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+    int autoTopicPartitionFactor = config.getInt(ProduceServiceConfig.REBALANCE_PARTITION_FACTOR_CONFIG);
+    int autoTopicReplicationFactor = config.getInt(ProduceServiceConfig.AUTO_TOPIC_REPLICATION_FACTOR_CONFIG);
+    int existingPartitionCount = Utils.getPartitionNumForTopic(zkConnect, _topic);
 
     if (existingPartitionCount <= 0) {
       if (config.getBoolean(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG)) {
-        int autoTopicReplicationFactor = config.getInt(ProduceServiceConfig.AUTO_TOPIC_REPLICATION_FACTOR_CONFIG);
-        int autoTopicPartitionFactor = config.getInt(ProduceServiceConfig.REBALANCE_PARTITION_MULTIPLE_CONFIG);
         _partitionNum.set(
-            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, autoTopicReplicationFactor,
+            Utils.createMonitoringTopicIfNotExists(zkConnect, _topic, autoTopicReplicationFactor,
                 autoTopicPartitionFactor));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
@@ -107,6 +104,33 @@ public class ProduceService implements Service {
     } else {
       _partitionNum.set(existingPartitionCount);
     }
+
+    initializeProducer(_producerPropsOverride, _producerClass, _threadsNum);
+
+    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(JMX_PREFIX));
+    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", _name);
+    _sensors = new ProduceMetrics(metrics, tags);
+
+    if (config.getBoolean(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG)) {
+      TopicRebalancer.PartitionsAddedCallback addPartitionCallback = new AddPartitionCallbackImpl();
+      //We want a separate executor service so that we don't have multuple threads trying to execute this.
+      _rebalanceExecutor = Executors.newScheduledThreadPool(1);
+      int rebalanceDelayMs = config.getInt(ProduceServiceConfig.REBALANCE_DELAY_MS_CONFIG);
+      LOG.info("Scheduling rebalance to run every " + rebalanceDelayMs + "ms.");
+      _topicRebalancer =
+          new TopicRebalancer(rebalanceThreshold, autoTopicPartitionFactor, _topic, zkConnect,
+              addPartitionCallback, rebalanceDelayMs, autoTopicReplicationFactor);
+    } else {
+      _rebalanceExecutor = null;
+      _topicRebalancer = null;
+    }
+  }
+
+  private void initializeProducer(Map producerPropsOverride, String producerClass, int threadsNum) throws Exception {
 
     Properties producerProps = new Properties();
 
@@ -133,41 +157,37 @@ public class ProduceService implements Service {
 
     _producer = (KMBaseProducer) Class.forName(producerClass).getConstructor(Properties.class).newInstance(producerProps);
 
-    _running = new AtomicBoolean(false);
-    _nextIndexPerPartition = new ConcurrentHashMap<>();
     _executor = Executors.newScheduledThreadPool(threadsNum);
-
-    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
-    List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(JMX_PREFIX));
-    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-    Map<String, String> tags = new HashMap<>();
-    tags.put("name", _name);
-    _sensors = new ProduceMetrics(metrics, tags);
-
   }
 
   @Override
   public void start() {
     if (_running.compareAndSet(false, true)) {
-      int partitionNum = _partitionNum.get();
-      for (int partition = 0; partition < partitionNum; partition++) {
-        scheduleProduceRunnable(partition);
-      }
+      scheduleProduceRunnables();
+      _rebalanceExecutor.scheduleWithFixedDelay(_topicRebalancer, _topicRebalancer.scheduleDurationMs(),
+        _topicRebalancer.scheduleDurationMs(), TimeUnit.MILLISECONDS);
       LOG.info(_name + "/ProduceService started");
     }
   }
 
-  private void scheduleProduceRunnable(int partition) {
-    _nextIndexPerPartition.put(partition, new AtomicLong(0));
-    _executor.scheduleWithFixedDelay(new ProduceRunnable(partition),
-        _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+  private void scheduleProduceRunnables() {
+    int partitionNum = _partitionNum.get();
+    for (int partition = 0; partition < partitionNum; partition++) {
+      //This saves all the indexes across restarts of the produce threads.
+      if (!_nextIndexPerPartition.containsKey(partition)) {
+        _nextIndexPerPartition.put(partition, new AtomicLong(0));
+      }
+      _executor.scheduleWithFixedDelay(new ProduceRunnable(partition), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+    }
   }
 
   @Override
   public void stop() {
     if (_running.compareAndSet(true, false)) {
       _executor.shutdown();
+      if (_rebalanceExecutor != null) {
+        _rebalanceExecutor.shutdown();
+      }
       _producer.close();
       LOG.info(_name + "/ProduceService stopped");
     }
@@ -177,6 +197,9 @@ public class ProduceService implements Service {
   public void awaitShutdown() {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+      if (_rebalanceExecutor != null) {
+        _rebalanceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+      }
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
@@ -223,7 +246,11 @@ public class ProduceService implements Service {
             double availabilitySum = 0.0;
             int partitionNum = _partitionNum.get();
             for (int partition = 0; partition < partitionNum; partition++) {
-              double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              MetricName partitionRecordsProduced = new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags);
+              if (!_sensors.metrics.metrics().containsKey(partitionRecordsProduced)) {
+                throw new IllegalStateException("Can't find metrics for " + partitionRecordsProduced + ".");
+              }
+              double recordsProduced = _sensors.metrics.metrics().get(partitionRecordsProduced).value();
               double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
               if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
@@ -281,6 +308,37 @@ public class ProduceService implements Service {
         _sensors._produceErrorPerPartition.get(_partition).record();
         LOG.debug(_name + " failed to send message", e);
       }
+    }
+  }
+
+  /**
+   * This gets run as a call back when new partitions are added by the rebalancer.
+   */
+  private class AddPartitionCallbackImpl implements TopicRebalancer.PartitionsAddedCallback {
+
+    @Override
+    public synchronized void partitionsAdded(int addedPartitionCount) {
+      //TODO: should we exit the monitor if we can't restart the producer runnables?
+      _executor.shutdown();
+      try {
+        _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        throw new IllegalStateException(e);
+      }
+      _producer.close();
+      int nextPartitionStart = _partitionNum.get();
+      int newPartitionCount = nextPartitionStart + addedPartitionCount;
+      for (int newPartition = nextPartitionStart; newPartition < newPartitionCount; newPartition++) {
+        LOG.debug("Adding " + newPartition + " to sensors.");
+        _sensors.addPartitionSensors(newPartition);
+      }
+      _partitionNum.set(newPartitionCount);
+      try {
+        initializeProducer(_producerPropsOverride, _producerClass, _threadsNum);
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+      scheduleProduceRunnables();
     }
   }
 

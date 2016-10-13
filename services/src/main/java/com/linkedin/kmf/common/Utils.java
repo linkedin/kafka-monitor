@@ -34,8 +34,8 @@ import java.util.Arrays;
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
-  private static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
-  private static final int ZK_SESSION_TIMEOUT_MS = 30_000;
+  public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
+  public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper

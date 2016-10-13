@@ -14,6 +14,15 @@ allprojects {
     configFile = new File(rootDir, "checkstyle/checkstyle.xml")
   }
   test.dependsOn('checkstyleMain', 'checkstyleTest')
+
+  test {
+    useTestNG()
+
+    testLogging {
+      events "passed", "skipped", "failed"
+      exceptionFormat = 'full'
+    }
+  }
 }
 
 project(':services') {
@@ -54,6 +63,7 @@ project(':services') {
   artifacts {
     archives testJar
   }
+
 }
 
 project(':tests') {
