@@ -191,6 +191,30 @@ public class BasicEndToEndTest implements Test {
       .dest("latencyPercentileGranularityMs")
       .help("The granularity in ms of latency percentile metric. This is the width of the bucket used in percentile calculation.");
 
+    parser.addArgument("--auto-topic-creation")
+      .action(store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("AUTO_TOPIC_CREATION_ENABLED")
+      .dest("autoTopicCreationEnabled")
+      .help(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_DOC);
+
+    parser.addArgument("--topic-rebalance-enabled")
+      .action(store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("REBALANCE_ENABLED")
+      .dest("rebalanceEnabled")
+      .help(ProduceServiceConfig.REBALANCE_ENABLED_DOC);
+
+    parser.addArgument("--topic-rebalance-ms")
+      .action(store())
+      .required(false)
+      .type(Integer.class)
+      .metavar("REBALANCE_MS")
+      .dest("rebalanceMs")
+      .help(ProduceServiceConfig.REBALANCE_DELAY_MS_DOC);
+
     return parser;
   }
 
@@ -224,6 +248,8 @@ public class BasicEndToEndTest implements Test {
       props.put(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
     if (res.getBoolean("rebalanceEnabled") != null)
       props.put(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG, res.getBoolean("rebalanceEnabled"));
+    if (res.getInt("rebalanceMs") != null)
+      props.put(ProduceServiceConfig.REBALANCE_DELAY_MS_CONFIG, res.getInt("rebalanceMs"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 

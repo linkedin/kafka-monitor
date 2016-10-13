@@ -164,8 +164,10 @@ public class ProduceService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       scheduleProduceRunnables();
-      _rebalanceExecutor.scheduleWithFixedDelay(_topicRebalancer, _topicRebalancer.scheduleDurationMs(),
-        _topicRebalancer.scheduleDurationMs(), TimeUnit.MILLISECONDS);
+      if (_rebalanceExecutor != null) {
+        _rebalanceExecutor.scheduleWithFixedDelay(_topicRebalancer, _topicRebalancer.scheduleDurationMs(),
+          _topicRebalancer.scheduleDurationMs(), TimeUnit.MILLISECONDS);
+      }
       LOG.info(_name + "/ProduceService started");
     }
   }
