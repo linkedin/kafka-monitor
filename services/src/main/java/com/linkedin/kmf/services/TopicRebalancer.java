@@ -36,7 +36,7 @@ import scala.collection.Seq;
 
 
 /**
- * Runs this periodically to rebalance the monitored topic across brokers and to reassign leaders to brokers so that the
+ * Runs this periodically to rebalance the monitored topic across brokers and to reassign _electedLeaders to brokers so that the
  * monitored topic is sampling all the brokers evenly.
  */
 class TopicRebalancer implements Runnable {
@@ -46,11 +46,63 @@ class TopicRebalancer implements Runnable {
   /**
    * The state of the monitored topic.
    */
-  enum RebalanceCondition {
-    OK,
-    PartitionsLow,
-    BrokerUnderMonitored,
-    BrokerNotLeader;
+  static class TopicState {
+
+    Map<Integer, Integer> _brokerToPartitionCount = new HashMap<>();
+    //Assigned _electedLeaders tracks if there is some partition for which it is the preferred leader which could be none.
+    Set<Integer> _preferredLeaders = new HashSet<>();
+    Set<Integer> _electedLeaders = new HashSet<>();
+    Collection<Broker> _allBrokers;
+    List<PartitionInfo> _partitionInfo;
+
+    public TopicState(Map<Integer, Integer> brokerToPartitionCount, Set<Integer> electedLeaders,
+      Set<Integer> preferredLeaders, List<PartitionInfo> partitionInfo, Collection<Broker> allBrokers) {
+      this._brokerToPartitionCount = brokerToPartitionCount;
+      this._preferredLeaders = preferredLeaders;
+      this._electedLeaders = electedLeaders;
+      this._allBrokers = allBrokers;
+      this._partitionInfo = partitionInfo;
+    }
+
+    /**
+     *
+     * @param expectedRatio the expected partition to broker ratio
+     * @return true if the current partition to broker ratio is less than the expected ratio
+     */
+    boolean partitionsLow(double expectedRatio) {
+      double actualRatio = ((double) _partitionInfo.size()) / _allBrokers.size();
+      return actualRatio < expectedRatio;
+    }
+
+    /**
+     * @return true if broker is not the preferred leader for at least one partition.
+     */
+    boolean brokerMissingPartition() {
+
+      for (Broker broker : _allBrokers) {
+        if (!_brokerToPartitionCount.containsKey(broker.id())) {
+          return true;
+        }
+
+        if (!_preferredLeaders.contains(broker.id())) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /**
+     * @return true if at least one broker is not elected leader for at least one partition.
+     */
+    boolean brokerNotElectedLeader() {
+      for (Broker broker : _allBrokers) {
+        if (!_electedLeaders.contains(broker.id())) {
+          return true;
+        }
+      }
+      return false;
+    }
+
   }
 
   interface PartitionsAddedCallback {
@@ -72,9 +124,9 @@ class TopicRebalancer implements Runnable {
 
   /**
    *
-   * @param rebalanceThreshold This assumes that you want to have at least one per broker.  When the number of partitions
-   *                            falls below rebalanceThreshold * brokerCount then new partitions are created.
-   * @param rebalancePartitionFactor While rebalanceThreshold establishes a low water mark this parameter establishes
+   * @param expectedPartitionToBrokerRatio When then number of partitions falls below this threshold then new partitions
+   *                                       are created.
+   * @param rebalancePartitionFactor While expectedPartitionToBrokerRatio establishes a low water mark this parameter establishes
    *                                   the desired state.  The number of partitions should be
    *                                   rebalancePartitionFactor * brokerCount.
    * @param topic Topic identifier
@@ -83,22 +135,20 @@ class TopicRebalancer implements Runnable {
    * @param scheduleDurationMs The duration between times this is scheduled to run in milliseconds.
    * @param replicationFactor The desired replication factor when creating new partitions.
    */
-  TopicRebalancer(double rebalanceThreshold, int rebalancePartitionFactor, String topic, String zkConnect,
+  TopicRebalancer(double expectedPartitionToBrokerRatio, int rebalancePartitionFactor, String topic, String zkConnect,
       PartitionsAddedCallback addPartitionCallback, int scheduleDurationMs,
       int replicationFactor) {
 
-    if (rebalanceThreshold < 1) {
+    if (expectedPartitionToBrokerRatio < 1) {
       throw new IllegalArgumentException(
-          "rebalanceThreshold must be greater than or equal to one, but found " + rebalanceThreshold + ".");
+          "expectedPartitionToBrokerRatio must be greater than or equal to one, but found " + expectedPartitionToBrokerRatio + ".");
     }
 
     if (addPartitionCallback == null) {
       throw new NullPointerException("addPartitionCallback may not be null");
     }
 
-    //TODO:  should there be more parameter checking or should I assume that ProduceService has done this.
-
-    _rebalanceThreshold = rebalanceThreshold;
+    _rebalanceThreshold = expectedPartitionToBrokerRatio;
     _topic = topic;
     _zkConnect = zkConnect;
     _addPartitionCallback = addPartitionCallback;
@@ -114,13 +164,14 @@ class TopicRebalancer implements Runnable {
   @Override
   public void run() {
     try {
-      RebalanceCondition rebalanceCondition = monitoredTopicNeedsRebalance();
-      if (rebalanceCondition != RebalanceCondition.OK) {
-        LOG.info("Monitored topic \"" + _topic + "\" rebalance started.");
-        rebalanceMonitoredTopic(rebalanceCondition);
-        LOG.info("Monitored topic \"" + _topic + "\" rebalance complete.");
+      TopicState topicState = topicState();
+      if (topicState.brokerNotElectedLeader() || topicState.brokerMissingPartition() || topicState.partitionsLow(_rebalanceThreshold)) {
+        LOG.info("Topic rebalance started.");
+        rebalanceMonitoredTopic(topicState);
+        LOG.info("Topic rebalance complete.");
+      } else {
+        LOG.info("Topic is in good state, no rebalance needed.");
       }
-
     } catch (Exception e) {
       LOG.error("Monitored topic rebalance failed with exception.", e);
     }
@@ -128,8 +179,7 @@ class TopicRebalancer implements Runnable {
 
   /**
    * <pre>
-   * Each time this is invoked one of the following happens.  This is done because I don't have a way to wait for any
-   * of these steps to complete.
+   * Each time this is invoked zero or more of the following happens.  T
    *
    * 1. if number of partitions falls below threshold then create new partitions
    *     create new produce runnables (callback does this)
@@ -142,39 +192,30 @@ class TopicRebalancer implements Runnable {
    * 3. run a preferred replica election
    * </pre>
    */
-  void rebalanceMonitoredTopic(RebalanceCondition rebalanceCondition) {
+  void rebalanceMonitoredTopic(TopicState topicState) {
     ZkUtils zkUtils = createZooKeeperUtils();
     try {
-      Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkUtils.getAllBrokersInCluster());
-      List<PartitionInfo> partitionInfoList = partitionInfoForMonitoredTopic();
-      int brokerCount = brokers.size();
-      int partitionCount = partitionInfoList.size();
+      LOG.debug("Broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
 
-      LOG.debug("Broker count " + brokerCount + " partitionCount " + partitionCount + ".");
-
-      switch (rebalanceCondition) {
-        case PartitionsLow:
-          int idealPartitionCount = _rebalancePartitionFactor * brokerCount;
-          int addPartitionCount = idealPartitionCount - partitionCount;
-          LOG.info("Adding " + addPartitionCount + " partitions.");
-          addPartitions(zkUtils, idealPartitionCount);
-          waitForAddedPartitionsToBecomeActive(idealPartitionCount);
-          _addPartitionCallback.partitionsAdded(addPartitionCount);
-          //fall through
-        case BrokerUnderMonitored:
-          LOG.info("Rebalancing monitored topic.");
-          waitForOtherAssignmentsToComplete();
-          reassignPartitions(brokers, partitionCount);
-          waitForPartitionReassignmentToComplete();
-          break;
-        case BrokerNotLeader:
-          LOG.info("Running preferred replica election.");
-          runPreferredElection(zkUtils, partitionInfoList);
-          break;
-        case OK:
-          break;
-        default:
-          throw new IllegalStateException("Unhandled state " + rebalanceCondition + ".");
+      if (topicState.partitionsLow(_rebalanceThreshold)) {
+        int idealPartitionCount = _rebalancePartitionFactor * topicState._allBrokers.size();
+        int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
+        LOG.info("Adding " + addPartitionCount + " partitions.");
+        addPartitions(zkUtils, idealPartitionCount);
+        waitForAddedPartitionsToBecomeActive(idealPartitionCount);
+        _addPartitionCallback.partitionsAdded(addPartitionCount);
+        topicState = topicState();
+      }
+      if (topicState.brokerMissingPartition()) {
+        LOG.info("Rebalancing monitored topic.");
+        waitForOtherAssignmentsToComplete();
+        reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size());
+        waitForPartitionReassignmentToComplete();
+        topicState = topicState();
+      }
+      if (topicState.brokerNotElectedLeader()) {
+        LOG.info("Running preferred replica election.");
+        runPreferredElection(zkUtils, topicState._partitionInfo);
       }
     } catch (InterruptedException ie) {
       throw new IllegalStateException(ie);
@@ -316,12 +357,11 @@ class TopicRebalancer implements Runnable {
    * @return a value other than RebalanceCondition.OK if the monitored topic is no longer distributed evenly with respect
    * to the given parameters.   Will not return null.
    */
-  private RebalanceCondition monitoredTopicNeedsRebalance() {
-
+  private TopicState topicState() {
     ZkUtils zkUtils = createZooKeeperUtils();
     List<PartitionInfo> partitionInfoList = partitionInfoForMonitoredTopic();
     Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkUtils.getAllBrokersInCluster());
-    return monitoredTopicNeedsRebalance(partitionInfoList, brokers, _rebalanceThreshold);
+    return topicState(partitionInfoList, brokers);
   }
 
 
@@ -348,37 +388,15 @@ class TopicRebalancer implements Runnable {
     return partitionInfoList;
   }
 
-
   /**
-   * This returns RebalanceCondition.OK unless one of the following conditions are met in this order:
-   * <ul>
-   *   <li> The minimum number of total monitored partitions falls below floor(brokers * partitionThreshold).
-   *        Returns PartitionsLow</li>
-   *   <li> One or more brokers does not have a monitored partition or falls below the minimum number of monitored
-   *        partitions. Returns BrokerUnderMonitored</li>
-   *   <li> One or more brokers is not assigned as a preferred leader for any partition.  BrokerUnderMonitored</li>
-   *   <li> One or more brokers is the currently elected leader of a monitored partition. BrokerNotLeader</li>
-   * </ul>
-   * @param partitionInfoList this should only contain partition info for the monitored topic
-   * @param brokers get this from ZkUtils, this should be all the active brokers in the cluster
-   * @param partitionThreshold the lower water mark for when we do not have enough monitored partitions
-   * @return see above
+   * Create a TopicState instance.
    */
-  static RebalanceCondition monitoredTopicNeedsRebalance(List<PartitionInfo> partitionInfoList, Collection<Broker> brokers,
-      double partitionThreshold) {
-
-    int partitionCount = partitionInfoList.size();
-    int minPartitionCount = (int) (brokers.size() * partitionThreshold);
-    int minPartitionCountPerBroker = (int) partitionThreshold;
-
-    if (partitionCount < minPartitionCount) {
-      return RebalanceCondition.PartitionsLow;
-    }
+  static TopicState topicState(List<PartitionInfo> partitionInfoList, Collection<Broker> brokers) {
 
     Map<Integer, Integer> brokerToPartitionCount = new HashMap<>(brokers.size());
-    //Assigned leaders tracks if there is some partition for which it is the preferred leader which could be none.
-    Set<Integer> assignedLeaders = new HashSet<>(brokers.size());
-    Set<Integer> leaders = new HashSet<>(brokers.size());
+    //Assigned _electedLeaders tracks if there is some partition for which it is the preferred leader which could be none.
+    Set<Integer> preferredLeaders = new HashSet<>(brokers.size());
+    Set<Integer> electedLeaders = new HashSet<>(brokers.size());
 
     // Count the number of partitions a broker is involved with and if it is a leader for some partition
     // Check that a partition has at least a certain number of replicas
@@ -394,34 +412,13 @@ class TopicRebalancer implements Runnable {
       }
 
       if (partitionInfo.replicas().length > 0) {
-        assignedLeaders.add(partitionInfo.replicas()[0].id());
+        preferredLeaders.add(partitionInfo.replicas()[0].id());
       }
       if (partitionInfo.leader() != null) {
-        leaders.add(partitionInfo.leader().id());
+        electedLeaders.add(partitionInfo.leader().id());
       }
     }
 
-    // Check that a broker is a leader for at least one partition
-    // Check that a broker has at least minPartitionCountPerBroker
-    for (Broker broker : brokers) {
-      if (!brokerToPartitionCount.containsKey(broker.id())) {
-        return RebalanceCondition.BrokerUnderMonitored;
-      }
-
-      if (brokerToPartitionCount.get(broker.id()) < minPartitionCountPerBroker) {
-        return RebalanceCondition.BrokerUnderMonitored;
-      }
-
-      if (!assignedLeaders.contains(broker.id())) {
-        return RebalanceCondition.BrokerUnderMonitored;
-      }
-    }
-
-    for (Broker broker : brokers) {
-      if (!leaders.contains(broker.id())) {
-        return RebalanceCondition.BrokerNotLeader;
-      }
-    }
-    return RebalanceCondition.OK;
+    return new TopicState(brokerToPartitionCount, electedLeaders, preferredLeaders, partitionInfoList, brokers);
   }
 }

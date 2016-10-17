@@ -17,7 +17,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.linkedin.kmf.services.TopicRebalancer.RebalanceCondition;
+import com.linkedin.kmf.services.TopicRebalancer.TopicState;
 
 @Test
 public class TopicRebalancerTest {
@@ -49,21 +49,10 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[1], node[0]}, null));
 
-    Assert.assertEquals(RebalanceCondition.OK, TopicRebalancer.monitoredTopicNeedsRebalance(partitions, brokers(2), 2.0));
-  }
-
-  @Test
-  public void detectLowNumberOfPartitionsPerBroker() {
-    Node[] node = nodes(3);
-    List<PartitionInfo> partitions = new ArrayList<>();
-    for (int i = 0; i < 5; i++) {
-      int leaderNode = i % 2;
-      int followerNode = (i + 1) % 2;
-      partitions.add(new PartitionInfo(TOPIC, i, node[leaderNode], new Node[] {node[leaderNode], node[followerNode]}, null));
-    }
-    partitions.add(new PartitionInfo(TOPIC, 5, node[2], new Node[] {node[2], node[0]}, null));
-
-    Assert.assertEquals(TopicRebalancer.monitoredTopicNeedsRebalance(partitions, brokers(3), 2.0),  RebalanceCondition.BrokerUnderMonitored);
+    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(2));
+    Assert.assertFalse(topicState.brokerMissingPartition());
+    Assert.assertFalse(topicState.brokerNotElectedLeader());
+    Assert.assertFalse(topicState.partitionsLow(1.1));
   }
 
   @Test
@@ -74,7 +63,10 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 1, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 2, node[2], new Node[] {node[2], node[0]}, null));
 
-    Assert.assertEquals(TopicRebalancer.monitoredTopicNeedsRebalance(partitions, brokers(3), 1.4), RebalanceCondition.PartitionsLow);
+    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
+    Assert.assertFalse(topicState.brokerMissingPartition());
+    Assert.assertFalse(topicState.brokerNotElectedLeader());
+    Assert.assertTrue(topicState.partitionsLow(1.4));
   }
 
 
@@ -88,6 +80,25 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
     partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
 
-    Assert.assertEquals(TopicRebalancer.monitoredTopicNeedsRebalance(partitions, brokers(3), 1.0), RebalanceCondition.BrokerNotLeader);
+    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
+    Assert.assertFalse(topicState.brokerMissingPartition());
+    Assert.assertTrue(topicState.brokerNotElectedLeader());
+    Assert.assertFalse(topicState.partitionsLow(1.4));
+  }
+
+  @Test
+  public void detectBrokerWithoutPreferredLeader() {
+    List<PartitionInfo> partitions = new ArrayList<>();
+    Node[] node = nodes(3);
+    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
+    partitions.add(new PartitionInfo(TOPIC, 1, node[0], new Node[] {node[0], node[1]}, null));
+    partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[0], node[0]}, null));
+    partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
+    partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
+
+    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
+    Assert.assertTrue(topicState.brokerMissingPartition());
+    Assert.assertTrue(topicState.brokerNotElectedLeader());
+    Assert.assertFalse(topicState.partitionsLow(1.4));
   }
 }
