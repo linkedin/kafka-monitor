@@ -62,11 +62,11 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String REBALANCE_PARTITION_FACTOR_CONFIG = "produce.topic.rebalancePartitionFactor";
   public static final String REBALANCE_PARTITION_FACTOR_DOC = "Determines the number of partitions per broker in the ideal case.";
 
-  public static final String REBALANCE_THRESHOLD_CONFIG = "produce.topic.rebalanceThreshold";
-  public static final String REBALANCE_THRESHOLD_DOC = "Determines the number of partitions per broker in the ideal case.";
+  public static final String REBALANCE_EXPECTED_RATIO_CONFIG = "produce.topic.rebalanceProducerConsumerRatio";
+  public static final String REBALANCE_EXPECTED_RATIO_DOC = "The expected ratio of partition / broker.  When the actual ratio falls below this new partitions are created.";
 
-  public static final String REBALANCE_DELAY_MS_CONFIG = "produce.topic.rebalanceDelayMs";
-  public static final String REBALANCE_DELAY_MS_DOC = "The gap in ms between the times the cluster balance on the monitored topic is checked.";
+  public static final String REBALANCE_INTERVAL_MS_CONFIG = "produce.topic.rebalanceIntervalMs";
+  public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the monitored topic is checked.";
 
   public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
   public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
@@ -140,18 +140,16 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     atLeast(1),
                                     ConfigDef.Importance.LOW,
                                     REBALANCE_PARTITION_FACTOR_DOC)
-                            .define(REBALANCE_THRESHOLD_CONFIG,
+                            .define(REBALANCE_EXPECTED_RATIO_CONFIG,
                                     ConfigDef.Type.DOUBLE,
                                     1.0,
                                     atLeast(1.0),
-                                    ConfigDef.Importance.LOW,
-                                    REBALANCE_THRESHOLD_DOC)
-                            .define(REBALANCE_DELAY_MS_CONFIG,
+                                    ConfigDef.Importance.LOW, REBALANCE_EXPECTED_RATIO_DOC)
+                            .define(REBALANCE_INTERVAL_MS_CONFIG,
                                     ConfigDef.Type.INT,
                                     1000 * 60 * 10,
                                     atLeast(0),
-                                    ConfigDef.Importance.LOW,
-                                    REBALANCE_DELAY_MS_DOC);
+                                    ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC);
 
   }
 

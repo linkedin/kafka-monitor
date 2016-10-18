@@ -115,11 +115,10 @@ class TopicRebalancer implements Runnable {
 
   private final double _rebalanceThreshold;
   private final String _topic;
-  private final String _zkConnect;
   private final PartitionsAddedCallback _addPartitionCallback;
   private final int _rebalancePartitionFactor;
-  private final int _scheduleDurationMs;
-  private ZkUtils _zkUtils;
+  private final int _scheduleIntervalMs;
+  private final ZkUtils _zkUtils;
   private final int _replicationFactor;
 
   /**
@@ -132,33 +131,27 @@ class TopicRebalancer implements Runnable {
    * @param topic Topic identifier
    * @param zkConnect Zoo keeper connection url
    * @param addPartitionCallback This gets called when partitions have been added to the monitored topic.
-   * @param scheduleDurationMs The duration between times this is scheduled to run in milliseconds.
+   * @param scheduleIntervalMs The duration between times this is scheduled to run in milliseconds.
    * @param replicationFactor The desired replication factor when creating new partitions.
    */
   TopicRebalancer(double expectedPartitionToBrokerRatio, int rebalancePartitionFactor, String topic, String zkConnect,
-      PartitionsAddedCallback addPartitionCallback, int scheduleDurationMs,
+      PartitionsAddedCallback addPartitionCallback, int scheduleIntervalMs,
       int replicationFactor) {
-
-    if (expectedPartitionToBrokerRatio < 1) {
-      throw new IllegalArgumentException(
-          "expectedPartitionToBrokerRatio must be greater than or equal to one, but found " + expectedPartitionToBrokerRatio + ".");
-    }
-
-    if (addPartitionCallback == null) {
-      throw new NullPointerException("addPartitionCallback may not be null");
-    }
 
     _rebalanceThreshold = expectedPartitionToBrokerRatio;
     _topic = topic;
-    _zkConnect = zkConnect;
     _addPartitionCallback = addPartitionCallback;
     _rebalancePartitionFactor = rebalancePartitionFactor;
-    _scheduleDurationMs = scheduleDurationMs;
+    _scheduleIntervalMs = scheduleIntervalMs;
     _replicationFactor = replicationFactor;
+    _zkUtils = ZkUtils.apply(zkConnect, ZK_SESSION_TIMEOUT_MS + _scheduleIntervalMs, ZK_CONNECTION_TIMEOUT_MS + _scheduleIntervalMs,
+      JaasUtils.isZkSecurityEnabled());
+    LOG.info("Rebalance threshold ratio " + _rebalanceThreshold + " topic " + _topic + " _rebalancePartitionFactor " +
+      _rebalancePartitionFactor + " scheduleIntervalMs " + _scheduleIntervalMs + " replication factor " + _replicationFactor + ".");
   }
 
   int scheduleDurationMs() {
-    return _scheduleDurationMs;
+    return _scheduleIntervalMs;
   }
 
   @Override
@@ -193,7 +186,6 @@ class TopicRebalancer implements Runnable {
    * </pre>
    */
   void rebalanceMonitoredTopic(TopicState topicState) {
-    ZkUtils zkUtils = createZooKeeperUtils();
     try {
       LOG.debug("Broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
 
@@ -201,7 +193,7 @@ class TopicRebalancer implements Runnable {
         int idealPartitionCount = _rebalancePartitionFactor * topicState._allBrokers.size();
         int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
         LOG.info("Adding " + addPartitionCount + " partitions.");
-        addPartitions(zkUtils, idealPartitionCount);
+        addPartitions(_zkUtils, idealPartitionCount);
         waitForAddedPartitionsToBecomeActive(idealPartitionCount);
         _addPartitionCallback.partitionsAdded(addPartitionCount);
         topicState = topicState();
@@ -215,7 +207,7 @@ class TopicRebalancer implements Runnable {
       }
       if (topicState.brokerNotElectedLeader()) {
         LOG.info("Running preferred replica election.");
-        runPreferredElection(zkUtils, topicState._partitionInfo);
+        runPreferredElection(_zkUtils, topicState._partitionInfo);
       }
     } catch (InterruptedException ie) {
       throw new IllegalStateException(ie);
@@ -230,11 +222,10 @@ class TopicRebalancer implements Runnable {
 
     //Using ZkUtils instead of the consumer because the consumer seems to cache the last answer it got which was the old
     //number of partitions.
-    ZkUtils zkUtils = createZooKeeperUtils();
     scala.collection.mutable.ArrayBuffer<String> scalaTopic = new scala.collection.mutable.ArrayBuffer<>();
     scalaTopic.$plus$eq(_topic);
     while (System.currentTimeMillis() < timeout) {
-      if (zkUtils.getPartitionAssignmentForTopics(scalaTopic).apply(_topic).size()  == expectedNumberOfPartitions) {
+      if (_zkUtils.getPartitionAssignmentForTopics(scalaTopic).apply(_topic).size()  == expectedNumberOfPartitions) {
         return;
       }
       try {
@@ -250,8 +241,7 @@ class TopicRebalancer implements Runnable {
    * If there is some other assignment going then wait for it to complete.
    */
   private void waitForOtherAssignmentsToComplete() throws InterruptException {
-    ZkUtils zkUtils = createZooKeeperUtils();
-    while (!zkUtils.getPartitionsBeingReassigned().isEmpty()) {
+    while (!_zkUtils.getPartitionsBeingReassigned().isEmpty()) {
       try {
         LOG.debug("Waiting for current partition assignment to be complete.");
         Thread.sleep(1000);
@@ -262,12 +252,11 @@ class TopicRebalancer implements Runnable {
   }
 
   private void waitForPartitionReassignmentToComplete() throws InterruptedException {
-    ZkUtils zkUtils = createZooKeeperUtils();
     boolean reassignmentRunning = false;
     while (reassignmentRunning) {
       LOG.debug("Wait for monitored topic " + _topic + " to complete reassignment.");
       Thread.sleep(10000);
-      scala.collection.Map<TopicAndPartition, ?> currentState = zkUtils.getPartitionsBeingReassigned();
+      scala.collection.Map<TopicAndPartition, ?> currentState = _zkUtils.getPartitionsBeingReassigned();
       scala.collection.Iterator<TopicAndPartition> it = currentState.keysIterator();
       reassignmentRunning = false;
       while (it.hasNext()) {
@@ -292,8 +281,7 @@ class TopicRebalancer implements Runnable {
     String jsonReassignmentData = scalaReassignmentToJson(partitionToReplicas, partitionCount);
 
     LOG.debug("Reassignments " + jsonReassignmentData + ".");
-    ZkUtils zkUtils = createZooKeeperUtils();
-    zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath().toString(), jsonReassignmentData, zkUtils.DefaultAcls());
+    _zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath().toString(), jsonReassignmentData, _zkUtils.DefaultAcls());
 
   }
 
@@ -344,39 +332,27 @@ class TopicRebalancer implements Runnable {
     AdminUtils.addPartitions(zkUtils, _topic, addPartitionCount, null, false);
   }
 
-  protected ZkUtils createZooKeeperUtils() {
-    if (_zkUtils == null) {
-      _zkUtils = ZkUtils.apply(_zkConnect, ZK_SESSION_TIMEOUT_MS + _scheduleDurationMs, ZK_CONNECTION_TIMEOUT_MS + _scheduleDurationMs,
-          JaasUtils.isZkSecurityEnabled());
-    }
-    return _zkUtils;
-  }
-
-
   /**
-   * @return a value other than RebalanceCondition.OK if the monitored topic is no longer distributed evenly with respect
-   * to the given parameters.   Will not return null.
+   * @return the state of the topic e.g. all the partitions and replicas
    */
   private TopicState topicState() {
-    ZkUtils zkUtils = createZooKeeperUtils();
     List<PartitionInfo> partitionInfoList = partitionInfoForMonitoredTopic();
-    Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkUtils.getAllBrokersInCluster());
+    Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(_zkUtils.getAllBrokersInCluster());
     return topicState(partitionInfoList, brokers);
   }
 
 
   private List<PartitionInfo> partitionInfoForMonitoredTopic() {
-    ZkUtils zkUtils = createZooKeeperUtils();
     scala.collection.mutable.ArrayBuffer<String> topicList = new scala.collection.mutable.ArrayBuffer<>();
     topicList.$plus$eq(_topic);
     scala.collection.Map<Object, scala.collection.Seq<Object>> partitionAssignments =
-        zkUtils.getPartitionAssignmentForTopics(topicList).apply(_topic);
+        _zkUtils.getPartitionAssignmentForTopics(topicList).apply(_topic);
     List<PartitionInfo> partitionInfoList = new ArrayList<>();
     scala.collection.Iterator<scala.Tuple2<Object, scala.collection.Seq<Object>>> it = partitionAssignments.iterator();
     while (it.hasNext()) {
       scala.Tuple2<Object, scala.collection.Seq<Object>> scalaTuple = it.next();
       Integer partition = (Integer) scalaTuple._1();
-      Node leader = new Node((Integer) zkUtils.getLeaderForPartition(_topic, partition).get(), "", -1);
+      Node leader = new Node((Integer) _zkUtils.getLeaderForPartition(_topic, partition).get(), "", -1);
       Node[] replicas = new Node[scalaTuple._2().size()];
       for (int i = 0; i < replicas.length; i++) {
         Integer brokerId = (Integer) scalaTuple._2().apply(i);

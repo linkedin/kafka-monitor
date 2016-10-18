@@ -77,10 +77,6 @@ public class Utils {
 
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
 
-      if (partitionFactor <= 0) {
-        throw new IllegalArgumentException("Partition factor must be greater than zero, but was configured for " +
-            partitionFactor + ".");
-      }
       int partitionCount = brokerCount * partitionFactor;
 
       int minIsr = Math.max(replicationFactor - 1, 1);

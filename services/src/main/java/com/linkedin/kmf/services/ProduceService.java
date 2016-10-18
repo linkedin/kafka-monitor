@@ -73,7 +73,7 @@ public class ProduceService implements Service {
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    double rebalanceThreshold = config.getDouble(ProduceServiceConfig.REBALANCE_THRESHOLD_CONFIG);
+    double rebalanceThreshold = config.getDouble(ProduceServiceConfig.REBALANCE_EXPECTED_RATIO_CONFIG);
     _producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
@@ -119,7 +119,7 @@ public class ProduceService implements Service {
       TopicRebalancer.PartitionsAddedCallback addPartitionCallback = new AddPartitionCallbackImpl();
       //We want a separate executor service so that we don't have multuple threads trying to execute this.
       _rebalanceExecutor = Executors.newScheduledThreadPool(1);
-      int rebalanceDelayMs = config.getInt(ProduceServiceConfig.REBALANCE_DELAY_MS_CONFIG);
+      int rebalanceDelayMs = config.getInt(ProduceServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
       LOG.info("Scheduling rebalance to run every " + rebalanceDelayMs + "ms.");
       _topicRebalancer =
           new TopicRebalancer(rebalanceThreshold, autoTopicPartitionFactor, _topic, zkConnect,

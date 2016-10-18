@@ -213,7 +213,7 @@ public class BasicEndToEndTest implements Test {
       .type(Integer.class)
       .metavar("REBALANCE_MS")
       .dest("rebalanceMs")
-      .help(ProduceServiceConfig.REBALANCE_DELAY_MS_DOC);
+      .help(ProduceServiceConfig.REBALANCE_INTERVAL_MS_DOC);
 
     return parser;
   }
@@ -249,7 +249,7 @@ public class BasicEndToEndTest implements Test {
     if (res.getBoolean("rebalanceEnabled") != null)
       props.put(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG, res.getBoolean("rebalanceEnabled"));
     if (res.getInt("rebalanceMs") != null)
-      props.put(ProduceServiceConfig.REBALANCE_DELAY_MS_CONFIG, res.getInt("rebalanceMs"));
+      props.put(ProduceServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
