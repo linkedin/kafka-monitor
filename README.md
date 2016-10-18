@@ -15,7 +15,8 @@ Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
 building in order to support both Java 7 and Java 8 at runtime.
 
 Kafka Monitor supports Apache Kafka 0.8 and 0.9. Use branch 0.8.2.2 to monitor Apache
-Kafka cluster 0.8.
+Kafka cluster 0.8. Use branch 0.9.0.1 to compile with Kafka 0.9. Use master
+branch to compile with Kafka 0.10.
 
 In order to run Kafka Monitor, you need to create a topic manually
 that is dedicated for use by Kafka Monitor. The topic should be specified in

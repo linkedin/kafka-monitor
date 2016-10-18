@@ -10,6 +10,7 @@
 package com.linkedin.kmf.common;
 
 import java.util.Properties;
+import kafka.admin.RackAwareMode;
 import kafka.server.KafkaConfig;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -86,7 +87,7 @@ public class Utils {
       int minIsr = Math.max(replicationFactor - 1, 1);
       Properties topicConfig = new Properties();
       topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(minIsr));
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig);
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
 
       LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " + minIsr
           + " and replication factor of " + replicationFactor + ".");
