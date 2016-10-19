@@ -43,7 +43,7 @@ import scala.collection.Seq;
  * Runs this periodically to rebalance the monitored topic across brokers and to reassign _electedLeaders to brokers so that the
  * monitored topic is sampling all the brokers evenly.
  */
-public class TopicRebalancer implements Runnable, Service  {
+public class TopicRebalancer implements Service  {
 
   private static final Logger LOG = LoggerFactory.getLogger(TopicRebalancer.class);
 
@@ -109,10 +109,29 @@ public class TopicRebalancer implements Runnable, Service  {
 
   }
 
+  private class TopicRebalancerRunnable implements Runnable {
+    @Override
+    public void run() {
+      try {
+        TopicState topicState = topicState();
+        if (topicState.brokerNotElectedLeader() || topicState.brokerMissingPartition() ||
+          topicState.partitionsLow(_expectedPartitionBrokerRatio)) {
+
+          LOG.info(_serviceName + ": topic rebalance started.");
+          rebalanceMonitoredTopic(topicState);
+          LOG.info(_serviceName + ": topic rebalance complete.");
+        } else {
+          LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
+        }
+      } catch (Exception e) {
+        LOG.error(_serviceName + ": monitored topic rebalance failed with exception.", e);
+      }
+    }
+  }
 
   private final double _expectedPartitionBrokerRatio;
   private final String _topic;
-  private final int _rebalancePartitionFactor;
+  private final int _partitionsPerBroker;
   private final int _scheduleIntervalMs;
   private final ZkUtils _zkUtils;
   private final int _replicationFactor;
@@ -126,7 +145,7 @@ public class TopicRebalancer implements Runnable, Service  {
     TopicRebalancerConfig config = new TopicRebalancerConfig(props);
     _expectedPartitionBrokerRatio = config.getDouble(TopicRebalancerConfig.REBALANCE_EXPECTED_RATIO_CONFIG);
     _topic = config.getString(TopicRebalancerConfig.TOPIC_CONFIG);
-    _rebalancePartitionFactor = config.getInt(TopicRebalancerConfig.PARTITIONS_PER_BROKER_CONFIG);
+    _partitionsPerBroker = config.getInt(TopicRebalancerConfig.PARTITIONS_PER_BROKER_CONFIG);
     _scheduleIntervalMs = config.getInt(TopicRebalancerConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _replicationFactor = config.getInt(TopicRebalancerConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     String zkUrl = config.getString(TopicRebalancerConfig.ZOOKEEPER_CONNECT_CONFIG);
@@ -134,8 +153,8 @@ public class TopicRebalancer implements Runnable, Service  {
       JaasUtils.isZkSecurityEnabled());
     _executor = Executors.newScheduledThreadPool(1);
 
-    LOG.info("Service " + _serviceName + " constructed with expected partition/broker ratio " + _expectedPartitionBrokerRatio +
-      " topic " + _topic + " _rebalancePartitionFactor " + _rebalancePartitionFactor + " scheduleIntervalMs " +
+    LOG.info("Topic rebalancer service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _expectedPartitionBrokerRatio +
+      " topic " + _topic + " _partitionsPerBroker " + _partitionsPerBroker + " scheduleIntervalMs " +
       _scheduleIntervalMs + " replication factor " + _replicationFactor + ".");
   }
 
@@ -143,31 +162,13 @@ public class TopicRebalancer implements Runnable, Service  {
     return _scheduleIntervalMs;
   }
 
-  @Override
-  public void run() {
-    try {
-      TopicState topicState = topicState();
-      if (topicState.brokerNotElectedLeader() || topicState.brokerMissingPartition() || topicState.partitionsLow(
-        _expectedPartitionBrokerRatio)) {
-        LOG.info(_serviceName + ": topic rebalance started.");
-        rebalanceMonitoredTopic(topicState);
-        LOG.info(_serviceName + ": topic rebalance complete.");
-      } else {
-        LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
-      }
-    } catch (Exception e) {
-      LOG.error(_serviceName + ": monitored topic rebalance failed with exception.", e);
-    }
-  }
 
   /**
    * <pre>
    * Each time this is invoked zero or more of the following happens.  T
    *
-   * 1. if number of partitions falls below threshold then create new partitions
-   *     create new produce runnables (callback does this)
-   *     create new metrics (callback does this)
-   *    increment _PartitionNum (callback does this)
+   * 1. if number of partitions falls below threshold then create new partitions.  The produce service will need to
+   *   detect this this condition and create new metrics for the new partitions.
    * 2. This is done during rebalance.
    *   if a broker does not have enough partitions then assign it partitions from brokers that have excess
    *   if a broker is not a leader of some partition then make it a leader of some partition by finding out
@@ -180,7 +181,7 @@ public class TopicRebalancer implements Runnable, Service  {
       LOG.debug(_serviceName + ": broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
 
       if (topicState.partitionsLow(_expectedPartitionBrokerRatio)) {
-        int idealPartitionCount = _rebalancePartitionFactor * topicState._allBrokers.size();
+        int idealPartitionCount = _partitionsPerBroker * topicState._allBrokers.size();
         int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
         LOG.info(_serviceName + ": adding " + addPartitionCount + " partitions.");
         addPartitions(_zkUtils, idealPartitionCount);
@@ -392,7 +393,8 @@ public class TopicRebalancer implements Runnable, Service  {
     if (_running) {
       return;
     }
-    _executor.scheduleWithFixedDelay(this, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+    Runnable r = new TopicRebalancerRunnable();
+    _executor.scheduleWithFixedDelay(r, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
     _running = true;
   }
 
