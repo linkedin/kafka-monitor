@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.tests;
 
+import com.linkedin.kmf.services.TopicRebalancer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
@@ -17,6 +18,7 @@ import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.configs.TopicRebalancerConfig;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -205,7 +207,7 @@ public class BasicEndToEndTest implements Test {
       .type(Boolean.class)
       .metavar("REBALANCE_ENABLED")
       .dest("rebalanceEnabled")
-      .help(ProduceServiceConfig.REBALANCE_ENABLED_DOC);
+      .help("When true this creates and starts a topic rebalancer.");
 
     parser.addArgument("--topic-rebalance-ms")
       .action(store())
@@ -213,7 +215,7 @@ public class BasicEndToEndTest implements Test {
       .type(Integer.class)
       .metavar("REBALANCE_MS")
       .dest("rebalanceMs")
-      .help(ProduceServiceConfig.REBALANCE_INTERVAL_MS_DOC);
+      .help(TopicRebalancerConfig.REBALANCE_INTERVAL_MS_DOC);
 
     return parser;
   }
@@ -246,10 +248,6 @@ public class BasicEndToEndTest implements Test {
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
-    if (res.getBoolean("rebalanceEnabled") != null)
-      props.put(ProduceServiceConfig.REBALANCE_ENABLED_CONFIG, res.getBoolean("rebalanceEnabled"));
-    if (res.getInt("rebalanceMs") != null)
-      props.put(ProduceServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
@@ -266,6 +264,17 @@ public class BasicEndToEndTest implements Test {
     BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
     test.start();
 
+    //topic rebalancer config
+    boolean topicRebalancerEnabled = res.getBoolean("rebalanceEnabled") != null && res.getBoolean("rebalanceEnabled");
+    if (topicRebalancerEnabled) {
+      Map<String, Object> topicRebalancerConfig = new HashMap<>(props);
+      if (res.getInt("rebalanceMs") != null) {
+        topicRebalancerConfig.put(TopicRebalancerConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
+      }
+      TopicRebalancer topicRebalancer = new TopicRebalancer(topicRebalancerConfig, "end-to-end");
+      topicRebalancer.start();
+    }
+
     // metrics export service config
     props = new HashMap<>();
     if (res.getString("reportIntervalSec") != null)
@@ -281,6 +290,7 @@ public class BasicEndToEndTest implements Test {
       "kmf.services:type=produce-service,name=*:produce-error-rate",
       "kmf.services:type=consume-service,name=*:consume-error-rate");
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
+
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();

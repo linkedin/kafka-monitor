@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.configs.TopicRebalancerConfig;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,6 +18,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import kafka.admin.AdminUtils;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.cluster.Broker;
@@ -39,7 +43,7 @@ import scala.collection.Seq;
  * Runs this periodically to rebalance the monitored topic across brokers and to reassign _electedLeaders to brokers so that the
  * monitored topic is sampling all the brokers evenly.
  */
-class TopicRebalancer implements Runnable {
+public class TopicRebalancer implements Runnable, Service  {
 
   private static final Logger LOG = LoggerFactory.getLogger(TopicRebalancer.class);
 
@@ -55,7 +59,7 @@ class TopicRebalancer implements Runnable {
     Collection<Broker> _allBrokers;
     List<PartitionInfo> _partitionInfo;
 
-    public TopicState(Map<Integer, Integer> brokerToPartitionCount, Set<Integer> electedLeaders,
+    TopicState(Map<Integer, Integer> brokerToPartitionCount, Set<Integer> electedLeaders,
       Set<Integer> preferredLeaders, List<PartitionInfo> partitionInfo, Collection<Broker> allBrokers) {
       this._brokerToPartitionCount = brokerToPartitionCount;
       this._preferredLeaders = preferredLeaders;
@@ -105,49 +109,34 @@ class TopicRebalancer implements Runnable {
 
   }
 
-  interface PartitionsAddedCallback {
-    /**
-     * This is called when partitions have been added to the monitored topic.
-     * @param addedPartitionCount a positive integer, the number of partitions added
-     */
-    void partitionsAdded(int addedPartitionCount);
-  }
 
-  private final double _rebalanceThreshold;
+  private final double _expectedPartitionBrokerRatio;
   private final String _topic;
-  private final PartitionsAddedCallback _addPartitionCallback;
   private final int _rebalancePartitionFactor;
   private final int _scheduleIntervalMs;
   private final ZkUtils _zkUtils;
   private final int _replicationFactor;
+  private final ScheduledExecutorService _executor;
+  private volatile boolean _running = false;
+  private final String _serviceName;
 
-  /**
-   *
-   * @param expectedPartitionToBrokerRatio When then number of partitions falls below this threshold then new partitions
-   *                                       are created.
-   * @param rebalancePartitionFactor While expectedPartitionToBrokerRatio establishes a low water mark this parameter establishes
-   *                                   the desired state.  The number of partitions should be
-   *                                   rebalancePartitionFactor * brokerCount.
-   * @param topic Topic identifier
-   * @param zkConnect Zoo keeper connection url
-   * @param addPartitionCallback This gets called when partitions have been added to the monitored topic.
-   * @param scheduleIntervalMs The duration between times this is scheduled to run in milliseconds.
-   * @param replicationFactor The desired replication factor when creating new partitions.
-   */
-  TopicRebalancer(double expectedPartitionToBrokerRatio, int rebalancePartitionFactor, String topic, String zkConnect,
-      PartitionsAddedCallback addPartitionCallback, int scheduleIntervalMs,
-      int replicationFactor) {
 
-    _rebalanceThreshold = expectedPartitionToBrokerRatio;
-    _topic = topic;
-    _addPartitionCallback = addPartitionCallback;
-    _rebalancePartitionFactor = rebalancePartitionFactor;
-    _scheduleIntervalMs = scheduleIntervalMs;
-    _replicationFactor = replicationFactor;
-    _zkUtils = ZkUtils.apply(zkConnect, ZK_SESSION_TIMEOUT_MS + _scheduleIntervalMs, ZK_CONNECTION_TIMEOUT_MS + _scheduleIntervalMs,
+  public TopicRebalancer(Map<String, Object> props, String serviceName) {
+    _serviceName = serviceName;
+    TopicRebalancerConfig config = new TopicRebalancerConfig(props);
+    _expectedPartitionBrokerRatio = config.getDouble(TopicRebalancerConfig.REBALANCE_EXPECTED_RATIO_CONFIG);
+    _topic = config.getString(TopicRebalancerConfig.TOPIC_CONFIG);
+    _rebalancePartitionFactor = config.getInt(TopicRebalancerConfig.PARTITIONS_PER_BROKER_CONFIG);
+    _scheduleIntervalMs = config.getInt(TopicRebalancerConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    _replicationFactor = config.getInt(TopicRebalancerConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
+    String zkUrl = config.getString(TopicRebalancerConfig.ZOOKEEPER_CONNECT_CONFIG);
+    _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS + _scheduleIntervalMs, ZK_CONNECTION_TIMEOUT_MS + _scheduleIntervalMs,
       JaasUtils.isZkSecurityEnabled());
-    LOG.info("Rebalance threshold ratio " + _rebalanceThreshold + " topic " + _topic + " _rebalancePartitionFactor " +
-      _rebalancePartitionFactor + " scheduleIntervalMs " + _scheduleIntervalMs + " replication factor " + _replicationFactor + ".");
+    _executor = Executors.newScheduledThreadPool(1);
+
+    LOG.info("Service " + _serviceName + " constructed with expected partition/broker ratio " + _expectedPartitionBrokerRatio +
+      " topic " + _topic + " _rebalancePartitionFactor " + _rebalancePartitionFactor + " scheduleIntervalMs " +
+      _scheduleIntervalMs + " replication factor " + _replicationFactor + ".");
   }
 
   int scheduleDurationMs() {
@@ -158,15 +147,16 @@ class TopicRebalancer implements Runnable {
   public void run() {
     try {
       TopicState topicState = topicState();
-      if (topicState.brokerNotElectedLeader() || topicState.brokerMissingPartition() || topicState.partitionsLow(_rebalanceThreshold)) {
-        LOG.info("Topic rebalance started.");
+      if (topicState.brokerNotElectedLeader() || topicState.brokerMissingPartition() || topicState.partitionsLow(
+        _expectedPartitionBrokerRatio)) {
+        LOG.info(_serviceName + ": topic rebalance started.");
         rebalanceMonitoredTopic(topicState);
-        LOG.info("Topic rebalance complete.");
+        LOG.info(_serviceName + ": topic rebalance complete.");
       } else {
-        LOG.info("Topic is in good state, no rebalance needed.");
+        LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
       }
     } catch (Exception e) {
-      LOG.error("Monitored topic rebalance failed with exception.", e);
+      LOG.error(_serviceName + ": monitored topic rebalance failed with exception.", e);
     }
   }
 
@@ -187,26 +177,25 @@ class TopicRebalancer implements Runnable {
    */
   void rebalanceMonitoredTopic(TopicState topicState) {
     try {
-      LOG.debug("Broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
+      LOG.debug(_serviceName + ": broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
 
-      if (topicState.partitionsLow(_rebalanceThreshold)) {
+      if (topicState.partitionsLow(_expectedPartitionBrokerRatio)) {
         int idealPartitionCount = _rebalancePartitionFactor * topicState._allBrokers.size();
         int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
-        LOG.info("Adding " + addPartitionCount + " partitions.");
+        LOG.info(_serviceName + ": adding " + addPartitionCount + " partitions.");
         addPartitions(_zkUtils, idealPartitionCount);
         waitForAddedPartitionsToBecomeActive(idealPartitionCount);
-        _addPartitionCallback.partitionsAdded(addPartitionCount);
         topicState = topicState();
       }
       if (topicState.brokerMissingPartition()) {
-        LOG.info("Rebalancing monitored topic.");
+        LOG.info(_serviceName + ": rebalancing monitored topic.");
         waitForOtherAssignmentsToComplete();
         reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size());
         waitForPartitionReassignmentToComplete();
         topicState = topicState();
       }
       if (topicState.brokerNotElectedLeader()) {
-        LOG.info("Running preferred replica election.");
+        LOG.info(_serviceName + ": running preferred replica election.");
         runPreferredElection(_zkUtils, topicState._partitionInfo);
       }
     } catch (InterruptedException ie) {
@@ -254,7 +243,7 @@ class TopicRebalancer implements Runnable {
   private void waitForPartitionReassignmentToComplete() throws InterruptedException {
     boolean reassignmentRunning = false;
     while (reassignmentRunning) {
-      LOG.debug("Wait for monitored topic " + _topic + " to complete reassignment.");
+      LOG.debug(_serviceName + ": wait for monitored topic " + _topic + " to complete reassignment.");
       Thread.sleep(10000);
       scala.collection.Map<TopicAndPartition, ?> currentState = _zkUtils.getPartitionsBeingReassigned();
       scala.collection.Iterator<TopicAndPartition> it = currentState.keysIterator();
@@ -280,7 +269,7 @@ class TopicRebalancer implements Runnable {
 
     String jsonReassignmentData = scalaReassignmentToJson(partitionToReplicas, partitionCount);
 
-    LOG.debug("Reassignments " + jsonReassignmentData + ".");
+    LOG.debug(_serviceName + ": reassignments " + jsonReassignmentData + ".");
     _zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath().toString(), jsonReassignmentData, _zkUtils.DefaultAcls());
 
   }
@@ -396,5 +385,40 @@ class TopicRebalancer implements Runnable {
     }
 
     return new TopicState(brokerToPartitionCount, electedLeaders, preferredLeaders, partitionInfoList, brokers);
+  }
+
+  @Override
+  public synchronized void start() {
+    if (_running) {
+      return;
+    }
+    _executor.scheduleWithFixedDelay(this, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+    _running = true;
+  }
+
+  @Override
+  public synchronized void stop() {
+    if (!_running) {
+      return;
+    }
+    _executor.shutdown();
+  }
+
+  @Override
+  public boolean isRunning() {
+    return _running;
+  }
+
+  @Override
+  public synchronized void awaitShutdown() {
+    if (!_running) {
+      return;
+    }
+    try {
+      _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      throw new IllegalStateException("Waiting for termination failed.", e);
+    }
+    _running = false;
   }
 }

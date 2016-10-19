@@ -28,6 +28,7 @@ public class ProduceServiceConfig extends AbstractConfig {
 
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
+  public static final String TOPIC_CONFIG_DEFAULT = "kmf-producer";
 
   public static final String PRODUCER_CLASS_CONFIG = "produce.producer.class";
   public static final String PRODUCER_CLASS_DOC = "Producer class that will be instantiated as producer in the produce service. "
@@ -51,27 +52,17 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
-  public static final String AUTO_TOPIC_REPLICATION_FACTOR_CONFIG = "produce.topic.autoTopicReplicationFactor";
-  public static final String AUTO_TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
+  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic.replicationFactor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically or rebalanced this is the "
       + "replication factor used.";
 
-  public static final String REBALANCE_ENABLED_CONFIG = "produce.topic.rebalanceEnabled";
-  public static final String REBALANCE_ENABLED_DOC = "Periodically move leaders and replica assignments so they are "
-      + "evenly spread amongst brokers.";
-
-  public static final String REBALANCE_PARTITION_FACTOR_CONFIG = "produce.topic.rebalancePartitionFactor";
-  public static final String REBALANCE_PARTITION_FACTOR_DOC = "Determines the number of partitions per broker in the ideal case.";
-
-  public static final String REBALANCE_EXPECTED_RATIO_CONFIG = "produce.topic.rebalanceProducerConsumerRatio";
-  public static final String REBALANCE_EXPECTED_RATIO_DOC = "The expected ratio of partition / broker.  When the actual ratio falls below this new partitions are created.";
-
-  public static final String REBALANCE_INTERVAL_MS_CONFIG = "produce.topic.rebalanceIntervalMs";
-  public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the monitored topic is checked.";
+  public static final String PARTITIONS_PER_BROKER_CONFIG = "topic.partitionsPerBroker";
+  public static final String PARTITIONS_PER_BROKER_DOC = "Determines the number of partitions per broker when a topic is created or rebalanced.";
 
   public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
   public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
-      TOPIC_CONFIG + "\" with replication factor \"" + AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
-      AUTO_TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + REBALANCE_PARTITION_FACTOR_CONFIG +
+      TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
+    + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_PER_BROKER_CONFIG +
       "\" partitions.";
 
   static {
@@ -85,7 +76,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "kafka-monitor-topic",
+                                    TOPIC_CONFIG_DEFAULT,
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
                             .define(AUTO_TOPIC_CREATION_ENABLED_CONFIG,
@@ -123,33 +114,16 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     atLeast(1),
                                     ConfigDef.Importance.LOW,
                                     PRODUCE_THREAD_NUM_DOC)
-                            .define(AUTO_TOPIC_REPLICATION_FACTOR_CONFIG,
+                            .define(TOPIC_REPLICATION_FACTOR_CONFIG,
                                     ConfigDef.Type.INT,
                                     1,
                                     atLeast(1),
-                                    ConfigDef.Importance.LOW,
-                                    AUTO_TOPIC_REPLICATION_FACTOR_DOC)
-                            .define(REBALANCE_ENABLED_CONFIG,
-                                    ConfigDef.Type.BOOLEAN,
-                                    false,
-                                    ConfigDef.Importance.LOW,
-                                    REBALANCE_ENABLED_DOC)
-                            .define(REBALANCE_PARTITION_FACTOR_CONFIG,
+                                    ConfigDef.Importance.LOW, TOPIC_REPLICATION_FACTOR_DOC)
+                            .define(PARTITIONS_PER_BROKER_CONFIG,
                                     ConfigDef.Type.INT,
                                     2,
                                     atLeast(1),
-                                    ConfigDef.Importance.LOW,
-                                    REBALANCE_PARTITION_FACTOR_DOC)
-                            .define(REBALANCE_EXPECTED_RATIO_CONFIG,
-                                    ConfigDef.Type.DOUBLE,
-                                    1.0,
-                                    atLeast(1.0),
-                                    ConfigDef.Importance.LOW, REBALANCE_EXPECTED_RATIO_DOC)
-                            .define(REBALANCE_INTERVAL_MS_CONFIG,
-                                    ConfigDef.Type.INT,
-                                    1000 * 60 * 10,
-                                    atLeast(0),
-                                    ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC);
+                                    ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_DOC);
 
   }
 
