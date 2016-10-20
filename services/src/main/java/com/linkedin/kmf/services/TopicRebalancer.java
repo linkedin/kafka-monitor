@@ -342,7 +342,8 @@ public class TopicRebalancer implements Service  {
     while (it.hasNext()) {
       scala.Tuple2<Object, scala.collection.Seq<Object>> scalaTuple = it.next();
       Integer partition = (Integer) scalaTuple._1();
-      Node leader = new Node((Integer) _zkUtils.getLeaderForPartition(_topic, partition).get(), "", -1);
+      scala.Option<Object> leaderOption = _zkUtils.getLeaderForPartition(_topic, partition);
+      Node leader = leaderOption.isEmpty() ?  null : new Node((Integer) leaderOption.get(), "", -1);
       Node[] replicas = new Node[scalaTuple._2().size()];
       for (int i = 0; i < replicas.length; i++) {
         Integer brokerId = (Integer) scalaTuple._2().apply(i);
