@@ -52,7 +52,7 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
-  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic.replicationFactor";
+  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically or rebalanced this is the "
       + "replication factor used.";
 

@@ -223,8 +223,8 @@ public class TopicManagementService implements Service  {
       JaasUtils.isZkSecurityEnabled());
     _executor = Executors.newScheduledThreadPool(1);
 
-    LOG.info("Topic rebalancer service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _partitionBrokerRatioThreshold
-      + " topic " + _topic + " _partitionsPerBroker " + _partitionsPerBroker + " scheduleIntervalMs " +
+    LOG.info("Topic management service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _partitionBrokerRatioThreshold
+      + " topic " + _topic + " partitionsPerBroker " + _partitionsPerBroker + " scheduleIntervalMs " +
       _scheduleIntervalMs + ".");
   }
 

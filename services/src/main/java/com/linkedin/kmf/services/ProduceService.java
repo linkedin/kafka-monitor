@@ -304,7 +304,7 @@ public class ProduceService implements Service {
    * This should be periodically run to check for new partitions on the monitored topic.  When new partitions are
    * detected the executor is shutdown, the producer is shutdown, a new producer is created (the old producer does not
    * always become aware of the new partitions), new produce runnables are created on a new executor service, new
-   * sensors are added for the new partions.
+   * sensors are added for the new partitions.
    */
 
   private class HandleNewPartitions implements Runnable {
