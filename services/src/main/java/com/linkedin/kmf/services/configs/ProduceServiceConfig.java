@@ -56,11 +56,11 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically or rebalanced this is the "
       + "replication factor used.";
 
-  public static final String PARTITIONS_PER_BROKER_CONFIG = "topic.partitionsPerBroker";
+  public static final String PARTITIONS_PER_BROKER_CONFIG = "topic-management.partitionsPerBroker";
   public static final String PARTITIONS_PER_BROKER_DOC = "Determines the number of partitions per broker when a topic is created or rebalanced.";
 
-  public static final String AUTO_TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.autoTopicCreationEnabled";
-  public static final String AUTO_TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+  public static final String TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.topicCreationEnabled";
+  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
       TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
     + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_PER_BROKER_CONFIG +
       "\" partitions.";
@@ -79,10 +79,10 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     TOPIC_CONFIG_DEFAULT,
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
-                            .define(AUTO_TOPIC_CREATION_ENABLED_CONFIG,
+                            .define(TOPIC_CREATION_ENABLED_CONFIG,
                                     ConfigDef.Type.BOOLEAN,
                                     true,
-                                    ConfigDef.Importance.MEDIUM, AUTO_TOPIC_CREATION_ENABLED_DOC)
+                                    ConfigDef.Importance.MEDIUM, TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewProducer.class.getCanonicalName(),

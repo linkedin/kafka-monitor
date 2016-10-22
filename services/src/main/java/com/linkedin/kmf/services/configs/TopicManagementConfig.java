@@ -14,7 +14,7 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
-public class TopicRebalancerConfig extends AbstractConfig {
+public class TopicManagementConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
@@ -24,17 +24,16 @@ public class TopicRebalancerConfig extends AbstractConfig {
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
-  public static final String REBALANCE_EXPECTED_RATIO_CONFIG = "rebalance.expectedPartitionBrokerRatio";
-  public static final String REBALANCE_EXPECTED_RATIO_DOC = "The expected ratio of partition / broker.  When the actual ratio falls below this new partitions are created.";
+  public static final String PARTITIONS_PER_BROKER_THRESHOLD = "topic-management.partitionBrokerRatioThreshold";
+  public static final String PARTITIONS_PER_BROKER_THRESHOLD_DOC = "The expected ratio of partition / broker.  When the"
+    + " actual ratio falls below this threshold new partitions are created.";
 
-  public static final String REBALANCE_INTERVAL_MS_CONFIG = "rebalance.intervalMs";
-  public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the monitored topic is checked.";
+  public static final String REBALANCE_INTERVAL_MS_CONFIG = "topic-management.rebalance.interval.ms";
+  public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the "
+    + "monitored topic is checked.  Set this to a large value to disable automatic topic rebalance.";
 
   public static final String PARTITIONS_PER_BROKER_CONFIG = ProduceServiceConfig.PARTITIONS_PER_BROKER_CONFIG;
   public static final String PARTITIONS_PER_BROKER_DOC = ProduceServiceConfig.PARTITIONS_PER_BROKER_DOC;
-
-  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG;
-  public static final String TOPIC_REPLICATION_FACTOR_DOC = ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_DOC;
 
   static {
     CONFIG = new ConfigDef()
@@ -47,31 +46,24 @@ public class TopicRebalancerConfig extends AbstractConfig {
         ProduceServiceConfig.TOPIC_CONFIG_DEFAULT,
         ConfigDef.Importance.MEDIUM,
         TOPIC_DOC)
-      .define(REBALANCE_EXPECTED_RATIO_CONFIG,
+      .define(PARTITIONS_PER_BROKER_THRESHOLD,
         ConfigDef.Type.DOUBLE, 1.0,
         atLeast(1.0),
-        ConfigDef.Importance.LOW,
-        REBALANCE_EXPECTED_RATIO_DOC)
+        ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_THRESHOLD_DOC)
       .define(REBALANCE_INTERVAL_MS_CONFIG,
         ConfigDef.Type.INT,
         1000 * 60 * 10,
-        atLeast(0),
+        atLeast(10),
         ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
       .define(PARTITIONS_PER_BROKER_CONFIG,
         ConfigDef.Type.INT,
         2,
         atLeast(1),
-        ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_DOC)
-      .define(TOPIC_REPLICATION_FACTOR_CONFIG,
-        ConfigDef.Type.INT,
-        1,
-        atLeast(1),
-        ConfigDef.Importance.LOW,
-        TOPIC_REPLICATION_FACTOR_DOC);
+        ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_DOC);
 
   }
 
-  public TopicRebalancerConfig(Map<?, ?> props) {
+  public TopicManagementConfig(Map<?, ?> props) {
     super(CONFIG, props);
   }
 }

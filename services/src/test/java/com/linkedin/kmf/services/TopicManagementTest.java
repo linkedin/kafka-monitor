@@ -17,10 +17,10 @@ import org.apache.kafka.common.PartitionInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.linkedin.kmf.services.TopicRebalancer.TopicState;
+import com.linkedin.kmf.services.TopicManagementService.TopicState;
 
 @Test
-public class TopicRebalancerTest {
+public class TopicManagementTest {
 
   private static final String TOPIC = "kmf-unit-test-topic";
 
@@ -49,10 +49,10 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[1], node[0]}, null));
 
-    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(2));
-    Assert.assertFalse(topicState.brokerMissingPartition());
-    Assert.assertFalse(topicState.brokerNotElectedLeader());
-    Assert.assertFalse(topicState.partitionsLow(1.1));
+    TopicState topicState = TopicManagementService.topicState(partitions, brokers(2), 1.1);
+    Assert.assertFalse(topicState.someBrokerMissingPartition());
+    Assert.assertFalse(topicState.someBrokerWithoutLeader());
+    Assert.assertFalse(topicState.insufficientPartitions());
   }
 
   @Test
@@ -63,10 +63,11 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 1, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 2, node[2], new Node[] {node[2], node[0]}, null));
 
-    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
-    Assert.assertFalse(topicState.brokerMissingPartition());
-    Assert.assertFalse(topicState.brokerNotElectedLeader());
-    Assert.assertTrue(topicState.partitionsLow(1.4));
+    TopicState topicState = TopicManagementService.topicState(partitions, brokers(3), 1.4);
+    Assert.assertFalse(topicState.someBrokerMissingPartition());
+    Assert.assertFalse(topicState.someBrokerWithoutLeader());
+    Assert.assertTrue(topicState.insufficientPartitions());
+    Assert.assertEquals(topicState.replicationFactor(), 2);
   }
 
 
@@ -80,10 +81,10 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
     partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
 
-    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
-    Assert.assertFalse(topicState.brokerMissingPartition());
-    Assert.assertTrue(topicState.brokerNotElectedLeader());
-    Assert.assertFalse(topicState.partitionsLow(1.4));
+    TopicState topicState = TopicManagementService.topicState(partitions, brokers(3), 1.4);
+    Assert.assertFalse(topicState.someBrokerMissingPartition());
+    Assert.assertTrue(topicState.someBrokerWithoutLeader());
+    Assert.assertFalse(topicState.insufficientPartitions());
   }
 
   @Test
@@ -96,9 +97,9 @@ public class TopicRebalancerTest {
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
     partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
 
-    TopicState topicState = TopicRebalancer.topicState(partitions, brokers(3));
-    Assert.assertTrue(topicState.brokerMissingPartition());
-    Assert.assertTrue(topicState.brokerNotElectedLeader());
-    Assert.assertFalse(topicState.partitionsLow(1.4));
+    TopicState topicState = TopicManagementService.topicState(partitions, brokers(3), 1.4);
+    Assert.assertTrue(topicState.someBrokerMissingPartition());
+    Assert.assertTrue(topicState.someBrokerWithoutLeader());
+    Assert.assertFalse(topicState.insufficientPartitions());
   }
 }

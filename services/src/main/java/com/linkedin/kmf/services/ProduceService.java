@@ -14,11 +14,9 @@ import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.NewProducer;
-import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import kafka.utils.ZkUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
@@ -30,7 +28,6 @@ import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
-import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +41,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import scala.collection.JavaConversions;
 
 
 public class ProduceService implements Service {
@@ -53,8 +49,8 @@ public class ProduceService implements Service {
 
   private final String _name;
   private final ProduceMetrics _sensors;
-  private volatile KMBaseProducer _producer;
-  private volatile ScheduledExecutorService _executor;
+  private KMBaseProducer _producer;
+  private ScheduledExecutorService _executor;
   private final ScheduledExecutorService _checkAddPartitionsExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
@@ -69,14 +65,15 @@ public class ProduceService implements Service {
   private final String _brokerList;
   private final Map _producerPropsOverride;
   private final String _producerClass;
-  private final ZkUtils _zkUtils;
   private final int _threadsNum;
+  private final String _zkConnect;
+  private final TopicManagementService _topicRebalanceService;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-    String zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     _producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
@@ -88,22 +85,21 @@ public class ProduceService implements Service {
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
-    _zkUtils = ZkUtils.apply(zkConnect, Utils.ZK_SESSION_TIMEOUT_MS, Utils.ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
 
     int autoTopicPartitionFactor = config.getInt(ProduceServiceConfig.PARTITIONS_PER_BROKER_CONFIG);
     int autoTopicReplicationFactor = config.getInt(ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
-    int existingPartitionCount = Utils.getPartitionNumForTopic(zkConnect, _topic);
+    int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
 
     if (existingPartitionCount <= 0) {
-      if (config.getBoolean(ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG)) {
+      if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
         _partitionNum.set(
-            Utils.createMonitoringTopicIfNotExists(zkConnect, _topic, autoTopicReplicationFactor,
+            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, autoTopicReplicationFactor,
                 autoTopicPartitionFactor));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
             " a multiple of number" +
-            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.AUTO_TOPIC_CREATION_ENABLED_CONFIG +
+            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG +
             " to be true.");
       }
     } else {
@@ -122,6 +118,10 @@ public class ProduceService implements Service {
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
     _sensors = new ProduceMetrics(metrics, tags);
+
+    _topicRebalanceService = new TopicManagementService(props, _name + "-topic-management-service");
+
+    LOG.info(_name + ": produce service is initialized.");
   }
 
   private void initializeProducer(Map producerPropsOverride, String producerClass) throws Exception {
@@ -157,7 +157,8 @@ public class ProduceService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       scheduleProduceRunnables();
-      _checkAddPartitionsExecutor.scheduleWithFixedDelay(new CheckForNewPartitons(), 40_000, 40_000, TimeUnit.MILLISECONDS);
+      _checkAddPartitionsExecutor.scheduleWithFixedDelay(new HandleNewPartitions(), 40_000, 40_000, TimeUnit.MILLISECONDS);
+      _topicRebalanceService.start();
       LOG.info(_name + "/ProduceService started");
     }
   }
@@ -173,15 +174,13 @@ public class ProduceService implements Service {
     }
   }
 
-  private int currentPartitionCount() {
-    return _zkUtils.getPartitionsForTopics(JavaConversions.asScalaBuffer(Collections.singletonList(_topic))).apply(_topic).size();
-  }
-
   @Override
   public void stop() {
     if (_running.compareAndSet(true, false)) {
       _executor.shutdown();
+      _checkAddPartitionsExecutor.shutdown();
       _producer.close();
+      _topicRebalanceService.stop();
       LOG.info(_name + "/ProduceService stopped");
     }
   }
@@ -190,6 +189,7 @@ public class ProduceService implements Service {
   public void awaitShutdown() {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+      _checkAddPartitionsExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.interrupted();
     }
@@ -236,11 +236,7 @@ public class ProduceService implements Service {
             double availabilitySum = 0.0;
             int partitionNum = _partitionNum.get();
             for (int partition = 0; partition < partitionNum; partition++) {
-              MetricName partitionRecordsProduced = new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags);
-              if (!_sensors.metrics.metrics().containsKey(partitionRecordsProduced)) {
-                throw new IllegalStateException("Can't find metrics for " + partitionRecordsProduced + ".");
-              }
-              double recordsProduced = _sensors.metrics.metrics().get(partitionRecordsProduced).value();
+              double recordsProduced = _sensors.metrics.metrics().get(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               double produceError = _sensors.metrics.metrics().get(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
               if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
@@ -271,6 +267,9 @@ public class ProduceService implements Service {
     }
   }
 
+  /**
+   * This creates the records sent to the consumer.
+   */
   private class ProduceRunnable implements Runnable {
     private final int _partition;
 
@@ -301,11 +300,17 @@ public class ProduceService implements Service {
     }
   }
 
+  /**
+   * This should be periodically run to check for new partitions on the monitored topic.  When new partitions are
+   * detected the executor is shutdown, the producer is shutdown, a new producer is created (the old producer does not
+   * always become aware of the new partitions), new produce runnables are created on a new executor service, new
+   * sensors are added for the new partions.
+   */
 
-  private class CheckForNewPartitons implements Runnable {
+  private class HandleNewPartitions implements Runnable {
 
     public void run() {
-      int currentPartitionCount = currentPartitionCount();
+      int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionCount == _partitionNum.get()) {
         return;
       }
