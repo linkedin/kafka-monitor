@@ -228,7 +228,7 @@ public class TopicManagementService implements Service  {
     _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     _executor = Executors.newScheduledThreadPool(1);
 
-    LOG.info("Topic management service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _partitionToBrokerRatioThreshold
+    LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold " + _partitionToBrokerRatioThreshold
       + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio + " scheduleIntervalMs " +
       _scheduleIntervalMs + ".");
   }

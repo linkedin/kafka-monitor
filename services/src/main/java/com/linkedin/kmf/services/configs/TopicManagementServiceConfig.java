@@ -23,7 +23,7 @@ public class TopicManagementServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String PARTITIONS_TO_BROKER_RATIO_THRESHOLD = "topic-management.partitionToBrokerRatioThreshold";
+  public static final String PARTITIONS_TO_BROKER_RATIO_THRESHOLD = "topic-management.partitionsToBrokersRatioThreshold";
   public static final String PARTITIONS_TO_BROKER_RATIO_THRESHOLD_DOC = "The expected ratio of partitions / brokers.  When the"
     + " actual ratio falls below this threshold new partitions are created.";
 
