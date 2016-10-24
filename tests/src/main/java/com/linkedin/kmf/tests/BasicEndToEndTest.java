@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.tests;
 
+import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
@@ -17,7 +18,7 @@ import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.ProduceService;
-import com.linkedin.kmf.services.configs.TopicManagementConfig;
+import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -48,23 +49,27 @@ public class BasicEndToEndTest implements Test {
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
+  private final TopicManagementService _topicManagementService;
   private final String _name;
 
   public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
+    _topicManagementService = new TopicManagementService(props, name);
   }
 
   @Override
   public void start() {
     _produceService.start();
     _consumeService.start();
+    _topicManagementService.start();
     LOG.info(_name + "/BasicEndToEndTest started");
   }
 
   @Override
   public void stop() {
+    _topicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
     LOG.info(_name + "/BasicEndToEndTest stopped");
@@ -77,6 +82,7 @@ public class BasicEndToEndTest implements Test {
 
   @Override
   public void awaitShutdown() {
+    _topicManagementService.awaitShutdown();
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
   }
@@ -206,7 +212,7 @@ public class BasicEndToEndTest implements Test {
       .type(Integer.class)
       .metavar("REBALANCE_MS")
       .dest("rebalanceMs")
-      .help(TopicManagementConfig.REBALANCE_INTERVAL_MS_DOC);
+      .help(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
 
     return parser;
   }
@@ -240,7 +246,7 @@ public class BasicEndToEndTest implements Test {
     if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
     if (res.getInt("rebalanceMs") != null)
-      props.put(TopicManagementConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
+      props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 

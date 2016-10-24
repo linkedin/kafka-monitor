@@ -10,7 +10,8 @@
 
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.services.configs.TopicManagementConfig;
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
+import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,21 +58,21 @@ public class TopicManagementService implements Service  {
     final Set<Integer> _preferredLeaders;
     final Set<Integer> _electedLeaders;
     final Collection<Broker> _allBrokers;
-    final double _expectedRatio;
+    final double _partitionToBrokerRatioThreshold;
 
     /**
      * @param electedLeaders the set of broker ids that have been elected as leaders.
      * @param preferredLeaders the set of brokers that are listed as a preferred leader in at least one partition.
-     * @param expectedRatio the expected partition to broker ratio
+     * @param partitionToBrokerRatioThreshold the expected partition to broker ratio
      */
     TopicState(Set<Integer> electedLeaders, Set<Integer> preferredLeaders, Collection<Broker> allBrokers,
-      List<PartitionInfo> partitionInfo, double expectedRatio) {
+      List<PartitionInfo> partitionInfo, double partitionToBrokerRatioThreshold) {
 
       this._partitionInfo = partitionInfo;
       this._preferredLeaders = preferredLeaders;
       this._electedLeaders = electedLeaders;
       this._allBrokers = allBrokers;
-      this._expectedRatio = expectedRatio;
+      this._partitionToBrokerRatioThreshold = partitionToBrokerRatioThreshold;
     }
 
     /**
@@ -80,7 +81,7 @@ public class TopicManagementService implements Service  {
      */
     boolean insufficientPartitions() {
       double actualRatio = ((double) _partitionInfo.size()) / _allBrokers.size();
-      return actualRatio < _expectedRatio;
+      return actualRatio < _partitionToBrokerRatioThreshold;
     }
 
     /**
@@ -140,16 +141,16 @@ public class TopicManagementService implements Service  {
   }
 
   /**
-   * <pre>
-   * Each time this is invoked zero or more of the following happens.  T
+   * <p>Each time this is invoked zero or more of the following happens. </p>
    *
-   * 1. if number of partitions falls below threshold then create new partitions.  The produce service will need to
-   *   detect this this condition and create new metrics for the new partitions.
-   * 2. This is done during rebalance.
-   *   if a broker does not have enough partitions then assign it partitions from brokers that have excess
-   *   if a broker is not a leader of some partition then make it a leader of some partition by finding out
-   *     which broker is a leader of more than one partition.  Does this involve moving partitions among brokers?
-   * 3. run a preferred replica election
+   * <ol>
+   *  <li>if number of partitions falls below threshold then create new partitions.  The produce service will need to
+   *   detect this this condition and create new metrics for the new partitions. </li>
+   *  <li>This is done during rebalance.
+   *   If a broker does not have enough partitions then assign it partitions from brokers that have excess.
+   *   If a broker is not a leader of some partition then make it a leader of some partition by finding out
+   *     which broker is a leader of more than one partition. </li>
+   *  <li> run a preferred replica election </li>
    * </pre>
    */
   private class TopicManagementRunnable implements Runnable {
@@ -157,6 +158,9 @@ public class TopicManagementService implements Service  {
     public void run() {
       try {
         TopicState topicState = topicState();
+        if (topicState == null) {
+          return;
+        }
         if (topicState.someBrokerWithoutLeader() || topicState.someBrokerMissingPartition() || topicState.insufficientPartitions()) {
 
           LOG.info(_serviceName + ": topic rebalance started.");
@@ -167,12 +171,14 @@ public class TopicManagementService implements Service  {
             return;
           }
           if (topicState.insufficientPartitions()) {
-            int idealPartitionCount = _partitionsPerBroker * topicState._allBrokers.size();
+            int idealPartitionCount = (int) Math.ceil(_partitionsToBrokerRatio * topicState._allBrokers.size());
             int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
             LOG.info(_serviceName + ": adding " + addPartitionCount + " partitions.");
             AdminUtils.addPartitions(_zkUtils, _topic, idealPartitionCount, null, false);
-            waitForAddedPartitionsToBecomeActive(idealPartitionCount);
             topicState = topicState();
+          }
+          if (topicState.replicationFactor() == -1) {
+            return;
           }
           if (topicState.someBrokerMissingPartition()) {
             LOG.info(_serviceName + ": rebalancing monitored topic.");
@@ -201,9 +207,9 @@ public class TopicManagementService implements Service  {
     }
   }
 
-  private final double _partitionBrokerRatioThreshold;
+  private final double _partitionToBrokerRatioThreshold;
   private final String _topic;
-  private final int _partitionsPerBroker;
+  private final double _partitionsToBrokerRatio;
   private final int _scheduleIntervalMs;
   private final ZkUtils _zkUtils;
   private final ScheduledExecutorService _executor;
@@ -213,43 +219,18 @@ public class TopicManagementService implements Service  {
 
   public TopicManagementService(Map<String, Object> props, String serviceName) {
     _serviceName = serviceName;
-    TopicManagementConfig config = new TopicManagementConfig(props);
-    _partitionBrokerRatioThreshold = config.getDouble(TopicManagementConfig.PARTITIONS_PER_BROKER_THRESHOLD);
-    _topic = config.getString(TopicManagementConfig.TOPIC_CONFIG);
-    _partitionsPerBroker = config.getInt(TopicManagementConfig.PARTITIONS_PER_BROKER_CONFIG);
-    _scheduleIntervalMs = config.getInt(TopicManagementConfig.REBALANCE_INTERVAL_MS_CONFIG);
-    String zkUrl = config.getString(TopicManagementConfig.ZOOKEEPER_CONNECT_CONFIG);
-    _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS + _scheduleIntervalMs, ZK_CONNECTION_TIMEOUT_MS + _scheduleIntervalMs,
-      JaasUtils.isZkSecurityEnabled());
+    TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
+    _partitionToBrokerRatioThreshold = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
+    _topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
+    _partitionsToBrokerRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
+    _scheduleIntervalMs = config.getInt(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    String zkUrl = config.getString(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     _executor = Executors.newScheduledThreadPool(1);
 
-    LOG.info("Topic management service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _partitionBrokerRatioThreshold
-      + " topic " + _topic + " partitionsPerBroker " + _partitionsPerBroker + " scheduleIntervalMs " +
+    LOG.info("Topic management service \"" + _serviceName + "\" constructed with expected partition/broker ratio " + _partitionToBrokerRatioThreshold
+      + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio + " scheduleIntervalMs " +
       _scheduleIntervalMs + ".");
-  }
-
-
-  /**
-   *  Polling...
-   */
-  private void waitForAddedPartitionsToBecomeActive(int expectedNumberOfPartitions) {
-    long timeout = System.currentTimeMillis() + 1000 * 60;
-
-    //Using ZkUtils instead of the consumer because the consumer seems to cache the last answer it got which was the old
-    //number of partitions.
-    scala.collection.mutable.ArrayBuffer<String> scalaTopic = new scala.collection.mutable.ArrayBuffer<>();
-    scalaTopic.$plus$eq(_topic);
-    while (System.currentTimeMillis() < timeout) {
-      if (_zkUtils.getPartitionAssignmentForTopics(scalaTopic).apply(_topic).size()  == expectedNumberOfPartitions) {
-        return;
-      }
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        throw new IllegalStateException(e);
-      }
-    }
-    throw new IllegalStateException("Waiting for additional partitions to appear timed out.");
   }
 
   /**
@@ -326,20 +307,30 @@ public class TopicManagementService implements Service  {
   }
 
   /**
-   * @return the state of the topic e.g. all the partitions and replicas
+   * @return the state of the topic e.g. all the partitions and replicas, if the topic does not exist then this will
+   * return null.
    */
   private TopicState topicState() {
-    List<PartitionInfo> partitionInfoList = partitionInfoForMonitoredTopic();
+    List<PartitionInfo> partitionInfoList = partitionInfo();
+    if (partitionInfoList == null) {
+      return null;
+    }
     Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(_zkUtils.getAllBrokersInCluster());
-    return topicState(partitionInfoList, brokers, _partitionBrokerRatioThreshold);
+    return topicState(partitionInfoList, brokers, _partitionToBrokerRatioThreshold);
   }
 
-
-  private List<PartitionInfo> partitionInfoForMonitoredTopic() {
+  /**
+   *
+   * @return  This will return null if the topic does not exist.
+   */
+  private List<PartitionInfo> partitionInfo() {
     scala.collection.mutable.ArrayBuffer<String> topicList = new scala.collection.mutable.ArrayBuffer<>();
     topicList.$plus$eq(_topic);
     scala.collection.Map<Object, scala.collection.Seq<Object>> partitionAssignments =
         _zkUtils.getPartitionAssignmentForTopics(topicList).apply(_topic);
+    if (partitionAssignments.isEmpty()) {
+      return null;
+    }
     List<PartitionInfo> partitionInfoList = new ArrayList<>();
     scala.collection.Iterator<scala.Tuple2<Object, scala.collection.Seq<Object>>> it = partitionAssignments.iterator();
     while (it.hasNext()) {

@@ -28,7 +28,6 @@ public class ProduceServiceConfig extends AbstractConfig {
 
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
-  public static final String TOPIC_CONFIG_DEFAULT = "kmf-producer";
 
   public static final String PRODUCER_CLASS_CONFIG = "produce.producer.class";
   public static final String PRODUCER_CLASS_DOC = "Producer class that will be instantiated as producer in the produce service. "
@@ -56,14 +55,11 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically or rebalanced this is the "
       + "replication factor used.";
 
-  public static final String PARTITIONS_PER_BROKER_CONFIG = "topic-management.partitionsPerBroker";
-  public static final String PARTITIONS_PER_BROKER_DOC = "Determines the number of partitions per broker when a topic is created or rebalanced.";
-
   public static final String TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.topicCreationEnabled";
   public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
       TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
-    + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_PER_BROKER_CONFIG +
-      "\" partitions.";
+    + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" +
+    CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG + "\" partitions.";
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
@@ -76,13 +72,14 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    TOPIC_CONFIG_DEFAULT,
+                                    "kmf-topic",
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
                             .define(TOPIC_CREATION_ENABLED_CONFIG,
                                     ConfigDef.Type.BOOLEAN,
                                     true,
-                                    ConfigDef.Importance.MEDIUM, TOPIC_CREATION_ENABLED_DOC)
+                                    ConfigDef.Importance.MEDIUM,
+                                    TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewProducer.class.getCanonicalName(),
@@ -119,11 +116,12 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     1,
                                     atLeast(1),
                                     ConfigDef.Importance.LOW, TOPIC_REPLICATION_FACTOR_DOC)
-                            .define(PARTITIONS_PER_BROKER_CONFIG,
-                                    ConfigDef.Type.INT,
-                                    2,
-                                    atLeast(1),
-                                    ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_DOC);
+                            .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
+                                    ConfigDef.Type.DOUBLE,
+                                    2.0,
+                                    atLeast(1.0),
+                                    ConfigDef.Importance.LOW,
+                                    CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
 
   }
 

@@ -14,56 +14,54 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
-public class TopicManagementConfig extends AbstractConfig {
+
+/**
+ * This class is used to extract configuration from a Map&lt;String, Object&gt;, setup defaults and perform basic bounds
+ * checking on the values found in the map.  This is used by the TopicManagementService when it is constructed.
+ */
+public class TopicManagementServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String ZOOKEEPER_CONNECT_CONFIG = CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG;
-  public static final String ZOOKEEPER_CONNECT_DOC = CommonServiceConfig.ZOOKEEPER_CONNECT_DOC;
-
-  public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
-  public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
-
-  public static final String PARTITIONS_PER_BROKER_THRESHOLD = "topic-management.partitionBrokerRatioThreshold";
-  public static final String PARTITIONS_PER_BROKER_THRESHOLD_DOC = "The expected ratio of partition / broker.  When the"
+  public static final String PARTITIONS_TO_BROKER_RATIO_THRESHOLD = "topic-management.partitionToBrokerRatioThreshold";
+  public static final String PARTITIONS_TO_BROKER_RATIO_THRESHOLD_DOC = "The expected ratio of partitions / brokers.  When the"
     + " actual ratio falls below this threshold new partitions are created.";
 
   public static final String REBALANCE_INTERVAL_MS_CONFIG = "topic-management.rebalance.interval.ms";
   public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the "
     + "monitored topic is checked.  Set this to a large value to disable automatic topic rebalance.";
 
-  public static final String PARTITIONS_PER_BROKER_CONFIG = ProduceServiceConfig.PARTITIONS_PER_BROKER_CONFIG;
-  public static final String PARTITIONS_PER_BROKER_DOC = ProduceServiceConfig.PARTITIONS_PER_BROKER_DOC;
-
   static {
     CONFIG = new ConfigDef()
-      .define(ZOOKEEPER_CONNECT_CONFIG,
+      .define(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG,
         ConfigDef.Type.STRING,
         ConfigDef.Importance.HIGH,
-        ZOOKEEPER_CONNECT_DOC)
-      .define(TOPIC_CONFIG,
+        CommonServiceConfig.ZOOKEEPER_CONNECT_DOC)
+      .define(CommonServiceConfig.TOPIC_CONFIG,
         ConfigDef.Type.STRING,
-        ProduceServiceConfig.TOPIC_CONFIG_DEFAULT,
+        "kmf-producer",
         ConfigDef.Importance.MEDIUM,
-        TOPIC_DOC)
-      .define(PARTITIONS_PER_BROKER_THRESHOLD,
-        ConfigDef.Type.DOUBLE, 1.0,
+        CommonServiceConfig.TOPIC_DOC)
+      .define(PARTITIONS_TO_BROKER_RATIO_THRESHOLD,
+        ConfigDef.Type.DOUBLE,
+        1.0,
         atLeast(1.0),
-        ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_THRESHOLD_DOC)
+        ConfigDef.Importance.LOW,
+        PARTITIONS_TO_BROKER_RATIO_THRESHOLD_DOC)
       .define(REBALANCE_INTERVAL_MS_CONFIG,
         ConfigDef.Type.INT,
         1000 * 60 * 10,
         atLeast(10),
         ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
-      .define(PARTITIONS_PER_BROKER_CONFIG,
-        ConfigDef.Type.INT,
-        2,
+      .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
+        ConfigDef.Type.DOUBLE,
+        2.0,
         atLeast(1),
-        ConfigDef.Importance.LOW, PARTITIONS_PER_BROKER_DOC);
-
+        ConfigDef.Importance.LOW,
+        CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
   }
 
-  public TopicManagementConfig(Map<?, ?> props) {
+  public TopicManagementServiceConfig(Map<?, ?> props) {
     super(CONFIG, props);
   }
 }
