@@ -34,31 +34,31 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   static {
     CONFIG = new ConfigDef()
       .define(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG,
-        ConfigDef.Type.STRING,
-        ConfigDef.Importance.HIGH,
-        CommonServiceConfig.ZOOKEEPER_CONNECT_DOC)
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.HIGH,
+              CommonServiceConfig.ZOOKEEPER_CONNECT_DOC)
       .define(CommonServiceConfig.TOPIC_CONFIG,
-        ConfigDef.Type.STRING,
-        "kmf-producer",
-        ConfigDef.Importance.MEDIUM,
-        CommonServiceConfig.TOPIC_DOC)
+              ConfigDef.Type.STRING,
+              "kafka-monitor-topic",
+              ConfigDef.Importance.MEDIUM,
+              CommonServiceConfig.TOPIC_DOC)
       .define(PARTITIONS_TO_BROKER_RATIO_THRESHOLD,
-        ConfigDef.Type.DOUBLE,
-        1.0,
-        atLeast(1.0),
-        ConfigDef.Importance.LOW,
-        PARTITIONS_TO_BROKER_RATIO_THRESHOLD_DOC)
+              ConfigDef.Type.DOUBLE,
+              1.5,
+              atLeast(1.0),
+              ConfigDef.Importance.LOW,
+              PARTITIONS_TO_BROKER_RATIO_THRESHOLD_DOC)
       .define(REBALANCE_INTERVAL_MS_CONFIG,
-        ConfigDef.Type.INT,
-        1000 * 60 * 10,
-        atLeast(10),
-        ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
+              ConfigDef.Type.INT,
+              1000 * 60 * 10,
+              atLeast(10),
+              ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
       .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
-        ConfigDef.Type.DOUBLE,
-        2.0,
-        atLeast(1),
-        ConfigDef.Importance.LOW,
-        CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
+              ConfigDef.Type.DOUBLE,
+              2.0,
+              atLeast(1),
+              ConfigDef.Importance.LOW,
+              CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
   }
 
   public TopicManagementServiceConfig(Map<?, ?> props) {

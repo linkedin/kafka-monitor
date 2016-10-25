@@ -77,7 +77,7 @@ public class BasicEndToEndTest implements Test {
 
   @Override
   public boolean isRunning() {
-    return _produceService.isRunning() && _consumeService.isRunning();
+    return _produceService.isRunning() && _consumeService.isRunning() && _topicManagementService.isRunning();
   }
 
   @Override

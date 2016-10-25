@@ -72,7 +72,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "kmf-topic",
+                                    "kafka-monitor-topic",
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
                             .define(TOPIC_CREATION_ENABLED_CONFIG,
@@ -115,7 +115,8 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     1,
                                     atLeast(1),
-                                    ConfigDef.Importance.LOW, TOPIC_REPLICATION_FACTOR_DOC)
+                                    ConfigDef.Importance.LOW,
+                                    TOPIC_REPLICATION_FACTOR_DOC)
                             .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
                                     ConfigDef.Type.DOUBLE,
                                     2.0,
