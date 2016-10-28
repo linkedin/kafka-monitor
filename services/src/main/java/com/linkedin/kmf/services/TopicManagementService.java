@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
@@ -29,6 +30,7 @@ import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
 import kafka.utils.ZkUtils;
+import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.InterruptException;
@@ -182,7 +184,7 @@ public class TopicManagementService implements Service  {
           if (topicState.replicationFactor() == -1) {
             return;
           }
-          if (topicState.someBrokerMissingPartition()) {
+          if (topicState.someBrokerMissingPartition() && !topicAssignmentIsRunning()) {
             LOG.info(_serviceName + ": rebalancing monitored topic.");
             waitForTopicAssignmentsToComplete();
             reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), topicState.replicationFactor());
@@ -197,6 +199,9 @@ public class TopicManagementService implements Service  {
         } else {
           LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
         }
+      } catch (ZkNodeExistsException zkException) {
+        LOG.warn(_serviceName + ": This exception probably indicates that another party is trying to manage the"
+          + " monitored topic \"" + _topic + "\".  Will retry later.", zkException);
       } catch (Exception e) {
         if (e instanceof IOException) {
           //Can't do this with catch block because nothing declares IOException although scala code can still throw it.
@@ -206,6 +211,12 @@ public class TopicManagementService implements Service  {
           stop();
         }
       }
+    }
+  }
+
+  private class TopicManagementServiceThreadFactory implements ThreadFactory {
+    public Thread newThread(Runnable r) {
+      return new Thread(r, _serviceName + " topic-management-service thread");
     }
   }
 
@@ -228,20 +239,24 @@ public class TopicManagementService implements Service  {
     _scheduleIntervalMs = config.getInt(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     String zkUrl = config.getString(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
-    _executor = Executors.newScheduledThreadPool(1);
+    _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
 
     LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold " + _partitionToBrokerRatioThreshold
       + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio + " scheduleIntervalMs " +
       _scheduleIntervalMs + ".");
   }
 
+  private boolean topicAssignmentIsRunning() {
+    return !_zkUtils.getPartitionsBeingReassigned().isEmpty();
+  }
+
   /**
    * Wait for all topic assignments to complete.
    */
   private void waitForTopicAssignmentsToComplete() throws InterruptException {
-    while (!_zkUtils.getPartitionsBeingReassigned().isEmpty()) {
+    while (topicAssignmentIsRunning()) {
       try {
-        LOG.debug("Waiting for current partition assignment to be complete.");
+        LOG.debug("Waiting for partition assignment to be complete.");
         Thread.sleep(1000);
       } catch (InterruptedException e) {
         throw new IllegalStateException(e);
