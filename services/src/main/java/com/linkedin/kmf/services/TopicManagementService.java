@@ -216,7 +216,7 @@ public class TopicManagementService implements Service  {
 
   private class TopicManagementServiceThreadFactory implements ThreadFactory {
     public Thread newThread(Runnable r) {
-      return new Thread(r, _serviceName + " topic-management-service thread");
+      return new Thread(r, _serviceName + " topic-management-service");
     }
   }
 

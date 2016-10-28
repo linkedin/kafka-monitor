@@ -335,13 +335,13 @@ public class ProduceService implements Service {
 
     private final AtomicInteger _threadId = new AtomicInteger();
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + " produce-service, produce thread " + _threadId.getAndIncrement());
+      return new Thread(r, _name + " produce-service-produce " + _threadId.getAndIncrement());
     }
   }
 
   private class HandleNewPartitionsThreadFactory implements ThreadFactory {
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + " produce-service, handle-new-partitions thread ");
+      return new Thread(r, _name + " produce-service-handle-new-partitions");
     }
   }
 
