@@ -33,7 +33,6 @@ import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
