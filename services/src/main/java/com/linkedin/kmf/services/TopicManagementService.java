@@ -186,12 +186,8 @@ public class TopicManagementService implements Service  {
           }
           if (topicState.someBrokerMissingPartition() && !topicAssignmentIsRunning()) {
             LOG.info(_serviceName + ": rebalancing monitored topic.");
-            waitForTopicAssignmentsToComplete();
             reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), topicState.replicationFactor());
-            waitForTopicAssignmentsToComplete();
-            topicState = topicState();
-          }
-          if (topicState.someBrokerWithoutLeader()) {
+          } else if (topicState.someBrokerWithoutLeader()) {
             LOG.info(_serviceName + ": running preferred replica election.");
             triggerPreferredLeaderElection(_zkUtils, topicState._partitionInfo);
           }
@@ -199,13 +195,10 @@ public class TopicManagementService implements Service  {
         } else {
           LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
         }
-      } catch (ZkNodeExistsException zkException) {
-        LOG.warn(_serviceName + ": This exception probably indicates that another party is trying to manage the"
-          + " monitored topic \"" + _topic + "\".  Will retry later.", zkException);
       } catch (Exception e) {
-        if (e instanceof IOException) {
+        if (e instanceof IOException || e instanceof ZkNodeExistsException) {
           //Can't do this with catch block because nothing declares IOException although scala code can still throw it.
-          LOG.error(_serviceName + ": will retry later due to IOException.", e);
+          LOG.error(_serviceName + ": will retry later.", e);
         } else {
           LOG.error(_serviceName + ": monitored topic rebalance failed with exception.  Exiting rebalance service.", e);
           stop();
@@ -248,20 +241,6 @@ public class TopicManagementService implements Service  {
 
   private boolean topicAssignmentIsRunning() {
     return !_zkUtils.getPartitionsBeingReassigned().isEmpty();
-  }
-
-  /**
-   * Wait for all topic assignments to complete.
-   */
-  private void waitForTopicAssignmentsToComplete() throws InterruptException {
-    while (topicAssignmentIsRunning()) {
-      try {
-        LOG.debug("Waiting for partition assignment to be complete.");
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        throw new IllegalStateException(e);
-      }
-    }
   }
 
   private void reassignPartitions(Collection<Broker> brokers, int partitionCount, int replicationFactor) {

@@ -158,7 +158,7 @@ public class ProduceService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
-      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new HandleNewPartitions(), 40_000, 40_000, TimeUnit.MILLISECONDS);
+      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 40_000, 40_000, TimeUnit.MILLISECONDS);
       LOG.info(_name + "/ProduceService started");
     }
   }
@@ -302,7 +302,7 @@ public class ProduceService implements Service {
    * sensors are added for the new partitions.
    */
 
-  private class HandleNewPartitions implements Runnable {
+  private class NewPartitionHandler implements Runnable {
 
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
@@ -335,13 +335,13 @@ public class ProduceService implements Service {
 
     private final AtomicInteger _threadId = new AtomicInteger();
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + " produce-service-produce " + _threadId.getAndIncrement());
+      return new Thread(r, _name + "-produce-service-produce-" + _threadId.getAndIncrement());
     }
   }
 
   private class HandleNewPartitionsThreadFactory implements ThreadFactory {
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + " produce-service-handle-new-partitions");
+      return new Thread(r, _name + "-produce-service-new-partition-handler");
     }
   }
 
