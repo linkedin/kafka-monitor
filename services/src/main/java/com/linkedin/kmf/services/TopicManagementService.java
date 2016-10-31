@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
@@ -29,9 +30,9 @@ import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
 import kafka.utils.ZkUtils;
+import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,30 +183,32 @@ public class TopicManagementService implements Service  {
           if (topicState.replicationFactor() == -1) {
             return;
           }
-          if (topicState.someBrokerMissingPartition()) {
+          if (topicState.someBrokerMissingPartition() && !topicAssignmentIsRunning()) {
             LOG.info(_serviceName + ": rebalancing monitored topic.");
-            waitForTopicAssignmentsToComplete();
             reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), topicState.replicationFactor());
-            waitForTopicAssignmentsToComplete();
-            topicState = topicState();
-          }
-          if (topicState.someBrokerWithoutLeader()) {
+          } else if (topicState.someBrokerWithoutLeader()) {
             LOG.info(_serviceName + ": running preferred replica election.");
             triggerPreferredLeaderElection(_zkUtils, topicState._partitionInfo);
           }
           LOG.info(_serviceName + ": topic rebalance complete.");
         } else {
-          LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
+          LOG.debug(_serviceName + ": topic is in good state, no rebalance needed.");
         }
       } catch (Exception e) {
-        if (e instanceof IOException) {
+        if (e instanceof IOException || e instanceof ZkNodeExistsException) {
           //Can't do this with catch block because nothing declares IOException although scala code can still throw it.
-          LOG.error(_serviceName + ": will retry later due to IOException.", e);
+          LOG.error(_serviceName + ": will retry later.", e);
         } else {
           LOG.error(_serviceName + ": monitored topic rebalance failed with exception.  Exiting rebalance service.", e);
           stop();
         }
       }
+    }
+  }
+
+  private class TopicManagementServiceThreadFactory implements ThreadFactory {
+    public Thread newThread(Runnable r) {
+      return new Thread(r, _serviceName + " topic-management-service");
     }
   }
 
@@ -228,25 +231,15 @@ public class TopicManagementService implements Service  {
     _scheduleIntervalMs = config.getInt(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     String zkUrl = config.getString(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
-    _executor = Executors.newScheduledThreadPool(1);
+    _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
 
     LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold " + _partitionToBrokerRatioThreshold
       + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio + " scheduleIntervalMs " +
       _scheduleIntervalMs + ".");
   }
 
-  /**
-   * Wait for all topic assignments to complete.
-   */
-  private void waitForTopicAssignmentsToComplete() throws InterruptException {
-    while (!_zkUtils.getPartitionsBeingReassigned().isEmpty()) {
-      try {
-        LOG.debug("Waiting for current partition assignment to be complete.");
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        throw new IllegalStateException(e);
-      }
-    }
+  private boolean topicAssignmentIsRunning() {
+    return !_zkUtils.getPartitionsBeingReassigned().isEmpty();
   }
 
   private void reassignPartitions(Collection<Broker> brokers, int partitionCount, int replicationFactor) {

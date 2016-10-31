@@ -17,6 +17,7 @@ import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.NewProducer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -114,8 +115,8 @@ public class ProduceService implements Service {
 
     initializeProducer();
 
-    _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
-    _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor();
+    _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
+    _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -157,7 +158,7 @@ public class ProduceService implements Service {
   public void start() {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
-      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new HandleNewPartitions(), 40_000, 40_000, TimeUnit.MILLISECONDS);
+      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 40_000, 40_000, TimeUnit.MILLISECONDS);
       LOG.info(_name + "/ProduceService started");
     }
   }
@@ -301,7 +302,7 @@ public class ProduceService implements Service {
    * sensors are added for the new partitions.
    */
 
-  private class HandleNewPartitions implements Runnable {
+  private class NewPartitionHandler implements Runnable {
 
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
@@ -327,6 +328,20 @@ public class ProduceService implements Service {
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
       initializeStateForPartitions();
       LOG.info("New partitions added to monitoring.");
+    }
+  }
+
+  private class ProduceServiceThreadFactory implements ThreadFactory {
+
+    private final AtomicInteger _threadId = new AtomicInteger();
+    public Thread newThread(Runnable r) {
+      return new Thread(r, _name + "-produce-service-produce-" + _threadId.getAndIncrement());
+    }
+  }
+
+  private class HandleNewPartitionsThreadFactory implements ThreadFactory {
+    public Thread newThread(Runnable r) {
+      return new Thread(r, _name + "-produce-service-new-partition-handler");
     }
   }
 
