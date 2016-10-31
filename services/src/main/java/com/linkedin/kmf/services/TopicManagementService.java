@@ -192,7 +192,7 @@ public class TopicManagementService implements Service  {
           }
           LOG.info(_serviceName + ": topic rebalance complete.");
         } else {
-          LOG.info(_serviceName + ": topic is in good state, no rebalance needed.");
+          LOG.debug(_serviceName + ": topic is in good state, no rebalance needed.");
         }
       } catch (Exception e) {
         if (e instanceof IOException || e instanceof ZkNodeExistsException) {
