@@ -14,12 +14,6 @@ package com.linkedin.kmf.consumer;
  */
 public interface KMBaseConsumer {
 
-  /**
-   * The implementation should not block for I/O or have a very short poll time so that the calling thread can attempt
-   * to shutdown when the service is stopped.
-   * @return  This may return null if the underlying consumer implementation has not returned any messages.
-   * @throws Exception
-   */
   BaseConsumerRecord receive() throws Exception;
 
   void close();

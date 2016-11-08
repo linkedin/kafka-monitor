@@ -16,7 +16,6 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
-import java.util.ConcurrentModificationException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
@@ -34,7 +33,6 @@ import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
@@ -111,6 +109,7 @@ public class ConsumeService implements Service {
         }
       }
     }, _name + " consume-service");
+    _thread.setDaemon(true);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -185,8 +184,8 @@ public class ConsumeService implements Service {
     if (_running.compareAndSet(true, false)) {
       try {
         _consumer.close();
-      } catch (ConcurrentModificationException cme) {
-        Log.warn(_name + "/ConsumeService while trying to shutdown consumer.", cme);
+      } catch (Exception e) {
+        LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }
       LOG.info(_name + "/ConsumeService stopped");
     }
@@ -194,11 +193,6 @@ public class ConsumeService implements Service {
 
   @Override
   public void awaitShutdown() {
-    try {
-      _thread.join();
-    } catch (InterruptedException e) {
-      Thread.interrupted();
-    }
     LOG.info(_name + "/ConsumeService shutdown completed");
   }
 
