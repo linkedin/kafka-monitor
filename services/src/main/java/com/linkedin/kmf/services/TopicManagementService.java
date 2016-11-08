@@ -391,7 +391,7 @@ public class TopicManagementService implements Service  {
   }
 
   @Override
-  public synchronized void awaitShutdown() {
+  public void awaitShutdown() {
     if (!_running) {
       return;
     }

@@ -30,8 +30,12 @@ public class NewConsumer implements KMBaseConsumer {
 
   @Override
   public BaseConsumerRecord receive() {
-    if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
+    if (_recordIter == null || !_recordIter.hasNext()) {
+      _recordIter = _consumer.poll(10).iterator();
+    }
+    if (_recordIter == null || !_recordIter.hasNext()) {
+      return null;
+    }
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());

@@ -16,6 +16,7 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
+import java.util.ConcurrentModificationException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
@@ -33,6 +34,7 @@ import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
@@ -181,7 +183,11 @@ public class ConsumeService implements Service {
   @Override
   public void stop() {
     if (_running.compareAndSet(true, false)) {
-      _consumer.close();
+      try {
+        _consumer.close();
+      } catch (ConcurrentModificationException cme) {
+        Log.warn(_name + "/ConsumeService while trying to shutdown consumer.", cme);
+      }
       LOG.info(_name + "/ConsumeService stopped");
     }
   }
