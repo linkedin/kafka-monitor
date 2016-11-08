@@ -395,9 +395,6 @@ public class TopicManagementService implements Service  {
 
   @Override
   public void awaitShutdown() {
-    if (!_running) {
-      return;
-    }
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {

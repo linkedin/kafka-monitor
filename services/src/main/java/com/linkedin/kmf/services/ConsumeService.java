@@ -129,7 +129,7 @@ public class ConsumeService implements Service {
         record = _consumer.receive();
       } catch (Exception e) {
         _sensors._consumeError.record();
-        LOG.debug(_name + "/ConsumeService failed to receive record", e);
+        LOG.warn(_name + "/ConsumeService failed to receive record", e);
         // Avoid busy while loop
         Thread.sleep(100);
         continue;

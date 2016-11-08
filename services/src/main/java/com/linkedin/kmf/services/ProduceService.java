@@ -290,7 +290,7 @@ public class ProduceService implements Service {
       } catch (Exception e) {
         _sensors._produceError.record();
         _sensors._produceErrorPerPartition.get(_partition).record();
-        LOG.debug(_name + " failed to send message", e);
+        LOG.warn(_name + " failed to send message", e);
       }
     }
   }
