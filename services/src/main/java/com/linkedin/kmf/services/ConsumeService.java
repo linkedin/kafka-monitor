@@ -109,6 +109,7 @@ public class ConsumeService implements Service {
         }
       }
     }, _name + " consume-service");
+    _thread.setDaemon(true);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -181,18 +182,17 @@ public class ConsumeService implements Service {
   @Override
   public void stop() {
     if (_running.compareAndSet(true, false)) {
-      _consumer.close();
+      try {
+        _consumer.close();
+      } catch (Exception e) {
+        LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
+      }
       LOG.info(_name + "/ConsumeService stopped");
     }
   }
 
   @Override
   public void awaitShutdown() {
-    try {
-      _thread.join();
-    } catch (InterruptedException e) {
-      Thread.interrupted();
-    }
     LOG.info(_name + "/ConsumeService shutdown completed");
   }
 
