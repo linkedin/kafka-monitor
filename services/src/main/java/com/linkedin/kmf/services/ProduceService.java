@@ -97,6 +97,15 @@ public class ProduceService implements Service {
       }
     }
 
+    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) ?
+      (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
+
+    for (String property: NONOVERRIDABLE_PROPERTIES) {
+      if (_producerPropsOverride.containsKey(property)) {
+        throw new ConfigException("Override must not contain bootsrap or zookeeper config.");
+      }
+    }
+
     double partitionsToBrokersRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
     int topicReplicationFactor = config.getInt(ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
