@@ -93,7 +93,7 @@ public class ProduceService implements Service {
 
     for (String property: NONOVERRIDABLE_PROPERTIES) {
       if (_producerPropsOverride.containsKey(property)) {
-        throw new ConfigException("Override must not contain bootstrap or zookeeper config.");
+        throw new ConfigException("Override must not contain " + property + " config.");
       }
     }
 
