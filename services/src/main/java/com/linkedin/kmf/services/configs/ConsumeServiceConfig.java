@@ -14,6 +14,9 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import java.util.Map;
 
+import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
+
+
 public class ConsumeServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
@@ -42,10 +45,19 @@ public class ConsumeServiceConfig extends AbstractConfig {
   public static final String CONSUMER_PROPS_CONFIG = "consume.consumer.props";
   public static final String CONSUMER_PROPS_DOC = "The properties used to config consumer in consume service.";
 
+  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
+      + "replication factor used.";
+
   public static final String LATENCY_SLA_MS_CONFIG = "consume.latency.sla.ms";
   public static final String LATENCY_SLA_MS_DOC = "The maximum latency of message delivery under SLA. Consume availability is measured "
                                                   + "as the fraction of messages that are either lost or whose delivery latency exceeds this value";
 
+  public static final String TOPIC_CREATION_ENABLED_CONFIG = "consume.topic.topicCreationEnabled";
+  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+      TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
+      + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" +
+      CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG + "\" partitions.";
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
@@ -60,6 +72,11 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     "kafka-monitor-topic",
                                     ConfigDef.Importance.LOW,
                                     TOPIC_DOC)
+                            .define(TOPIC_CREATION_ENABLED_CONFIG,
+                                ConfigDef.Type.BOOLEAN,
+                                true,
+                                ConfigDef.Importance.MEDIUM,
+                                TOPIC_CREATION_ENABLED_DOC)
                             .define(CONSUMER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewConsumer.class.getCanonicalName(),
@@ -79,7 +96,13 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     20000,
                                     ConfigDef.Importance.MEDIUM,
-                                    LATENCY_SLA_MS_DOC);
+                                    LATENCY_SLA_MS_DOC)
+                            .define(TOPIC_REPLICATION_FACTOR_CONFIG,
+                                ConfigDef.Type.INT,
+                                1,
+                                atLeast(1),
+                                ConfigDef.Importance.LOW,
+                                TOPIC_REPLICATION_FACTOR_DOC);
 
   }
 
