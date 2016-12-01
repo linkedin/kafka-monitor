@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -48,6 +49,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
+  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{ ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+                                                                        ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
 
   private final String _name;
   private final ProduceMetrics _sensors;
@@ -72,7 +75,6 @@ public class ProduceService implements Service {
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    _producerPropsOverride = (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG);
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
@@ -86,6 +88,14 @@ public class ProduceService implements Service {
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
+    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) ?
+      (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
+
+    for (String property: NONOVERRIDABLE_PROPERTIES) {
+      if (_producerPropsOverride.containsKey(property)) {
+        throw new ConfigException("Override must not contain " + property + " config.");
+      }
+    }
 
     double partitionsToBrokersRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
     int topicReplicationFactor = config.getInt(ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
@@ -147,8 +157,7 @@ public class ProduceService implements Service {
     producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, _brokerList);
 
     // Assign config specified for producer. This has the highest priority.
-    if (_producerPropsOverride != null)
-      producerProps.putAll(_producerPropsOverride);
+    producerProps.putAll(_producerPropsOverride);
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
     LOG.info("Producer is initialized.");

@@ -16,9 +16,11 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
+import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -47,6 +49,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String METRIC_GROUP_NAME = "consume-service";
+  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{ ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+                                                                          ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
 
   private final String _name;
   private final ConsumeMetrics _sensors;
@@ -59,7 +63,8 @@ public class ConsumeService implements Service {
 
   public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    Map consumerPropsOverride = (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG);
+    Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) ?
+        (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
@@ -69,6 +74,12 @@ public class ConsumeService implements Service {
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _running = new AtomicBoolean(false);
+
+    for (String property: NONOVERRIDABLE_PROPERTIES) {
+      if (consumerPropsOverride.containsKey(property)) {
+        throw new ConfigException("Override must not contain " + property + " config.");
+      }
+    }
 
     Properties consumerProps = new Properties();
 
@@ -94,8 +105,7 @@ public class ConsumeService implements Service {
     consumerProps.put("zookeeper.connect", zkConnect);
 
     // Assign config specified for consumer. This has the highest priority.
-    if (consumerPropsOverride != null)
-      consumerProps.putAll(consumerPropsOverride);
+    consumerProps.putAll(consumerPropsOverride);
 
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
