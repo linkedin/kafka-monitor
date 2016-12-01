@@ -88,6 +88,14 @@ public class ProduceService implements Service {
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
+    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) ?
+      (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
+
+    for (String property: NONOVERRIDABLE_PROPERTIES) {
+      if (_producerPropsOverride.containsKey(property)) {
+        throw new ConfigException("Override must not contain bootstrap or zookeeper config.");
+      }
+    }
 
     _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) ?
       (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
