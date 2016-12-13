@@ -57,17 +57,6 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
     + "replication factor used.";
 
-  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory.class.name";
-  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
-    + TopicFactory.class.getName() + ".";
-
-  public static final String TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.topicCreationEnabled";
-  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
-      TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
-    + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" +
-    CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG + "\" partitions.";
-
-
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
@@ -82,11 +71,6 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     "kafka-monitor-topic",
                                     ConfigDef.Importance.MEDIUM,
                                     TOPIC_DOC)
-                            .define(TOPIC_CREATION_ENABLED_CONFIG,
-                                    ConfigDef.Type.BOOLEAN,
-                                    true,
-                                    ConfigDef.Importance.MEDIUM,
-                                    TOPIC_CREATION_ENABLED_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     NewProducer.class.getCanonicalName(),
@@ -130,12 +114,16 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     atLeast(1.0),
                                     ConfigDef.Importance.LOW,
                                     CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
-                            .define(TOPIC_FACTORY_CONFIG,
+                            .define(CommonServiceConfig.TOPIC_FACTORY_CONFIG,
                                     ConfigDef.Type.STRING,
                                     DefaultTopicFactory.class.getCanonicalName(),
                                     ConfigDef.Importance.LOW,
-                                    TOPIC_FACTORY_DOC);
-
+                                    CommonServiceConfig.TOPIC_FACTORY_DOC)
+                            .define(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG,
+                                    ConfigDef.Type.BOOLEAN,
+                                    true,
+                                    ConfigDef.Importance.LOW,
+                                    CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC);
   }
 
   public ProduceServiceConfig(Map<?, ?> props) {

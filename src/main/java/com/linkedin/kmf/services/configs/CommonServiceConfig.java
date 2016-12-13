@@ -27,4 +27,17 @@ public class CommonServiceConfig {
     + " created or rebalanced.  ceil(nBrokers * partitionsToBrokerRatio) is used to determine the actual number of "
     + "partitions when partitions are added or removed.";
 
+  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
+      + "replication factor used.";
+
+  public static final String TOPIC_CREATION_ENABLED_CONFIG = "topic-management.topicCreationEnabled";
+  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+      TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
+      TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_TO_BROKER_RATO_CONFIG + "\" partitions.";
+
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory.class.name";
+  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
+      + com.linkedin.kmf.common.TopicFactory.class.getName() + ".";
+
 }
