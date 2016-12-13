@@ -10,7 +10,6 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
@@ -101,21 +100,14 @@ public class ProduceService implements Service {
     }
 
     int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-    if (existingPartitionCount <= 0) {
-      if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
-        TopicFactory topicFactory =
-          (TopicFactory) Class.forName(config.getString(ProduceServiceConfig.TOPIC_FACTORY_CONFIG)).getConstructor(Map.class).newInstance(props);
-        _partitionNum.set(
-            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio, new Properties()));
-      } else {
-        throw new RuntimeException("Can not find valid partition number for topic " + _topic +
-            ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
-            " a multiple of number of brokers in the cluster.  Or else configure " +
-            CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG + " to be true.");
-      }
-    } else {
-      _partitionNum.set(existingPartitionCount);
+    int topicPollDelay = config.getInt(ProduceServiceConfig.TOPIC_POLL_DELAY_CONFIG);
+    while (existingPartitionCount <= 0) {
+      LOG.info(_name + ": Topic named " +  _topic + " has not been created. Checking again in " + topicPollDelay + "ms.");
+      Thread.sleep(topicPollDelay);
+      existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
     }
+
+    _partitionNum.set(existingPartitionCount);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       _producerClassName = NewProducer.class.getCanonicalName();

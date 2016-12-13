@@ -12,6 +12,7 @@ package com.linkedin.kmf.services.configs;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
 
@@ -30,6 +31,20 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String REBALANCE_INTERVAL_MS_CONFIG = "topic-management.rebalance.interval.ms";
   public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the "
     + "monitored topic is checked.  Set this to a large value to disable automatic topic rebalance.";
+
+  public static final String PARTITIONS_TO_BROKER_RATIO_CONFIG = "topic-management.partitionsToBrokersRatio";
+  public static final String PARTITIONS_TO_BROKER_RATIO_DOC = "Determines the number of partitions per broker when a topic is"
+      + " created or rebalanced.  ceil(nBrokers * partitionsToBrokerRatio) is used to determine the actual number of "
+      + "partitions when partitions are added or removed.";
+
+  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
+      + "replication factor used.";
+
+  public static final String TOPIC_CREATION_ENABLED_CONFIG = "topic-management.topicCreationEnabled";
+  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
+      CommonServiceConfig.TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
+      TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_TO_BROKER_RATIO_CONFIG + "\" partitions.";
 
   static {
     CONFIG = new ConfigDef()
@@ -53,23 +68,23 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               1000 * 60 * 10,
               atLeast(10),
               ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
-      .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
+      .define(PARTITIONS_TO_BROKER_RATIO_CONFIG,
               ConfigDef.Type.DOUBLE,
               2.0,
               atLeast(1),
               ConfigDef.Importance.LOW,
-              CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
-      .define(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG,
-          ConfigDef.Type.BOOLEAN,
-          true,
-          ConfigDef.Importance.LOW,
-          CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC)
-      .define(CommonServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG,
-          ConfigDef.Type.INT,
-          1,
-          atLeast(1),
-          ConfigDef.Importance.LOW,
-          CommonServiceConfig.TOPIC_REPLICATION_FACTOR_DOC);
+              PARTITIONS_TO_BROKER_RATIO_DOC)
+      .define(TOPIC_CREATION_ENABLED_CONFIG,
+              ConfigDef.Type.BOOLEAN,
+              true,
+              ConfigDef.Importance.LOW,
+              TOPIC_CREATION_ENABLED_DOC)
+      .define(TOPIC_REPLICATION_FACTOR_CONFIG,
+              ConfigDef.Type.INT,
+              1,
+              atLeast(1),
+              ConfigDef.Importance.LOW,
+              TOPIC_REPLICATION_FACTOR_DOC);
   }
 
   public TopicManagementServiceConfig(Map<?, ?> props) {

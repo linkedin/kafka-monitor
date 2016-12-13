@@ -63,7 +63,6 @@ public class TopicManagementService implements Service  {
     final Set<Integer> _electedLeaders;
     final Collection<Broker> _allBrokers;
     final double _partitionToBrokerRatioThreshold;
-    final int _topicReplicationFactor;
 
     /**
      * @param electedLeaders the set of broker ids that have been elected as leaders.
@@ -78,7 +77,6 @@ public class TopicManagementService implements Service  {
       this._electedLeaders = electedLeaders;
       this._allBrokers = allBrokers;
       this._partitionToBrokerRatioThreshold = partitionToBrokerRatioThreshold;
-      this._topicReplicationFactor = topicReplicationFactor;
     }
 
     /**
@@ -113,14 +111,6 @@ public class TopicManagementService implements Service  {
         }
       }
       return false;
-    }
-
-    /**
-     *
-     * @return true if the current topic replication factor is less than the expected ratio
-     */
-    boolean insufficientReplicationFactor() {
-      return currentReplicationFactor() < _topicReplicationFactor;
     }
 
     /**
@@ -174,12 +164,19 @@ public class TopicManagementService implements Service  {
         TopicState topicState = topicState();
         if (topicState == null) {
           if(_topicCreationEnabled) {
-            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, _configuredReplicationFactor, _partitionsToBrokerRatio);
+            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, _topicReplicationFactor, _partitionsToBrokerRatio);
           }
           return;
         }
-        if (topicState.someBrokerWithoutLeader() || topicState.someBrokerMissingPartition() || topicState.insufficientPartitions()
-            || topicState.insufficientReplicationFactor()) {
+
+        int currentReplicationFactor = topicState.currentReplicationFactor();
+        if (currentReplicationFactor >= 0 && currentReplicationFactor != _topicReplicationFactor) {
+          LOG.error(_serviceName + ": replication factor given as configuration " + TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG
+              + " does not match the topic's current replication factor.");
+          stop();
+        }
+
+        if (topicState.someBrokerWithoutLeader() || topicState.someBrokerMissingPartition() || topicState.insufficientPartitions()) {
 
           LOG.info(_serviceName + ": topic rebalance started.");
           LOG.debug(_serviceName + ": broker count " + topicState._allBrokers.size() + " partitionCount " + topicState._partitionInfo.size() + ".");
@@ -198,16 +195,9 @@ public class TopicManagementService implements Service  {
           if (topicState.currentReplicationFactor() == -1) {
             return;
           }
-          if(topicState.insufficientReplicationFactor()) {
-            LOG.info(_serviceName + ": increasing topic replication factor.");
-            reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), _configuredReplicationFactor);
-          }
-          if (topicState.currentReplicationFactor() == -1) {
-            return;
-          }
           if (topicState.someBrokerMissingPartition() && !topicAssignmentIsRunning()) {
             LOG.info(_serviceName + ": rebalancing monitored topic.");
-            reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), _configuredReplicationFactor);
+            reassignPartitions(topicState._allBrokers, topicState._partitionInfo.size(), _topicReplicationFactor);
           } else if (topicState.someBrokerWithoutLeader()) {
             LOG.info(_serviceName + ": running preferred replica election.");
             triggerPreferredLeaderElection(_zkUtils, topicState._partitionInfo);
@@ -238,12 +228,12 @@ public class TopicManagementService implements Service  {
   private final String _topic;
   private final double _partitionsToBrokerRatio;
   private final int _scheduleIntervalMs;
-  private final ZkUtils _zkUtils;
   private final String _zkConnect;
+  private final ZkUtils _zkUtils;
   private final ScheduledExecutorService _executor;
   private volatile boolean _running = false;
   private final String _serviceName;
-  private final int _configuredReplicationFactor;
+  private final int _topicReplicationFactor;
   private final boolean _topicCreationEnabled;
 
 
@@ -252,24 +242,23 @@ public class TopicManagementService implements Service  {
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     _partitionToBrokerRatioThreshold = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
     _topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
-    _partitionsToBrokerRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
+    _partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG);
     _scheduleIntervalMs = config.getInt(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _zkConnect = config.getString(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _zkUtils = ZkUtils.apply(_zkConnect, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
-    _configuredReplicationFactor = config.getInt(CommonServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
-    _topicCreationEnabled = config.getBoolean(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+    _topicReplicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
+    _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
 
     int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
     if (existingPartitionCount <= 0) {
       if (_topicCreationEnabled) {
-        Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, _configuredReplicationFactor,
-                _partitionsToBrokerRatio);
+        Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, _topicReplicationFactor, _partitionsToBrokerRatio);
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
             " a multiple of number of brokers in the cluster.  Or else configure " +
-            CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG + " to be true.");
+            TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG + " to be true.");
       }
     }
 
@@ -351,7 +340,7 @@ public class TopicManagementService implements Service  {
       return null;
     }
     Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(_zkUtils.getAllBrokersInCluster());
-    return topicState(partitionInfoList, brokers, _partitionToBrokerRatioThreshold, _configuredReplicationFactor);
+    return topicState(partitionInfoList, brokers, _partitionToBrokerRatioThreshold, _topicReplicationFactor);
   }
 
   /**

@@ -207,7 +207,7 @@ public class BasicEndToEndTest implements Test {
       .type(Boolean.class)
       .metavar("AUTO_TOPIC_CREATION_ENABLED")
       .dest("autoTopicCreationEnabled")
-      .help(CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC);
+      .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
     parser.addArgument("--topic-rebalance-interval-ms")
       .action(store())
@@ -247,7 +247,7 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("producerConfig") != null)
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     if (res.getBoolean("autoTopicCreationEnabled") != null)
-      props.put(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+      props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
     if (res.getInt("rebalanceMs") != null)
       props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 

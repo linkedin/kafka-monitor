@@ -31,6 +31,9 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
+  public static final String TOPIC_POLL_DELAY_CONFIG = "produce.topic.poll.delay";
+  public static final String TOPIC_POLL_DELAY_DOC = "The gap in ms between attempting to poll for a topic if it has not been created yet.";
+
   public static final String PRODUCER_CLASS_CONFIG = "produce.producer.class";
   public static final String PRODUCER_CLASS_DOC = "Producer class that will be instantiated as producer in the produce service. "
                                                   + "It can be NewProducer, or full class name of any class that implements the KMBaseProducer interface. ";
@@ -102,28 +105,11 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     atLeast(1),
                                     ConfigDef.Importance.LOW,
                                     PRODUCE_THREAD_NUM_DOC)
-                            .define(TOPIC_REPLICATION_FACTOR_CONFIG,
+                            .define(TOPIC_POLL_DELAY_CONFIG,
                                     ConfigDef.Type.INT,
-                                    1,
-                                    atLeast(1),
+                                    1000,
                                     ConfigDef.Importance.LOW,
-                                    TOPIC_REPLICATION_FACTOR_DOC)
-                            .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
-                                    ConfigDef.Type.DOUBLE,
-                                    2.0,
-                                    atLeast(1.0),
-                                    ConfigDef.Importance.LOW,
-                                    CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
-                            .define(CommonServiceConfig.TOPIC_FACTORY_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    DefaultTopicFactory.class.getCanonicalName(),
-                                    ConfigDef.Importance.LOW,
-                                    CommonServiceConfig.TOPIC_FACTORY_DOC)
-                            .define(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG,
-                                    ConfigDef.Type.BOOLEAN,
-                                    true,
-                                    ConfigDef.Importance.LOW,
-                                    CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC);
+                                    TOPIC_POLL_DELAY_DOC);
   }
 
   public ProduceServiceConfig(Map<?, ?> props) {
