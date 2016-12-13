@@ -58,7 +58,18 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               2.0,
               atLeast(1),
               ConfigDef.Importance.LOW,
-              CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
+              CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
+      .define(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG,
+          ConfigDef.Type.BOOLEAN,
+          true,
+          ConfigDef.Importance.LOW,
+          CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC)
+      .define(CommonServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG,
+          ConfigDef.Type.INT,
+          1,
+          atLeast(1),
+          ConfigDef.Importance.LOW,
+          CommonServiceConfig.TOPIC_REPLICATION_FACTOR_DOC);
   }
 
   public TopicManagementServiceConfig(Map<?, ?> props) {

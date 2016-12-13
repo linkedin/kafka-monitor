@@ -97,21 +97,20 @@ public class ProduceService implements Service {
       }
     }
 
-    double partitionsToBrokersRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
-    int topicReplicationFactor = config.getInt(ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
+    double partitionsToBrokersRatio = 1;
+    int topicReplicationFactor = 1;
     int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
 
     if (existingPartitionCount <= 0) {
-      if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
+      if (config.getBoolean(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
         _partitionNum.set(
             Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, topicReplicationFactor,
                 partitionsToBrokersRatio));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
-            " a multiple of number" +
-            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG +
-            " to be true.");
+            " a multiple of number of brokers in the cluster.  Or else configure " +
+            CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG + " to be true.");
       }
     } else {
       _partitionNum.set(existingPartitionCount);
