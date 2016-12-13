@@ -13,6 +13,7 @@ import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
@@ -54,16 +55,16 @@ public class BasicEndToEndTest implements Test {
 
   public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
+    _topicManagementService = new TopicManagementService(props, name);
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
-    _topicManagementService = new TopicManagementService(props, name);
   }
 
   @Override
   public void start() {
+    _topicManagementService.start();
     _produceService.start();
     _consumeService.start();
-    _topicManagementService.start();
     LOG.info(_name + "/BasicEndToEndTest started");
   }
 
@@ -204,7 +205,7 @@ public class BasicEndToEndTest implements Test {
       .type(Boolean.class)
       .metavar("AUTO_TOPIC_CREATION_ENABLED")
       .dest("autoTopicCreationEnabled")
-      .help(ProduceServiceConfig.TOPIC_CREATION_ENABLED_DOC);
+      .help(CommonServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
     parser.addArgument("--topic-rebalance-interval-ms")
       .action(store())
@@ -244,7 +245,7 @@ public class BasicEndToEndTest implements Test {
     if (res.getString("producerConfig") != null)
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     if (res.getBoolean("autoTopicCreationEnabled") != null)
-      props.put(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+      props.put(CommonServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
     if (res.getInt("rebalanceMs") != null)
       props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
