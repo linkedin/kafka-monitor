@@ -49,8 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{ ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-                                                                        ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
+  private static final String[] NONOVERRIDABLE_PROPERTIES =
+    new String[]{ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+      ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
 
   private final String _name;
   private final ProduceMetrics _sensors;
