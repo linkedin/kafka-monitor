@@ -16,7 +16,6 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
-import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
@@ -49,8 +48,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String METRIC_GROUP_NAME = "consume-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{ ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-                                                                          ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
+  private static final String[] NONOVERRIDABLE_PROPERTIES =
+    new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+      ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
 
   private final String _name;
   private final ConsumeMetrics _sensors;
