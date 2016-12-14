@@ -375,6 +375,7 @@ public class TopicManagementService implements Service  {
     Runnable r = new TopicManagementRunnable();
     _executor.scheduleWithFixedDelay(r, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
     _running = true;
+    LOG.info(_serviceName + "/TopicManagementService started.");
   }
 
   @Override
@@ -383,6 +384,8 @@ public class TopicManagementService implements Service  {
       return;
     }
     _executor.shutdown();
+    _running = false;
+    LOG.info(_serviceName + "/TopicManagementService stopped.");
   }
 
   @Override
@@ -391,15 +394,11 @@ public class TopicManagementService implements Service  {
   }
 
   @Override
-  public synchronized void awaitShutdown() {
-    if (!_running) {
-      return;
-    }
+  public void awaitShutdown() {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       throw new IllegalStateException("Waiting for termination failed.", e);
     }
-    _running = false;
   }
 }
