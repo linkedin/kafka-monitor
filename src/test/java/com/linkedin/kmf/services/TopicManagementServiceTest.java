@@ -67,7 +67,7 @@ public class TopicManagementServiceTest {
     Assert.assertFalse(topicState.someBrokerMissingPartition());
     Assert.assertFalse(topicState.someBrokerWithoutLeader());
     Assert.assertTrue(topicState.insufficientPartitions());
-    Assert.assertEquals(topicState.currentReplicationFactor(), 2);
+    Assert.assertEquals(topicState.replicationFactor(), 2);
   }
 
 

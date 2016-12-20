@@ -99,15 +99,7 @@ public class ProduceService implements Service {
       }
     }
 
-    int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-    int topicPollDelay = config.getInt(ProduceServiceConfig.TOPIC_POLL_DELAY_CONFIG);
-    while (existingPartitionCount <= 0) {
-      LOG.info(_name + ": Topic named " +  _topic + " has not been created. Checking again in " + topicPollDelay + "ms.");
-      Thread.sleep(topicPollDelay);
-      existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-    }
-
-    _partitionNum.set(existingPartitionCount);
+    _partitionNum.set(Utils.getPartitionNumForTopic(_zkConnect, _topic));
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       _producerClassName = NewProducer.class.getCanonicalName();
@@ -306,6 +298,7 @@ public class ProduceService implements Service {
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionCount == _partitionNum.get()) {
+        LOG.info(_name + ": Topic named " + _topic + " does not exist.");
         return;
       }
       LOG.info(_name + ": Detected new partitions to monitor.");
