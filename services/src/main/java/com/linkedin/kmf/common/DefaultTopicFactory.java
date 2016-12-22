@@ -7,18 +7,15 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-package com.linkedin.kmf.consumer;
+package com.linkedin.kmf.common;
 
-/**
- * A base consumer used to abstract different consumer classes.
- *
- * Implementations of this class must have constructor with the following signature: <br/>
- *   Constructor({@link java.util.Properties} properties).
- */
-public interface KMBaseConsumer {
+import java.util.Map;
 
-  BaseConsumerRecord receive() throws Exception;
+public class DefaultTopicFactory implements TopicFactory {
 
-  void close();
-
+  @Override
+  public int createTopic(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Map<String, Object> config) {
+    return Utils.createMonitoringTopicIfNotExists(zkUrl, topic, replicationFactor,
+      partitionToBrokerRatio);
+  }
 }
