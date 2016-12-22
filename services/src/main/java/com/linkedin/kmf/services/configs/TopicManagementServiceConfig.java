@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.DefaultTopicFactory;
+import com.linkedin.kmf.common.TopicFactory;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -30,6 +32,10 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String REBALANCE_INTERVAL_MS_CONFIG = "topic-management.rebalance.interval.ms";
   public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the "
     + "monitored topic is checked.  Set this to a large value to disable automatic topic rebalance.";
+
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory";
+  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
+    + TopicFactory.class.getName() + ".";
 
   static {
     CONFIG = new ConfigDef()
@@ -53,6 +59,11 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               1000 * 60 * 10,
               atLeast(10),
               ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
+      .define(TOPIC_FACTORY_CONFIG,
+              ConfigDef.Type.CLASS,
+              DefaultTopicFactory.class,
+              ConfigDef.Importance.LOW,
+              TOPIC_FACTORY_DOC)
       .define(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG,
               ConfigDef.Type.DOUBLE,
               2.0,

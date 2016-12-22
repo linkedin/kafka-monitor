@@ -29,6 +29,6 @@ public interface TopicFactory {
    * @param config additional configuration parameters passed in from the Kafka Monitor configuration.
    * @return The number of partitions for the specified topic.
    */
-  public int createTopic(String zkUrl, String topic, int replicationFactor,
+  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor,
     double partitionToBrokerRatio, Map<String, Object> config);
 }

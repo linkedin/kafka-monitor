@@ -14,7 +14,7 @@ import java.util.Map;
 public class DefaultTopicFactory implements TopicFactory {
 
   @Override
-  public int createTopic(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Map<String, Object> config) {
+  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Map<String, Object> config) {
     return Utils.createMonitoringTopicIfNotExists(zkUrl, topic, replicationFactor,
       partitionToBrokerRatio);
   }

@@ -16,6 +16,7 @@ import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.NewProducer;
+import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadFactory;
@@ -106,9 +107,9 @@ public class ProduceService implements Service {
 
     if (existingPartitionCount <= 0) {
       if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
-        TopicFactory topicFactory = config.getConfiguredInstance(ProduceServiceConfig.TOPIC_FACTORY_CONFIG, TopicFactory.class);
+        TopicFactory topicFactory = config.getConfiguredInstance(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG, TopicFactory.class);
         _partitionNum.set(
-            topicFactory.createTopic(_zkConnect, _topic, topicReplicationFactor,
+            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor,
                 partitionsToBrokersRatio, props));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
