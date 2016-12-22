@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.DefaultTopicFactory;
+import com.linkedin.kmf.common.TopicFactory;
 import com.linkedin.kmf.producer.NewProducer;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -53,13 +55,18 @@ public class ProduceServiceConfig extends AbstractConfig {
 
   public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
-      + "replication factor used.";
+    + "replication factor used.";
+
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topic-factory";
+  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
+    + TopicFactory.class.getName() + ".";
 
   public static final String TOPIC_CREATION_ENABLED_CONFIG = "produce.topic.topicCreationEnabled";
   public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
       TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG
     + "and min ISR of max(" + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" +
     CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG + "\" partitions.";
+
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
@@ -122,7 +129,12 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     2.0,
                                     atLeast(1.0),
                                     ConfigDef.Importance.LOW,
-                                    CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC);
+                                    CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
+                            .define(TOPIC_FACTORY_CONFIG,
+                                    ConfigDef.Type.CLASS,
+                                    DefaultTopicFactory.class,
+                                    ConfigDef.Importance.LOW,
+                                    TOPIC_FACTORY_DOC);
 
   }
 
