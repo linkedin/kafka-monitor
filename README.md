@@ -1,6 +1,6 @@
 # Kafka Monitor
 
-[![Build Status](https://travis-ci.org/linkedin/kafka-monitor?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
+[![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
 
 Kafka Monitor is a framework to implement and execute long-running kafka
 system tests in a real cluster. It complements Kafka’s existing system
