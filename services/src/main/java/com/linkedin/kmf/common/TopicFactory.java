@@ -9,14 +9,12 @@
  */
 package com.linkedin.kmf.common;
 
-import java.util.Map;
-
-
 /**
  * Constructs the monitored topic if it does not exist.
  *
- * Implementations of this class should have a public, no-arg constructor.
- *
+ * Implementations of this class should have a public constructor with the following signature: <br/>
+ *   Constructor(Map<String, ?> config) where config are additional configuration parameters passed in from the Kafka
+ *   Monitor configuration.
  */
 public interface TopicFactory {
 
@@ -26,9 +24,10 @@ public interface TopicFactory {
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
-   * @param config additional configuration parameters passed in from the Kafka Monitor configuration.
    * @return The number of partitions for the specified topic.
    */
-  public int createTopic(String zkUrl, String topic, int replicationFactor,
-    double partitionToBrokerRatio, Map<String, Object> config);
+
+  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor,
+    double partitionToBrokerRatio);
+
 }

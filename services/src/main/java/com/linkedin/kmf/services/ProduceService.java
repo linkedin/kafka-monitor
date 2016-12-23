@@ -106,10 +106,10 @@ public class ProduceService implements Service {
 
     if (existingPartitionCount <= 0) {
       if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
-        TopicFactory topicFactory = config.getConfiguredInstance(ProduceServiceConfig.TOPIC_FACTORY_CONFIG, TopicFactory.class);
+        TopicFactory topicFactory = (TopicFactory)
+          Class.forName(config.getString(ProduceServiceConfig.TOPIC_FACTORY_CONFIG)).getConstructor(Map.class).newInstance(props);
         _partitionNum.set(
-            topicFactory.createTopic(_zkConnect, _topic, topicReplicationFactor,
-                partitionsToBrokersRatio, props));
+            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +

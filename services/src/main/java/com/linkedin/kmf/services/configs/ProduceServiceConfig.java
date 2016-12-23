@@ -57,7 +57,7 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
     + "replication factor used.";
 
-  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topic-factory";
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory";
   public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
     + TopicFactory.class.getName() + ".";
 
@@ -131,8 +131,8 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     ConfigDef.Importance.LOW,
                                     CommonServiceConfig.PARTITIONS_TO_BROKER_RATIO_DOC)
                             .define(TOPIC_FACTORY_CONFIG,
-                                    ConfigDef.Type.CLASS,
-                                    DefaultTopicFactory.class,
+                                    ConfigDef.Type.STRING,
+                                    DefaultTopicFactory.class.getCanonicalName(),
                                     ConfigDef.Importance.LOW,
                                     TOPIC_FACTORY_DOC);
 
