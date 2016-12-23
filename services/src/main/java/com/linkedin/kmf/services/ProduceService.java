@@ -109,7 +109,7 @@ public class ProduceService implements Service {
         TopicFactory topicFactory = (TopicFactory)
           Class.forName(config.getString(ProduceServiceConfig.TOPIC_FACTORY_CONFIG)).getConstructor(Map.class).newInstance(props);
         _partitionNum.set(
-            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio));
+            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio, new Properties()));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +

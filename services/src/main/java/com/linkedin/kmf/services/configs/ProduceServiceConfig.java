@@ -57,7 +57,7 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
     + "replication factor used.";
 
-  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory";
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory.class.name";
   public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
     + TopicFactory.class.getName() + ".";
 

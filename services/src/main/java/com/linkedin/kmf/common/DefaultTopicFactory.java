@@ -10,6 +10,8 @@
 package com.linkedin.kmf.common;
 
 import java.util.Map;
+import java.util.Properties;
+
 
 public class DefaultTopicFactory implements TopicFactory {
 
@@ -18,7 +20,7 @@ public class DefaultTopicFactory implements TopicFactory {
   }
 
   @Override
-  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio) {
-    return Utils.createMonitoringTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio);
+  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicConfig) {
+    return Utils.createMonitoringTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, topicConfig);
   }
 }
