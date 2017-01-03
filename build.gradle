@@ -1,8 +1,13 @@
+plugins {
+    id 'net.vivin.gradle-semantic-build-versioning' version "2.0.2"
+}
+
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
   apply plugin: 'java'
   apply plugin: 'checkstyle'
+  apply plugin: 'net.vivin.gradle-semantic-build-versioning'
 
   sourceCompatibility = 1.7
 
