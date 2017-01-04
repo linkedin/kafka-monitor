@@ -65,10 +65,11 @@ public class Utils {
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
+   * @param topicConfig additional parameters for the topic for example min.insync.replicas
    * @return the number of partitions created
    */
   public static int createMonitoringTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-      double partitionToBrokerRatio) {
+      double partitionToBrokerRatio, Properties topicConfig) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
       if (AdminUtils.topicExists(zkUtils, topic)) {
@@ -80,13 +81,14 @@ public class Utils {
 
       int partitionCount = (int) Math.ceil(brokerCount * partitionToBrokerRatio);
 
-      int minIsr = Math.max(replicationFactor - 1, 1);
-      Properties topicConfig = new Properties();
-      topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(minIsr));
+      int defaultMinIsr = Math.max(replicationFactor - 1, 1);
+      if (!topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
+        topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
+      }
       AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
 
-      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " + minIsr
-          + " and replication factor of " + replicationFactor + ".");
+      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " +
+        topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
     } finally {

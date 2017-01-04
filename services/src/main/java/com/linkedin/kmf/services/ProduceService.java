@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.common.TopicFactory;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
@@ -80,6 +81,7 @@ public class ProduceService implements Service {
     _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
+
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
     _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
@@ -104,9 +106,10 @@ public class ProduceService implements Service {
 
     if (existingPartitionCount <= 0) {
       if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
+        TopicFactory topicFactory = (TopicFactory)
+          Class.forName(config.getString(ProduceServiceConfig.TOPIC_FACTORY_CONFIG)).getConstructor(Map.class).newInstance(props);
         _partitionNum.set(
-            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, topicReplicationFactor,
-                partitionsToBrokersRatio));
+            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio, new Properties()));
       } else {
         throw new RuntimeException("Can not find valid partition number for topic " + _topic +
             ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
@@ -139,6 +142,7 @@ public class ProduceService implements Service {
 
     LOG.info(_name + ": produce service is initialized.");
   }
+
 
   private void initializeProducer() throws Exception {
 
