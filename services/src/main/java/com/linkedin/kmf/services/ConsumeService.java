@@ -11,6 +11,7 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.DefaultTopicSchema;
 import com.linkedin.kmf.common.Utils;
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
@@ -70,6 +71,8 @@ public class ConsumeService implements Service {
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
+    double partitionsToBrokersRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
+    int topicReplicationFactor = config.getInt(ConsumeServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
@@ -107,10 +110,21 @@ public class ConsumeService implements Service {
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
 
+    int existingPartitionCount = Utils.getPartitionNumForTopic(zkConnect, topic);
+
+    if (existingPartitionCount <= 0) {
+      if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
+        Utils.createMonitoringTopicIfNotExists(zkConnect, topic, topicReplicationFactor, partitionsToBrokersRatio);
+      } else {
+        throw new RuntimeException("Can not find valid partition number for topic " + topic +
+            ". Please verify that the topic \"" + topic + "\" has been created. Ideally the partition number should be" +
+            " a multiple of number of brokers in the cluster.  Or else configure " +
+            ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG + " to be true.");
+      }
+    }
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
-    _thread = new Thread(new Runnable() {
-      @Override
+    _thread = new Thread(new Runnable() {      @Override
       public void run() {
         try {
           consume();
