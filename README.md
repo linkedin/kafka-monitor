@@ -41,7 +41,7 @@ monitor a single cluster. You probably need to change the value of
 Config class for respective service, e.g. ProduceServiceConfig.java and
 ConsumeServiceConfig.java.
 
-- You can specify multiple BasicEndToEndTest in the kafka-monitor.properties to
+- You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
 monitor multiple Kafka clusters in one Kafka Monitor process. As another
 advanced use-cse, you can point ProduceService and ConsumeService to two
 different Kafka clusters that are connected by MirrorMaker to monitor their
@@ -72,9 +72,9 @@ $ ./gradlew jar
 $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ```
 
-### Run BasicEndToEndTest to monitor kafka cluster
+### Run SingleClusterMonitor app to monitor kafka cluster
 ```
-$ ./bin/end-to-end-test.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
+$ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
 ```
 
 ### Get metric values (e.g. service availability, message loss rate) in real-time as time series graphs

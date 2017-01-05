@@ -28,17 +28,7 @@ do
   CLASSPATH=$CLASSPATH:$file
 done
 
-for file in $base_dir/services/build/libs/*.jar;
-do
-  CLASSPATH=$CLASSPATH:$file
-done
-
-for file in $base_dir/tests/build/libs/*.jar;
-do
-  CLASSPATH=$CLASSPATH:$file
-done
-
-for file in $base_dir/services/build/dependant-libs/*.jar;
+for file in $base_dir/core/build/dependant-libs/*.jar;
 do
   CLASSPATH=$CLASSPATH:$file
 done
