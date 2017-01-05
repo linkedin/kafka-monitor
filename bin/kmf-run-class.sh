@@ -23,12 +23,12 @@ if [ -z "$SCALA_BINARY_VERSION" ]; then
 	SCALA_BINARY_VERSION=2.10
 fi
 
-for file in $base_dir/core/build/libs/*.jar;
+for file in $base_dir/build/libs/*.jar;
 do
   CLASSPATH=$CLASSPATH:$file
 done
 
-for file in $base_dir/core/build/dependant-libs/*.jar;
+for file in $base_dir/build/dependant-libs/*.jar;
 do
   CLASSPATH=$CLASSPATH:$file
 done
