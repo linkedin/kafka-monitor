@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.common.TopicFactory;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,12 +38,10 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.security.JaasUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.linkedin.kmf.common.Utils;
+import scala.collection.Seq;
 
 import static com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS;
 import static com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS;
-
-import scala.collection.Seq;
 
 
 /**
@@ -164,7 +164,9 @@ public class TopicManagementService implements Service  {
         TopicState topicState = topicState();
         if (topicState == null) {
           if (_topicCreationEnabled) {
-            Utils.createMonitoringTopicIfNotExists(_zkConnect, _topic, _configuredTopicReplicationFactor, _partitionsToBrokerRatio);
+            TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class).newInstance();
+            topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
+              _partitionsToBrokerRatio, new Properties());
             topicState = topicState();
           } else {
             throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
@@ -238,6 +240,7 @@ public class TopicManagementService implements Service  {
   private final String _serviceName;
   private final int _configuredTopicReplicationFactor;
   private final boolean _topicCreationEnabled;
+  private final String _topicFactoryConfig;
 
 
   public TopicManagementService(Map<String, Object> props, String serviceName) {
@@ -252,10 +255,11 @@ public class TopicManagementService implements Service  {
     _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
     _configuredTopicReplicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+    _topicFactoryConfig = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG);
 
-    LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold " + _partitionToBrokerRatioThreshold
-      + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio + " scheduleIntervalMs " +
-      _scheduleIntervalMs + ".");
+    LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold "
+      + _partitionToBrokerRatioThreshold + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio
+      + " scheduleIntervalMs " + _scheduleIntervalMs + ".");
   }
 
   private boolean topicAssignmentIsRunning() {

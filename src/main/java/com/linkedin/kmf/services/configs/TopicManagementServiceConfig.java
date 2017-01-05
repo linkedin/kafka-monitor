@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.DefaultTopicFactory;
+import com.linkedin.kmf.common.TopicFactory;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -45,6 +47,10 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \"" +
       CommonServiceConfig.TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max(" +
       TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_TO_BROKER_RATIO_CONFIG + "\" partitions.";
+
+  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory.class.name";
+  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
+      + TopicFactory.class.getName() + ".";
 
   static {
     CONFIG = new ConfigDef()
@@ -84,7 +90,12 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               1,
               atLeast(1),
               ConfigDef.Importance.LOW,
-              TOPIC_REPLICATION_FACTOR_DOC);
+              TOPIC_REPLICATION_FACTOR_DOC)
+      .define(TOPIC_FACTORY_CONFIG,
+              ConfigDef.Type.STRING,
+              DefaultTopicFactory.class.getCanonicalName(),
+              ConfigDef.Importance.LOW,
+              TOPIC_FACTORY_DOC);
   }
 
   public TopicManagementServiceConfig(Map<?, ?> props) {

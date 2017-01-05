@@ -9,12 +9,10 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import com.linkedin.kmf.topicfactory.DefaultTopicFactory;
 import com.linkedin.kmf.producer.NewProducer;
-import com.linkedin.kmf.topicfactory.TopicFactory;
+import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import java.util.Map;
 
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
@@ -52,10 +50,6 @@ public class ProduceServiceConfig extends AbstractConfig {
 
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
-
-  public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
-  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
-    + "replication factor used.";
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
