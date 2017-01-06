@@ -9,8 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import com.linkedin.kmf.common.DefaultTopicFactory;
-import com.linkedin.kmf.common.TopicFactory;
+import com.linkedin.kmf.topicfactory.DefaultTopicFactory;
+import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;

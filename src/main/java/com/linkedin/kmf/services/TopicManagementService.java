@@ -10,10 +10,9 @@
 
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.common.TopicFactory;
+import com.linkedin.kmf.topicfactory.TopicFactory;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
-import com.oracle.tools.packager.Log;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -329,11 +328,11 @@ public class TopicManagementService implements Service  {
         _partitionsToBrokerRatio, new Properties());
     } catch (InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException
       | IllegalAccessException e) {
-      Log.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
+      LOG.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
     }
 
     TopicState topicState = topicState();
-    if(topicState == null) {
+    if (topicState == null) {
       throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and could not be created.");
     }
     return topicState;
