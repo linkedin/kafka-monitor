@@ -13,7 +13,9 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.common.TopicFactory;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import com.oracle.tools.packager.Log;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -163,21 +165,18 @@ public class TopicManagementService implements Service  {
       try {
         TopicState topicState = topicState();
         if (topicState == null) {
-          if (_topicCreationEnabled) {
-            TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class).newInstance();
-            topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
-              _partitionsToBrokerRatio, new Properties());
-            topicState = topicState();
-          } else {
+          if (!_topicCreationEnabled) {
             throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
           }
+
+          topicState = createTopic();
         }
 
         int currentReplicationFactor = topicState.replicationFactor();
-        if (currentReplicationFactor == -1) {
+        if (currentReplicationFactor < 0) {
           LOG.info(_serviceName + " can't determine replication factor of monitored topic " + _topic + ".  Will try rebalance later.");
           return;
-        } else if (currentReplicationFactor >= 0 && currentReplicationFactor != _configuredTopicReplicationFactor) {
+        } else if (currentReplicationFactor != _configuredTopicReplicationFactor) {
           throw new RuntimeException(_serviceName + ": replication factor given as configuration "
               + TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG + " does not match the topic's current replication factor.");
         }
@@ -192,12 +191,6 @@ public class TopicManagementService implements Service  {
             int addPartitionCount = idealPartitionCount - topicState._partitionInfo.size();
             LOG.info(_serviceName + ": adding " + addPartitionCount + " partitions.");
             AdminUtils.addPartitions(_zkUtils, _topic, idealPartitionCount, null, false, RackAwareMode.Enforced$.MODULE$);
-            topicState = topicState();
-            currentReplicationFactor = topicState.replicationFactor();
-            if (currentReplicationFactor == -1) {
-              LOG.info(_serviceName + " can't determine replication factor of monitored topic " + _topic + ".  Will try rebalance later.");
-              return;
-            }
           }
 
           if (topicState.someBrokerMissingPartition() && !topicAssignmentIsRunning()) {
@@ -323,6 +316,27 @@ public class TopicManagementService implements Service  {
       scalaPartitionInfoSet.add(new TopicAndPartition(_topic, javaPartitionInfo.partition()));
     }
     PreferredReplicaLeaderElectionCommand.writePreferredReplicaElectionData(zkUtils, scalaPartitionInfoSet);
+  }
+
+  /**
+   *
+   * @return
+   */
+  private TopicState createTopic() {
+    try {
+      TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class).newInstance();
+      topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
+        _partitionsToBrokerRatio, new Properties());
+    } catch (InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException
+      | IllegalAccessException e) {
+      Log.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
+    }
+
+    TopicState topicState = topicState();
+    if(topicState == null) {
+      throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and could not be created.");
+    }
+    return topicState;
   }
 
   /**
