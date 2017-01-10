@@ -21,10 +21,4 @@ public class CommonServiceConfig {
 
   public static final String TOPIC_CONFIG = "topic";
   public static final String TOPIC_DOC = "Topic to be used by the service.";
-
-  public static final String PARTITIONS_TO_BROKER_RATO_CONFIG = "topic-management.partitionsToBrokersRatio";
-  public static final String PARTITIONS_TO_BROKER_RATIO_DOC = "Determines the number of partitions per broker when a topic is"
-    + " created or rebalanced.  ceil(nBrokers * partitionsToBrokerRatio) is used to determine the actual number of "
-    + "partitions when partitions are added or removed.";
-
 }

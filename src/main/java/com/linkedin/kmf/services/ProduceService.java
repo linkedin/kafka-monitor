@@ -10,16 +10,24 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
-import com.linkedin.kmf.services.configs.ProduceServiceConfig;
-import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.BaseProducerRecord;
+import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
+import com.linkedin.kmf.services.configs.ProduceServiceConfig;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import com.linkedin.kmf.topicfactory.TopicFactory;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
@@ -35,16 +43,6 @@ import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 
 public class ProduceService implements Service {
@@ -91,8 +89,8 @@ public class ProduceService implements Service {
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
-    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) ?
-      (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
+    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)
+      ? (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
 
     for (String property: NONOVERRIDABLE_PROPERTIES) {
       if (_producerPropsOverride.containsKey(property)) {
@@ -100,26 +98,7 @@ public class ProduceService implements Service {
       }
     }
 
-    double partitionsToBrokersRatio = config.getDouble(CommonServiceConfig.PARTITIONS_TO_BROKER_RATO_CONFIG);
-    int topicReplicationFactor = config.getInt(ProduceServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
-    int existingPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-
-    if (existingPartitionCount <= 0) {
-      if (config.getBoolean(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG)) {
-        TopicFactory topicFactory =
-          (TopicFactory) Class.forName(config.getString(ProduceServiceConfig.TOPIC_FACTORY_CONFIG)).getConstructor(Map.class).newInstance(props);
-        _partitionNum.set(
-            topicFactory.createTopicIfNotExist(_zkConnect, _topic, topicReplicationFactor, partitionsToBrokersRatio, new Properties()));
-      } else {
-        throw new RuntimeException("Can not find valid partition number for topic " + _topic +
-            ". Please verify that the topic \"" + _topic + "\" has been created. Ideally the partition number should be" +
-            " a multiple of number" +
-            " of brokers in the cluster.  Or else configure " + ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG +
-            " to be true.");
-      }
-    } else {
-      _partitionNum.set(existingPartitionCount);
-    }
+    _partitionNum.set(Utils.getPartitionNumForTopic(_zkConnect, _topic));
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       _producerClassName = NewProducer.class.getCanonicalName();
@@ -317,7 +296,10 @@ public class ProduceService implements Service {
 
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-      if (currentPartitionCount == _partitionNum.get()) {
+      if (currentPartitionCount <= 0) {
+        LOG.info(_name + ": Topic named " + _topic + " does not exist.");
+        return;
+      } else if (currentPartitionCount == _partitionNum.get()) {
         return;
       }
       LOG.info(_name + ": Detected new partitions to monitor.");

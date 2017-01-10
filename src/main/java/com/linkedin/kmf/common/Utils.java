@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.common;
 
+import java.util.NoSuchElementException;
 import java.util.Properties;
 import kafka.admin.RackAwareMode;
 import kafka.server.KafkaConfig;
@@ -50,6 +51,8 @@ public class Utils {
     try {
       Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
       return zkUtils.getPartitionsForTopics(topics).apply(topic).size();
+    } catch (NoSuchElementException e) {
+      return 0;
     } finally {
       zkUtils.close();
     }

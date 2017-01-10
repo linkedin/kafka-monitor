@@ -204,7 +204,7 @@ public class SingleClusterMonitor implements App {
       .type(Boolean.class)
       .metavar("AUTO_TOPIC_CREATION_ENABLED")
       .dest("autoTopicCreationEnabled")
-      .help(ProduceServiceConfig.TOPIC_CREATION_ENABLED_DOC);
+      .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
     parser.addArgument("--topic-rebalance-interval-ms")
       .action(store())
@@ -244,7 +244,7 @@ public class SingleClusterMonitor implements App {
     if (res.getString("producerConfig") != null)
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
     if (res.getBoolean("autoTopicCreationEnabled") != null)
-      props.put(ProduceServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+      props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
     if (res.getInt("rebalanceMs") != null)
       props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
@@ -260,8 +260,8 @@ public class SingleClusterMonitor implements App {
     if (res.getString("latencyPercentileGranularityMs") != null)
       props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
 
-    SingleClusterMonitor test = new SingleClusterMonitor(props, "end-to-end");
-    test.start();
+    SingleClusterMonitor app = new SingleClusterMonitor(props, "end-to-end");
+    app.start();
 
     // metrics export service config
     props = new HashMap<>();
@@ -289,6 +289,6 @@ public class SingleClusterMonitor implements App {
     JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
     jettyService.start();
 
-    test.awaitShutdown();
+    app.awaitShutdown();
   }
 }
