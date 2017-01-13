@@ -12,6 +12,7 @@ package com.linkedin.kmf;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
+import com.linkedin.kmf.tests.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -42,7 +43,8 @@ public class KafkaMonitor {
         throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
       String className = (String) props.get(CLASS_NAME_CONFIG);
 
-      if (className.startsWith(App.class.getPackage().getName())) {
+      if (className.startsWith(App.class.getPackage().getName()) ||
+          className.startsWith(Test.class.getPackage().getName())) {
         App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _tests.put(name, test);
       } else {
