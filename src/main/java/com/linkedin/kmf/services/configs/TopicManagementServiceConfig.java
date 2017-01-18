@@ -35,6 +35,7 @@ public class TopicManagementServiceConfig extends AbstractConfig {
     + "monitored topic is checked.  Set this to a large value to disable automatic topic rebalance.";
 
   public static final String PARTITIONS_TO_BROKER_RATIO_CONFIG = "topic-management.partitionsToBrokersRatio";
+  public static final double PARTITIONS_TO_BROKER_RATIO_DEFAULT = 2.0;
   public static final String PARTITIONS_TO_BROKER_RATIO_DOC = "Determines the number of partitions per broker when a topic is"
       + " created or rebalanced.  ceil(nBrokers * partitionsToBrokerRatio) is used to determine the actual number of "
       + "partitions when partitions are added or removed.";
@@ -76,7 +77,7 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               ConfigDef.Importance.LOW, REBALANCE_INTERVAL_MS_DOC)
       .define(PARTITIONS_TO_BROKER_RATIO_CONFIG,
               ConfigDef.Type.DOUBLE,
-              2.0,
+              PARTITIONS_TO_BROKER_RATIO_DEFAULT,
               atLeast(1),
               ConfigDef.Importance.LOW,
               PARTITIONS_TO_BROKER_RATIO_DOC)

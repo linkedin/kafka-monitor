@@ -10,13 +10,14 @@
 
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.topicfactory.TopicFactory;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -319,11 +320,12 @@ public class TopicManagementService implements Service  {
 
   /**
    *
-   * @return
+   * @return TopicState object of created topic
    */
   private TopicState createTopic() {
     try {
-      TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class).newInstance();
+      TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class)
+        .newInstance(new HashMap<String, Object>());
       topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
         _partitionsToBrokerRatio, new Properties());
     } catch (InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException
