@@ -154,9 +154,9 @@ public class ConsumeService implements Service {
         continue;
       }
       int partition = record.partition();
-      long index = (long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
+      long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
-      long prevMs = (long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
+      long prevMs = (Long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
       _sensors._recordsConsumed.record();
       _sensors._bytesConsumed.record(record.value().length());
       _sensors._recordsDelay.record(currMs - prevMs);
