@@ -53,10 +53,13 @@ public class MirrorPipelineMonitor implements App {
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final List<TopicManagementService> _topicManagementServices;
+  private final List<String> _zookeeperUrls;
   private final String _name;
 
   public MirrorPipelineMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
+    MirrorPipelineMonitorConfig config = new MirrorPipelineMonitorConfig(props);
+    _zookeeperUrls = config.getList(MirrorPipelineMonitorConfig.ZOOKEEPER_CONNECT_LIST_CONFIG);
     _produceService = new ProduceService(createProduceServiceConfig(props), name);
     _consumeService = new ConsumeService(createConsumeServiceConfig(props), name);
     _topicManagementServices = new ArrayList<>();
@@ -64,24 +67,16 @@ public class MirrorPipelineMonitor implements App {
   }
 
   private void createTopicManagementServices(Map<String, Object> props, String name) {
-    Map<String, Object> topicManagementConfig = createTopicManagementServiceConfig(props);
-    Double partitionsToBrokerRatio;
-    if (topicManagementConfig.containsKey(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG)) {
-      partitionsToBrokerRatio = getDouble(topicManagementConfig, TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG);
-    } else {
-      partitionsToBrokerRatio = TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_DEFAULT;
-    }
-
-    List<String> zookeeperUrlsList = getList(topicManagementConfig, MirrorPipelineMonitorConfig.ZOOKEEPER_CONNECT_LIST_CONFIG);
-    if (zookeeperUrlsList == null) {
-      throw new RuntimeException(_name + ": Must specify at least one zookeeper connection.");
-    }
+    Map<String, Object> topicManagementProps = createTopicManagementServiceConfig(props);
+    TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
+    double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
 
     // Mirrored topics must have the same number of partitions but may have a different
     // number of brokers. Separate partitionToBrokerRatios must be maintained to achieve this requirement.
+    // TODO: Allow TopicManagementService to handle changing number of brokers
     Map<String, Integer> zookeeperBrokerCount = new HashMap<>();
     int maxNumPartitions = 0;
-    for (String zookeeper: zookeeperUrlsList) {
+    for (String zookeeper: _zookeeperUrls) {
       if (zookeeperBrokerCount.containsKey(zookeeper)) {
         throw new RuntimeException(_name + ": Duplicate zookeeper connections specified for topic management.");
       }
@@ -92,48 +87,42 @@ public class MirrorPipelineMonitor implements App {
       zookeeperBrokerCount.put(zookeeper, brokerCount);
     }
 
-    for (String zookeeper: zookeeperUrlsList) {
-      topicManagementConfig.put(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zookeeper);
+    for (String zookeeper: _zookeeperUrls) {
+      topicManagementProps.put(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zookeeper);
       double partitionToBrokerRatio = maxNumPartitions / zookeeperBrokerCount.get(zookeeper);
-      topicManagementConfig.put(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG, partitionToBrokerRatio);
-      _topicManagementServices.add(new TopicManagementService(topicManagementConfig, name + ":" + zookeeper));
+      topicManagementProps.put(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG, partitionToBrokerRatio);
+      _topicManagementServices.add(new TopicManagementService(topicManagementProps, name + ":" + zookeeper));
     }
   }
 
+  @SuppressWarnings("unchecked")
   private Map<String, Object> createProduceServiceConfig(Map<String, Object> props) {
-    Map<String, Object> produceServiceConfig = getProps(props, MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG);
-
-    if (produceServiceConfig == null) {
-      throw new RuntimeException(_name + ": Must specify a produce service config.");
-    }
+    Map<String, Object> produceServiceConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG,
+                                                                                        new HashMap<>());
 
     produceServiceConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
     return produceServiceConfig;
   }
 
+  @SuppressWarnings("unchecked")
   private Map<String, Object> createConsumeServiceConfig(Map<String, Object> props) {
-    Map<String, Object> consumeConfig = getProps(props, MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG);
-
-    if (consumeConfig == null) {
-      throw new RuntimeException(_name + ": Must specify a consume service config.");
-    }
+    Map<String, Object> consumeConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG,
+                                                                                 new HashMap<>());
 
     consumeConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
     return consumeConfig;
   }
 
+  @SuppressWarnings("unchecked")
   private Map<String, Object> createTopicManagementServiceConfig(Map<String, Object> props) {
-    Map<String, Object> topicMangementConfig = getProps(props, MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG);
+    Map<String, Object> topicManagementConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG,
+      new HashMap<String, Object>());
 
-    if (topicMangementConfig == null) {
-      throw new RuntimeException(_name + ": Must specify a topic management service config.");
-    }
+    topicManagementConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
-    topicMangementConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
-
-    return topicMangementConfig;
+    return topicManagementConfig;
   }
 
   @Override
@@ -174,33 +163,6 @@ public class MirrorPipelineMonitor implements App {
     }
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
-  }
-
-  @SuppressWarnings("unchecked")
-  private Map<String, Object> getProps(Map<String, Object> props, String key) {
-    if (props.containsKey(key)) {
-      return (Map<String, Object>) props.get(key);
-    }
-
-    return null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private List<String> getList(Map<String, Object> props, String key) {
-    if (props.containsKey(key)) {
-      return (List<String>) props.get(key);
-    }
-
-    return null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private Double getDouble(Map<String, Object> props, String key) {
-    if (props.containsKey(key)) {
-      return (double) props.get(key);
-    }
-
-    return null;
   }
 
   /** Get the command-line argument parser. */
