@@ -153,7 +153,7 @@ public class ConsumeService implements Service {
         _sensors._consumeError.record();
         continue;
       }
-      int partition = Integer.parseInt(record.key());
+      int partition = record.partition();
       long index = (long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
       long prevMs = (long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());

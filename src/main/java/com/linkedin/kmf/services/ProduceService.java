@@ -266,7 +266,7 @@ public class ProduceService implements Service {
       try {
         long nextIndex = _nextIndexPerPartition.get(_partition).get();
         String message = Utils.jsonFromFields(_topic, nextIndex, System.currentTimeMillis(), _producerId, _recordSize);
-        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, Integer.toString(_partition), message);
+        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, null, message);
         RecordMetadata metadata = _producer.send(record, _sync);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
