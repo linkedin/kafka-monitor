@@ -11,6 +11,8 @@
 package com.linkedin.kmf.apps.configs;
 
 import java.util.Map;
+
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -39,7 +41,12 @@ public class MirrorPipelineMonitorConfig extends AbstractConfig {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_LIST_CONFIG,
                                     ConfigDef.Type.LIST,
                                     ConfigDef.Importance.HIGH,
-                                    ZOOKEEPER_CONNECT_LIST_DOC);
+                                    ZOOKEEPER_CONNECT_LIST_DOC)
+                            .define(CommonServiceConfig.TOPIC_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    "kafka-monitor-topic",
+                                    ConfigDef.Importance.MEDIUM,
+                                    CommonServiceConfig.TOPIC_DOC);
   }
 
   public MirrorPipelineMonitorConfig(Map<?, ?> props) {
