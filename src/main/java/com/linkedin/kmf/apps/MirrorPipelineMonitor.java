@@ -60,14 +60,14 @@ public class MirrorPipelineMonitor implements App {
     _name = name;
     MirrorPipelineMonitorConfig config = new MirrorPipelineMonitorConfig(props);
     _zookeeperUrls = config.getList(MirrorPipelineMonitorConfig.ZOOKEEPER_CONNECT_LIST_CONFIG);
-    _produceService = new ProduceService(createProduceServiceConfig(props), name);
-    _consumeService = new ConsumeService(createConsumeServiceConfig(props), name);
-    _topicManagementServices = new ArrayList<>();
-    createTopicManagementServices(props, name);
+    _produceService = new ProduceService(createProduceServiceProps(props), name);
+    _consumeService = new ConsumeService(createConsumeServiceProps(props), name);
+    _topicManagementServices = createTopicManagementServices(props, name);
   }
 
-  private void createTopicManagementServices(Map<String, Object> props, String name) {
-    Map<String, Object> topicManagementProps = createTopicManagementServiceConfig(props);
+  private List<TopicManagementService> createTopicManagementServices(Map<String, Object> props, String name) {
+    List<TopicManagementService> topicManagementServices = new ArrayList<>();
+    Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props);
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
     double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
 
@@ -91,35 +91,34 @@ public class MirrorPipelineMonitor implements App {
       topicManagementProps.put(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zookeeper);
       double partitionToBrokerRatio = maxNumPartitions / zookeeperBrokerCount.get(zookeeper);
       topicManagementProps.put(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG, partitionToBrokerRatio);
-      _topicManagementServices.add(new TopicManagementService(topicManagementProps, name + ":" + zookeeper));
+      topicManagementServices.add(new TopicManagementService(topicManagementProps, name + ":" + zookeeper));
     }
+
+    return topicManagementServices;
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createProduceServiceConfig(Map<String, Object> props) {
+  private Map<String, Object> createProduceServiceProps(Map<String, Object> props) {
     Map<String, Object> produceServiceConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG,
                                                                                         new HashMap<>());
-
     produceServiceConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
     return produceServiceConfig;
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createConsumeServiceConfig(Map<String, Object> props) {
+  private Map<String, Object> createConsumeServiceProps(Map<String, Object> props) {
     Map<String, Object> consumeConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG,
                                                                                  new HashMap<>());
-
     consumeConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
     return consumeConfig;
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createTopicManagementServiceConfig(Map<String, Object> props) {
+  private Map<String, Object> createTopicManagementServiceProps(Map<String, Object> props) {
     Map<String, Object> topicManagementConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG,
-      new HashMap<String, Object>());
-
+                                                                                         new HashMap<String, Object>());
     topicManagementConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
     return topicManagementConfig;

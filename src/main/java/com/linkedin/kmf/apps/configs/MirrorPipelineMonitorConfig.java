@@ -37,9 +37,9 @@ public class MirrorPipelineMonitorConfig extends AbstractConfig {
 
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_LIST_CONFIG,
-      ConfigDef.Type.LIST,
-      ConfigDef.Importance.HIGH,
-      ZOOKEEPER_CONNECT_LIST_DOC);
+                                    ConfigDef.Type.LIST,
+                                    ConfigDef.Importance.HIGH,
+                                    ZOOKEEPER_CONNECT_LIST_DOC);
   }
 
   public MirrorPipelineMonitorConfig(Map<?, ?> props) {

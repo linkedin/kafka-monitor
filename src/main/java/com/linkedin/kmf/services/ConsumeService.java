@@ -275,7 +275,8 @@ public class ConsumeService implements Service {
               ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
 
             return consumeAvailability;
-          }        }
+          }
+        }
       );
     }
 
