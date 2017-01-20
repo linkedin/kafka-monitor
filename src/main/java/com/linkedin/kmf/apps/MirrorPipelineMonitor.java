@@ -53,21 +53,23 @@ public class MirrorPipelineMonitor implements App {
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final List<TopicManagementService> _topicManagementServices;
-  private final List<String> _zookeeperUrls;
   private final String _name;
 
   public MirrorPipelineMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     MirrorPipelineMonitorConfig config = new MirrorPipelineMonitorConfig(props);
-    _zookeeperUrls = config.getList(MirrorPipelineMonitorConfig.ZOOKEEPER_CONNECT_LIST_CONFIG);
-    _produceService = new ProduceService(createProduceServiceProps(props), name);
-    _consumeService = new ConsumeService(createConsumeServiceProps(props), name);
-    _topicManagementServices = createTopicManagementServices(props, name);
+    List<String> zookeeperUrls = config.getList(MirrorPipelineMonitorConfig.ZOOKEEPER_CONNECT_LIST_CONFIG);
+    String topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
+    _produceService = new ProduceService(createProduceServiceProps(props, topic), name);
+    _consumeService = new ConsumeService(createConsumeServiceProps(props, topic), name);
+    _topicManagementServices = createTopicManagementServices(props, zookeeperUrls, topic, name);
   }
 
-  private List<TopicManagementService> createTopicManagementServices(Map<String, Object> props, String name) {
-    List<TopicManagementService> topicManagementServices = new ArrayList<>();
-    Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props);
+  private List<TopicManagementService> createTopicManagementServices(Map<String, Object> props,
+                                                                     List<String> zookeeperUrls,
+                                                                     String topic,
+                                                                     String name) {
+    Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props, topic);
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
     double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
 
@@ -76,7 +78,7 @@ public class MirrorPipelineMonitor implements App {
     // TODO: Allow TopicManagementService to handle changing number of brokers
     Map<String, Integer> zookeeperBrokerCount = new HashMap<>();
     int maxNumPartitions = 0;
-    for (String zookeeper: _zookeeperUrls) {
+    for (String zookeeper: zookeeperUrls) {
       if (zookeeperBrokerCount.containsKey(zookeeper)) {
         throw new RuntimeException(_name + ": Duplicate zookeeper connections specified for topic management.");
       }
@@ -87,7 +89,8 @@ public class MirrorPipelineMonitor implements App {
       zookeeperBrokerCount.put(zookeeper, brokerCount);
     }
 
-    for (String zookeeper: _zookeeperUrls) {
+    List<TopicManagementService> topicManagementServices = new ArrayList<>();
+    for (String zookeeper: zookeeperUrls) {
       topicManagementProps.put(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zookeeper);
       double partitionToBrokerRatio = maxNumPartitions / zookeeperBrokerCount.get(zookeeper);
       topicManagementProps.put(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG, partitionToBrokerRatio);
@@ -98,30 +101,29 @@ public class MirrorPipelineMonitor implements App {
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createProduceServiceProps(Map<String, Object> props) {
-    Map<String, Object> produceServiceConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG,
-                                                                                        new HashMap<>());
-    produceServiceConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
+  private Map<String, Object> createProduceServiceProps(Map<String, Object> props, String topic) {
+    Map<String, Object> produceServiceProps = props.containsKey(MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG)
+      ? (Map) props.get(MirrorPipelineMonitorConfig.PRODUCE_SERVICE_CONFIG) : new HashMap<>();
+    produceServiceProps.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
-    return produceServiceConfig;
+    return produceServiceProps;
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createConsumeServiceProps(Map<String, Object> props) {
-    Map<String, Object> consumeConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG,
-                                                                                 new HashMap<>());
-    consumeConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
+  private Map<String, Object> createConsumeServiceProps(Map<String, Object> props, String topic) {
+    Map<String, Object> consumeServiceProps = props.containsKey(MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG)
+      ? (Map) props.get(MirrorPipelineMonitorConfig.CONSUME_SERVICE_CONFIG) : new HashMap<>();
+    consumeServiceProps.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
 
-    return consumeConfig;
+    return consumeServiceProps;
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createTopicManagementServiceProps(Map<String, Object> props) {
-    Map<String, Object> topicManagementConfig = (Map<String, Object>) props.getOrDefault(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG,
-                                                                                         new HashMap<String, Object>());
-    topicManagementConfig.put(CommonServiceConfig.TOPIC_CONFIG, props.get(CommonServiceConfig.TOPIC_CONFIG));
-
-    return topicManagementConfig;
+  private Map<String, Object> createTopicManagementServiceProps(Map<String, Object> props, String topic) {
+    Map<String, Object> topicManagementServiceProps = props.containsKey(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG)
+      ? (Map) props.get(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG) : new HashMap<>();
+    topicManagementServiceProps.put(CommonServiceConfig.TOPIC_CONFIG, topic);
+    return topicManagementServiceProps;
   }
 
   @Override
