@@ -14,10 +14,8 @@ import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -164,13 +162,12 @@ public class TopicManagementService implements Service  {
     public void run() {
       try {
         TopicState topicState = topicState();
-        if (topicState == null) {
-          if (!_topicCreationEnabled) {
-            throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
-          }
-
-          topicState = createTopic();
+        
+        if (topicState == null && !_topicCreationEnabled) {
+          throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
         }
+
+        topicState = createTopic();
 
         int currentReplicationFactor = topicState.replicationFactor();
         if (currentReplicationFactor < 0) {
@@ -233,10 +230,10 @@ public class TopicManagementService implements Service  {
   private final String _serviceName;
   private final int _configuredTopicReplicationFactor;
   private final boolean _topicCreationEnabled;
-  private final String _topicFactoryConfig;
+  private final TopicFactory _topicFactory;
 
 
-  public TopicManagementService(Map<String, Object> props, String serviceName) {
+  public TopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     _partitionToBrokerRatioThreshold = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
@@ -248,7 +245,8 @@ public class TopicManagementService implements Service  {
     _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
     _configuredTopicReplicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
-    _topicFactoryConfig = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG);
+    String topicFactoryConfig = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG);
+    _topicFactory = (TopicFactory) Class.forName(topicFactoryConfig).getConstructor(Map.class).newInstance(props);
 
     LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold "
       + _partitionToBrokerRatioThreshold + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio
@@ -319,17 +317,14 @@ public class TopicManagementService implements Service  {
   }
 
   /**
-   *
+   * It should be safe to call this even if a topic is not already created.
    * @return TopicState object of created topic
    */
   private TopicState createTopic() {
     try {
-      TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class)
-        .newInstance(new HashMap<String, Object>());
-      topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
+      _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
         _partitionsToBrokerRatio, new Properties());
-    } catch (InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException
-      | IllegalAccessException e) {
+    } catch (Exception e) {
       LOG.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
     }
 
@@ -412,7 +407,7 @@ public class TopicManagementService implements Service  {
       return;
     }
     Runnable r = new TopicManagementRunnable();
-    _executor.scheduleWithFixedDelay(r, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+    _executor.scheduleWithFixedDelay(r, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
     _running = true;
     LOG.info(_serviceName + "/TopicManagementService started.");
   }

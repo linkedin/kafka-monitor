@@ -68,7 +68,7 @@ public class MirrorPipelineMonitor implements App {
   private List<TopicManagementService> createTopicManagementServices(Map<String, Object> props,
                                                                      List<String> zookeeperUrls,
                                                                      String topic,
-                                                                     String name) {
+                                                                     String name) throws Exception {
     Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props, topic);
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
     double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
