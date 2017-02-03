@@ -52,8 +52,8 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_FACTORY_CLASS_DOC = "The name of the class used to create topics.  This class must implement "
       + TopicFactory.class.getName() + ".";
 
-  public static final String TOPIC_FACTORY_SUBCONIG_CONFIG = "topic-management.topicFactory.config";
-  public static final String TOPIC_FACTORY_SUBCONFIG_DOC = "A configuration map for the topic factory.";
+  public static final String TOPIC_FACTORY_PROPS_CONFIG = "topic-management.topicFactory.props";
+  public static final String TOPIC_FACTORY_PROPS_DOC = "A configuration map for the topic factory.";
 
   static {
     CONFIG = new ConfigDef()

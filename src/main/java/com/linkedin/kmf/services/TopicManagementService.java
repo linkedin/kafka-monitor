@@ -251,8 +251,8 @@ public class TopicManagementService implements Service  {
     _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
     String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
     Map topicFactoryConfig =
-      props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_SUBCONIG_CONFIG) ?
-      (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_SUBCONIG_CONFIG) : new HashMap();
+      props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
+      (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
 
     _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
