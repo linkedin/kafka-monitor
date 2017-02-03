@@ -16,6 +16,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import kafka.admin.AdminUtils;
 import kafka.admin.RackAwareMode;
+import kafka.common.TopicExistsException;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
 import org.apache.avro.generic.GenericData;
@@ -88,8 +89,14 @@ public class Utils {
       if (!topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
         topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
       }
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
 
+      try {
+        AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+      } catch (TopicExistsException tee) {
+        //There is a race condition with the consumer.
+        LOG.info("Monitoring topic \"" + topic + "\" already exists (caught exception).");
+        return getPartitionNumForTopic(zkUrl, topic);
+      }
       LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of "
         + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 

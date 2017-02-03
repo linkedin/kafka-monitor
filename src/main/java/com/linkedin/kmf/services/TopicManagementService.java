@@ -14,11 +14,10 @@ import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -163,13 +162,15 @@ public class TopicManagementService implements Service  {
     @Override
     public void run() {
       try {
+        if (_topicCreationEnabled) {
+          _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
+              _partitionsToBrokerRatio, new Properties());
+        }
+
         TopicState topicState = topicState();
         if (topicState == null) {
-          if (!_topicCreationEnabled) {
-            throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
-          }
-
-          topicState = createTopic();
+          throw new IllegalStateException("Topic \"" + _topic + " does not exist.  Topic creation enabled = " +
+              _topicCreationEnabled + ".");
         }
 
         int currentReplicationFactor = topicState.replicationFactor();
@@ -233,10 +234,10 @@ public class TopicManagementService implements Service  {
   private final String _serviceName;
   private final int _configuredTopicReplicationFactor;
   private final boolean _topicCreationEnabled;
-  private final String _topicFactoryConfig;
+  private final TopicFactory _topicFactory;
 
 
-  public TopicManagementService(Map<String, Object> props, String serviceName) {
+  public TopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     _partitionToBrokerRatioThreshold = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
@@ -248,7 +249,12 @@ public class TopicManagementService implements Service  {
     _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
     _configuredTopicReplicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
-    _topicFactoryConfig = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG);
+    String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+    Map topicFactoryConfig =
+      props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
+      (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
+
+    _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
     LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold "
       + _partitionToBrokerRatioThreshold + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio
@@ -316,28 +322,6 @@ public class TopicManagementService implements Service  {
       scalaPartitionInfoSet.add(new TopicAndPartition(_topic, javaPartitionInfo.partition()));
     }
     PreferredReplicaLeaderElectionCommand.writePreferredReplicaElectionData(zkUtils, scalaPartitionInfoSet);
-  }
-
-  /**
-   *
-   * @return TopicState object of created topic
-   */
-  private TopicState createTopic() {
-    try {
-      TopicFactory topicFactory = (TopicFactory) Class.forName(_topicFactoryConfig).getConstructor(Map.class)
-        .newInstance(new HashMap<String, Object>());
-      topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
-        _partitionsToBrokerRatio, new Properties());
-    } catch (InstantiationException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException
-      | IllegalAccessException e) {
-      LOG.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
-    }
-
-    TopicState topicState = topicState();
-    if (topicState == null) {
-      throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and could not be created.");
-    }
-    return topicState;
   }
 
   /**
@@ -412,7 +396,7 @@ public class TopicManagementService implements Service  {
       return;
     }
     Runnable r = new TopicManagementRunnable();
-    _executor.scheduleWithFixedDelay(r, _scheduleIntervalMs, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+    _executor.scheduleWithFixedDelay(r, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
     _running = true;
     LOG.info(_serviceName + "/TopicManagementService started.");
   }

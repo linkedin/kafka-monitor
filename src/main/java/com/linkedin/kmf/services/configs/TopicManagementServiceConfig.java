@@ -48,9 +48,12 @@ public class TopicManagementServiceConfig extends AbstractConfig {
     + CommonServiceConfig.TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max("
     + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_TO_BROKER_RATIO_CONFIG + "\" partitions.";
 
-  public static final String TOPIC_FACTORY_CONFIG = "topic-management.topicFactory.class.name";
-  public static final String TOPIC_FACTORY_DOC = "The name of the class used to create topics.  This class must implement "
+  public static final String TOPIC_FACTORY_CLASS_CONFIG = "topic-management.topicFactory.class.name";
+  public static final String TOPIC_FACTORY_CLASS_DOC = "The name of the class used to create topics.  This class must implement "
       + TopicFactory.class.getName() + ".";
+
+  public static final String TOPIC_FACTORY_PROPS_CONFIG = "topic-management.topicFactory.props";
+  public static final String TOPIC_FACTORY_PROPS_DOC = "A configuration map for the topic factory.";
 
   static {
     CONFIG = new ConfigDef()
@@ -92,11 +95,10 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               atLeast(1),
               ConfigDef.Importance.LOW,
               TOPIC_REPLICATION_FACTOR_DOC)
-      .define(TOPIC_FACTORY_CONFIG,
+      .define(TOPIC_FACTORY_CLASS_CONFIG,
               ConfigDef.Type.STRING,
               DefaultTopicFactory.class.getCanonicalName(),
-              ConfigDef.Importance.LOW,
-              TOPIC_FACTORY_DOC);
+              ConfigDef.Importance.LOW, TOPIC_FACTORY_CLASS_DOC);
   }
 
   public TopicManagementServiceConfig(Map<?, ?> props) {
