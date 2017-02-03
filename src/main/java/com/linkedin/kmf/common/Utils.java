@@ -78,6 +78,8 @@ public class Utils {
       if (AdminUtils.topicExists(zkUtils, topic)) {
         LOG.info("Monitoring topic \"" + topic + "\" already exists.");
         return getPartitionNumForTopic(zkUrl, topic);
+      } else {
+        System.out.println("flag........");
       }
 
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
@@ -88,6 +90,7 @@ public class Utils {
       if (!topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
         topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
       }
+
       AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
 
       LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of "

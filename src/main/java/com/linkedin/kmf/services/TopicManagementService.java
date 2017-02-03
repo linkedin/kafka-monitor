@@ -161,13 +161,16 @@ public class TopicManagementService implements Service  {
     @Override
     public void run() {
       try {
-        TopicState topicState = topicState();
-        
-        if (topicState == null && !_topicCreationEnabled) {
-          throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and topic creation is not enabled.");
+        if (_topicCreationEnabled) {
+          _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
+              _partitionsToBrokerRatio, new Properties());
         }
 
-        topicState = createTopic();
+        TopicState topicState = topicState();
+        if (topicState == null) {
+          throw new IllegalStateException("Topic \"" + _topic + " does not exist.  Topic creation enabled = " +
+              _topicCreationEnabled + ".");
+        }
 
         int currentReplicationFactor = topicState.replicationFactor();
         if (currentReplicationFactor < 0) {
@@ -314,25 +317,6 @@ public class TopicManagementService implements Service  {
       scalaPartitionInfoSet.add(new TopicAndPartition(_topic, javaPartitionInfo.partition()));
     }
     PreferredReplicaLeaderElectionCommand.writePreferredReplicaElectionData(zkUtils, scalaPartitionInfoSet);
-  }
-
-  /**
-   * It should be safe to call this even if a topic is not already created.
-   * @return TopicState object of created topic
-   */
-  private TopicState createTopic() {
-    try {
-      _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _configuredTopicReplicationFactor,
-        _partitionsToBrokerRatio, new Properties());
-    } catch (Exception e) {
-      LOG.error(_serviceName + ": failed to create topic, " + _topic + ".", e);
-    }
-
-    TopicState topicState = topicState();
-    if (topicState == null) {
-      throw new RuntimeException(_serviceName + ": topic, " + _topic + ", does not exist and could not be created.");
-    }
-    return topicState;
   }
 
   /**
