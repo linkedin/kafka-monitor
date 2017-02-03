@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -248,8 +249,12 @@ public class TopicManagementService implements Service  {
     _executor = Executors.newSingleThreadScheduledExecutor(new TopicManagementServiceThreadFactory());
     _configuredTopicReplicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
     _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
-    String topicFactoryConfig = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CONFIG);
-    _topicFactory = (TopicFactory) Class.forName(topicFactoryConfig).getConstructor(Map.class).newInstance(props);
+    String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+    Map topicFactoryConfig =
+      props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_SUBCONIG_CONFIG) ?
+      (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_SUBCONIG_CONFIG) : new HashMap();
+
+    _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
     LOG.info("Topic management service \"" + _serviceName + "\" constructed with partition/broker ratio threshold "
       + _partitionToBrokerRatioThreshold + " topic " + _topic + " partitionsPerBroker " + _partitionsToBrokerRatio
