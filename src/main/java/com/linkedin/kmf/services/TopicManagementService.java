@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import kafka.admin.AdminOperationException;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
@@ -206,7 +207,7 @@ public class TopicManagementService implements Service  {
           LOG.debug(_serviceName + ": topic is in good state, no rebalance needed.");
         }
       } catch (Exception e) {
-        if (e instanceof IOException || e instanceof ZkNodeExistsException) {
+        if (e instanceof IOException || e instanceof ZkNodeExistsException || e instanceof AdminOperationException) {
           //Can't do this with catch block because nothing declares IOException although scala code can still throw it.
           LOG.error(_serviceName + ": will retry later.", e);
         } else {
