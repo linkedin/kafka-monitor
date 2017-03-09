@@ -270,7 +270,6 @@ public class ProduceService implements Service {
         RecordMetadata metadata = _producer.send(record, _sync);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
-
         if (nextIndex == -1 && _sync) {
           nextIndex = metadata.offset();
         } else {

@@ -9,10 +9,16 @@
  */
 package com.linkedin.kmf.common;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import kafka.admin.AdminUtils;
 import kafka.admin.RackAwareMode;
+import kafka.common.TopicExistsException;
 import kafka.server.KafkaConfig;
+import kafka.utils.ZkUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -22,12 +28,7 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import kafka.utils.ZkUtils;
-import kafka.admin.AdminUtils;
 import scala.collection.Seq;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
 
 
 /**
@@ -88,12 +89,33 @@ public class Utils {
       if (!topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
         topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
       }
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
 
-      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of " +
-        topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+      try {
+        AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+      } catch (TopicExistsException tee) {
+        //There is a race condition with the consumer.
+        LOG.info("Monitoring topic \"" + topic + "\" already exists (caught exception).");
+        return getPartitionNumForTopic(zkUrl, topic);
+      }
+      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of "
+        + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
+    } finally {
+      zkUtils.close();
+    }
+  }
+
+  /**
+   * @param zkUrl zookeeper connection url
+   * @return      number of brokers in this cluster
+   */
+  public static int getBrokerCount(String zkUrl) {
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+    try {
+      int brokerCount = zkUtils.getAllBrokersInCluster().size();
+
+      return brokerCount;
     } finally {
       zkUtils.close();
     }
