@@ -141,7 +141,7 @@ public class ProduceService implements Service {
     producerProps.putAll(_producerPropsOverride);
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
-    LOG.info("Producer is initialized.");
+    LOG.info(_name + ": Producer is initialized.");
   }
 
   @Override
