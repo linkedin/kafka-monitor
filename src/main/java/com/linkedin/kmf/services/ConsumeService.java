@@ -182,7 +182,7 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
       LOG.info(_name + "/ConsumeService started");
@@ -190,7 +190,7 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public void stop() {
+  public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       try {
         _consumer.close();

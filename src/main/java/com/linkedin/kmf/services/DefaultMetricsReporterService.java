@@ -42,7 +42,7 @@ public class DefaultMetricsReporterService implements Service {
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     _executor.scheduleAtFixedRate(
       new Runnable() {
         @Override
@@ -59,7 +59,7 @@ public class DefaultMetricsReporterService implements Service {
   }
 
   @Override
-  public void stop() {
+  public synchronized void stop() {
     _executor.shutdown();
     LOG.info(_name + "/DefaultMetricsReporterService stopped");
   }

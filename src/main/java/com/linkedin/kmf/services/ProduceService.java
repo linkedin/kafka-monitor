@@ -147,7 +147,7 @@ public class ProduceService implements Service {
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
       _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 40_000, 40_000, TimeUnit.MILLISECONDS);
@@ -187,7 +187,7 @@ public class ProduceService implements Service {
   }
 
   @Override
-  public void stop() {
+  public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       _produceExecutor.shutdown();
       _handleNewPartitionsExecutor.shutdown();
