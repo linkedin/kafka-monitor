@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
 import com.linkedin.kmf.tests.Test;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -37,19 +38,12 @@ public class KafkaMonitor {
   private final Map<String, Service> _services;
   private final ScheduledExecutorService _executor;
   /** When true this instance of the monitor is shutdown and can not be restarted. */
-  private boolean _isShutdown = false;
+  private final AtomicBoolean _isRunning = new AtomicBoolean(false);
 
-  public KafkaMonitor() {
+  public KafkaMonitor(Map<String, Map> testProps) throws Exception {
     _tests = new HashMap<>();
     _services = new HashMap<>();
-    _executor = Executors.newSingleThreadScheduledExecutor();
-  }
 
-  public synchronized void configure(Map<String, Map> testProps) throws Exception {
-    if (_isShutdown) {
-      LOG.warn("KakfaMonitor is already shutdown.");
-      return;
-    }
     for (Map.Entry<String, Map> entry : testProps.entrySet()) {
       String name = entry.getKey();
       Map props = entry.getValue();
@@ -66,11 +60,11 @@ public class KafkaMonitor {
         _services.put(name, service);
       }
     }
+    _executor = Executors.newSingleThreadScheduledExecutor();
   }
 
   public synchronized void start() {
-    if (_isShutdown) {
-      LOG.warn("Kafka monitor is already shutdown.");
+    if (!_isRunning.compareAndSet(false, true)) {
       return;
     }
     for (Map.Entry<String, App> entry: _tests.entrySet()) {
@@ -115,7 +109,7 @@ public class KafkaMonitor {
   }
 
   public synchronized void stop() {
-    if (_isShutdown) {
+    if (!_isRunning.compareAndSet(true, false)) {
       return;
     }
     _executor.shutdownNow();
@@ -125,15 +119,11 @@ public class KafkaMonitor {
       service.stop();
   }
 
-  public synchronized void awaitShutdown() {
-    if (_isShutdown) {
-      return;
-    }
+  public void awaitShutdown() {
     for (App test: _tests.values())
       test.awaitShutdown();
     for (Service service: _services.values())
       service.awaitShutdown();
-    _isShutdown = true;
   }
 
   public static void main(String[] args) throws Exception {
@@ -154,8 +144,7 @@ public class KafkaMonitor {
 
     @SuppressWarnings("unchecked")
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    KafkaMonitor kafkaMonitor = new KafkaMonitor();
-    kafkaMonitor.configure(props);
+    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
     kafkaMonitor.start();
     LOG.info("KafkaMonitor started");
 
