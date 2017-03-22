@@ -10,6 +10,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
+import com.linkedin.kmf.partitioner.Partitioner;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
@@ -44,7 +45,6 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
@@ -55,6 +55,7 @@ public class ProduceService implements Service {
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
+  private Partitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
@@ -80,6 +81,8 @@ public class ProduceService implements Service {
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
 
+    String partitionerClassName = config.getString(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG);
+    _partitioner = (Partitioner) Class.forName(partitionerClassName).getConstructor().newInstance();
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
     _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
@@ -154,15 +157,34 @@ public class ProduceService implements Service {
   }
 
   private void initializeStateForPartitions() {
+    Map<Integer, String> keyMapping = generateKeyMappings();
     int partitionNum = _partitionNum.get();
     for (int partition = 0; partition < partitionNum; partition++) {
+      String key = keyMapping.get(partition);
       //This is what preserves sequence numbers across restarts
       if (!_nextIndexPerPartition.containsKey(partition)) {
         _nextIndexPerPartition.put(partition, new AtomicLong(0));
         _sensors.addPartitionSensors(partition);
       }
-      _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+      _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition, key), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
     }
+  }
+
+  private Map<Integer, String> generateKeyMappings() {
+    int partitionNum = _partitionNum.get();
+    HashMap<Integer, String> keyMapping = new HashMap<>();
+
+    int nextInt = 0;
+    while (keyMapping.size() < partitionNum) {
+      String key = Integer.toString(nextInt);
+      int partition = _partitioner.getPartitionForKey(key, partitionNum);
+      if (!keyMapping.containsKey(partition)) {
+        keyMapping.put(partition, key);
+      }
+      nextInt++;
+    }
+
+    return keyMapping;
   }
 
   @Override
@@ -257,16 +279,18 @@ public class ProduceService implements Service {
    */
   private class ProduceRunnable implements Runnable {
     private final int _partition;
+    private final String _key;
 
-    ProduceRunnable(int partition) {
+    ProduceRunnable(int partition, String key) {
       _partition = partition;
+      _key = key;
     }
 
     public void run() {
       try {
         long nextIndex = _nextIndexPerPartition.get(_partition).get();
         String message = Utils.jsonFromFields(_topic, nextIndex, System.currentTimeMillis(), _producerId, _recordSize);
-        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, null, message);
+        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, _key, message);
         RecordMetadata metadata = _producer.send(record, _sync);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
