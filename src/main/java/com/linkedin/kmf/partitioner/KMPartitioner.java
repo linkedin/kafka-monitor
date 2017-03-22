@@ -9,7 +9,7 @@
  */
 package com.linkedin.kmf.partitioner;
 
-public interface Partitioner {
+public interface KMPartitioner {
 
   int getPartitionForKey(String key, int numPartitions);
 

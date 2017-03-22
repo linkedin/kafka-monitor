@@ -9,7 +9,7 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import com.linkedin.kmf.partitioner.DefaultPartitioner;
+import com.linkedin.kmf.partitioner.DefaultKMPartitioner;
 import com.linkedin.kmf.producer.NewProducer;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -35,7 +35,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                                   + "It can be NewProducer, or full class name of any class that implements the KMBaseProducer interface. ";
 
   public static final String PARTITIONER_CLASS_CONFIG = "produce.partitioner.class";
-  public static final String PARTITIONER_CLASS_DOC = "Partitioner class that corresponds to the partitioner used the target cluster.";
+  public static final String PARTITIONER_CLASS_DOC = "KMPartitioner class that corresponds to the partitioner used the target cluster.";
 
   public static final String PRODUCE_SYNC_CONFIG = "produce.sync";
   public static final String PRODUCE_SYNC_DOC = "If true, and if this is supported by the producer class, messages are sent synchronously";
@@ -76,7 +76,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     PRODUCER_CLASS_DOC)
                             .define(PARTITIONER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    DefaultPartitioner.class.getCanonicalName(),
+                                    DefaultKMPartitioner.class.getCanonicalName(),
                                     ConfigDef.Importance.HIGH,
                                     PARTITIONER_CLASS_DOC)
                             .define(PRODUCE_SYNC_CONFIG,

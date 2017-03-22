@@ -10,7 +10,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.partitioner.Partitioner;
+import com.linkedin.kmf.partitioner.KMPartitioner;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
@@ -55,7 +55,7 @@ public class ProduceService implements Service {
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
-  private Partitioner _partitioner;
+  private KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
@@ -81,8 +81,7 @@ public class ProduceService implements Service {
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
 
-    String partitionerClassName = config.getString(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG);
-    _partitioner = (Partitioner) Class.forName(partitionerClassName).getConstructor().newInstance();
+    _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
     _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
