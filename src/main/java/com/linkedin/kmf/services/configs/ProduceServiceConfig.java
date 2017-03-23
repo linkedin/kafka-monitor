@@ -9,7 +9,7 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import com.linkedin.kmf.partitioner.DefaultKMPartitioner;
+import com.linkedin.kmf.partitioner.NewKMPartitioner;
 import com.linkedin.kmf.producer.NewProducer;
 import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -76,7 +76,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     PRODUCER_CLASS_DOC)
                             .define(PARTITIONER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    DefaultKMPartitioner.class.getCanonicalName(),
+                                    NewKMPartitioner.class.getCanonicalName(),
                                     ConfigDef.Importance.HIGH,
                                     PARTITIONER_CLASS_DOC)
                             .define(PRODUCE_SYNC_CONFIG,

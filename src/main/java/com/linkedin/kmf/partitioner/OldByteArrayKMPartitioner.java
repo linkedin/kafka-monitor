@@ -9,15 +9,10 @@
  */
 package com.linkedin.kmf.partitioner;
 
-import static org.apache.kafka.common.utils.Utils.murmur2;
+import java.util.Arrays;
 
-public class DefaultKMPartitioner implements KMPartitioner {
+public class OldByteArrayKMPartitioner implements KMPartitioner {
   public int getPartitionForKey(String key, int partitionNum) {
-    byte[] keyBytes = key.getBytes();
-    return toPositive(murmur2(keyBytes)) % partitionNum;
-  }
-
-  private static int toPositive(int number) {
-    return number & 0x7fffffff;
+    return Math.abs(Arrays.hashCode(key.getBytes())) % partitionNum;
   }
 }
