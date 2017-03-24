@@ -70,6 +70,7 @@ public class MirrorPipelineMonitor implements App {
                                                                      String topic,
                                                                      String name) throws Exception {
     Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props, topic);
+    topicManagementProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, "");
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
     double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
 
