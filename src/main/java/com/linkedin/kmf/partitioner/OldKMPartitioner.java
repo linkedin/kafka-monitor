@@ -10,7 +10,8 @@
 package com.linkedin.kmf.partitioner;
 
 public class OldKMPartitioner implements KMPartitioner {
-  public int getPartitionForKey(String key, int partitionNum) {
+
+  public int partition(String key, int partitionNum) {
     return Math.abs(key.hashCode()) % partitionNum;
   }
 }

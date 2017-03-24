@@ -176,7 +176,7 @@ public class ProduceService implements Service {
     int nextInt = 0;
     while (keyMapping.size() < partitionNum) {
       String key = Integer.toString(nextInt);
-      int partition = _partitioner.getPartitionForKey(key, partitionNum);
+      int partition = _partitioner.partition(key, partitionNum);
       if (!keyMapping.containsKey(partition)) {
         keyMapping.put(partition, key);
       }

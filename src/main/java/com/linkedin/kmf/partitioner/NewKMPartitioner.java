@@ -12,7 +12,8 @@ package com.linkedin.kmf.partitioner;
 import static org.apache.kafka.common.utils.Utils.murmur2;
 
 public class NewKMPartitioner implements KMPartitioner {
-  public int getPartitionForKey(String key, int partitionNum) {
+
+  public int partition(String key, int partitionNum) {
     byte[] keyBytes = key.getBytes();
     return toPositive(murmur2(keyBytes)) % partitionNum;
   }

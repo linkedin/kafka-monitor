@@ -11,6 +11,6 @@ package com.linkedin.kmf.partitioner;
 
 public interface KMPartitioner {
 
-  int getPartitionForKey(String key, int numPartitions);
+  int partition(String key, int numPartitions);
 
 }
