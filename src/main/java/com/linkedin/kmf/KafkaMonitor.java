@@ -24,6 +24,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+
+/**
+ * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
+ * applications.
+ */
 public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
@@ -31,11 +36,20 @@ public class KafkaMonitor {
   private final Map<String, App> _tests;
   private final Map<String, Service> _services;
   private final ScheduledExecutorService _executor;
+  /** When true this instance of the monitor is shutdown and can not be restarted. */
+  private boolean _isShutdown = false;
 
-  public KafkaMonitor(Map<String, Map> testProps) throws Exception {
+  public KafkaMonitor() {
     _tests = new HashMap<>();
     _services = new HashMap<>();
+    _executor = Executors.newSingleThreadScheduledExecutor();
+  }
 
+  public synchronized void configure(Map<String, Map> testProps) throws Exception {
+    if (_isShutdown) {
+      LOG.warn("KakfaMonitor is already shutdown.");
+      return;
+    }
     for (Map.Entry<String, Map> entry : testProps.entrySet()) {
       String name = entry.getKey();
       Map props = entry.getValue();
@@ -52,11 +66,13 @@ public class KafkaMonitor {
         _services.put(name, service);
       }
     }
-
-    _executor = Executors.newSingleThreadScheduledExecutor();
   }
 
-  public void start() {
+  public synchronized void start() {
+    if (_isShutdown) {
+      LOG.warn("Kafka monitor is already shutdown.");
+      return;
+    }
     for (Map.Entry<String, App> entry: _tests.entrySet()) {
       entry.getValue().start();
     }
@@ -98,7 +114,10 @@ public class KafkaMonitor {
     }
   }
 
-  public void stop() {
+  public synchronized void stop() {
+    if (_isShutdown) {
+      return;
+    }
     _executor.shutdownNow();
     for (App test: _tests.values())
       test.stop();
@@ -106,11 +125,15 @@ public class KafkaMonitor {
       service.stop();
   }
 
-  public void awaitShutdown() {
+  public synchronized void awaitShutdown() {
+    if (_isShutdown) {
+      return;
+    }
     for (App test: _tests.values())
       test.awaitShutdown();
     for (Service service: _services.values())
       service.awaitShutdown();
+    _isShutdown = true;
   }
 
   public static void main(String[] args) throws Exception {
@@ -131,7 +154,8 @@ public class KafkaMonitor {
 
     @SuppressWarnings("unchecked")
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
+    KafkaMonitor kafkaMonitor = new KafkaMonitor();
+    kafkaMonitor.configure(props);
     kafkaMonitor.start();
     LOG.info("KafkaMonitor started");
 
