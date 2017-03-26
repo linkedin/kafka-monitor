@@ -269,6 +269,7 @@ public class SingleClusterMonitor implements App {
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
+      "kmf.services:type=consume-service,name=*:consume-availability-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",

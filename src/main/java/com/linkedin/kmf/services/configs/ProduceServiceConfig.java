@@ -75,8 +75,8 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     ConfigDef.Importance.LOW,
                                     PRODUCER_CLASS_DOC)
                             .define(PARTITIONER_CLASS_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    NewKMPartitioner.class.getCanonicalName(),
+                                    ConfigDef.Type.CLASS,
+                                    NewKMPartitioner.class,
                                     ConfigDef.Importance.HIGH,
                                     PARTITIONER_CLASS_DOC)
                             .define(PRODUCE_SYNC_CONFIG,
