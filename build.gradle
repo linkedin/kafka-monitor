@@ -1,3 +1,6 @@
+def configDocDir = "${buildDir}/configDocs"
+
+
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
@@ -56,6 +59,25 @@ allprojects {
     configFile = new File(rootDir, "checkstyle/checkstyle.xml")
   }
 
+  task createConfigDocDir() {
+    outputs.dir configDocDir
+    file(configDocDir).mkdirs()
+  }
+
+  task createConfigDocs( dependsOn : ['createConfigDocDir', 'compileJava'], type : JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = 'com.linkedin.kmf.common.ConfigDocumentationGenerator'
+    args = [configDocDir,
+            'com.linkedin.kmf.services.configs.ConsumeServiceConfig',
+            'com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig',
+            'com.linkedin.kmf.services.configs.JettyServiceConfig',
+            'com.linkedin.kmf.services.configs.ProduceServiceConfig',
+            'com.linkedin.kmf.services.configs.TopicManagementServiceConfig',
+            'com.linkedin.kmf.apps.configs.MirrorPipelineMonitorConfig']
+  }
+
+  build.dependsOn createConfigDocs
+
   test.dependsOn('checkstyleMain', 'checkstyleTest')
 
   test {
@@ -67,6 +89,7 @@ allprojects {
     }
   }
 }
+
 
 task wrapper(type: Wrapper) {
    gradleVersion = '2.11'
