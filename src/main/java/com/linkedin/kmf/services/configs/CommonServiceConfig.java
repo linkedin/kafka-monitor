@@ -21,4 +21,14 @@ public class CommonServiceConfig {
 
   public static final String TOPIC_CONFIG = "topic";
   public static final String TOPIC_DOC = "Topic to be used by the service.";
+
+  public static final String REPORT_METRICS_CONFIG = "report.metrics.list";
+  public static final String REPORT_METRICS_DOC = "A list of objectName/attributeName pairs used to filter the metrics "
+      + "that will be exported. Only metrics that match any pair in the list will be exported. "
+      + "Each pair is in the form <code>objectName:attributeName<code>, where objectName and "
+      + "attributeName can contain wild card. If no objectName/attributeName is specified, "
+      + "all metrics with JMX prefix kmf.services will be reported";
+
+  public static final String REPORT_INTERVAL_SEC_CONFIG = "report.interval.sec";
+  public static final String REPORT_INTERVAL_SEC_DOC = "The interval in second by which metrics reporter service will report the metrics values.";
 }
