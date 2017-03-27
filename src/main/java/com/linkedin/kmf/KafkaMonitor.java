@@ -13,12 +13,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
 import com.linkedin.kmf.tests.Test;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -34,15 +35,18 @@ public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
 
-  private final Map<String, App> _tests;
-  private final Map<String, Service> _services;
+  /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
+   * a different thread.
+   */
+  private final ConcurrentMap<String, App> _apps;
+  private final ConcurrentMap<String, Service> _services;
   private final ScheduledExecutorService _executor;
-  /** When true this instance of the monitor is shutdown and can not be restarted. */
+  /** When true start has been called on this instance of Kafka monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
 
   public KafkaMonitor(Map<String, Map> testProps) throws Exception {
-    _tests = new HashMap<>();
-    _services = new HashMap<>();
+    _apps = new ConcurrentHashMap<>();
+    _services = new ConcurrentHashMap<>();
 
     for (Map.Entry<String, Map> entry : testProps.entrySet()) {
       String name = entry.getKey();
@@ -54,7 +58,7 @@ public class KafkaMonitor {
       if (className.startsWith(App.class.getPackage().getName()) ||
           className.startsWith(Test.class.getPackage().getName())) {
         App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-        _tests.put(name, test);
+        _apps.put(name, test);
       } else {
         Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _services.put(name, service);
@@ -67,7 +71,7 @@ public class KafkaMonitor {
     if (!_isRunning.compareAndSet(false, true)) {
       return;
     }
-    for (Map.Entry<String, App> entry: _tests.entrySet()) {
+    for (Map.Entry<String, App> entry: _apps.entrySet()) {
       entry.getValue().start();
     }
     for (Map.Entry<String, Service> entry: _services.entrySet()) {
@@ -89,7 +93,7 @@ public class KafkaMonitor {
   }
 
   private void checkHealth() {
-    Iterator<Map.Entry<String, App>> testIt = _tests.entrySet().iterator();
+    Iterator<Map.Entry<String, App>> testIt = _apps.entrySet().iterator();
     while (testIt.hasNext()) {
       Map.Entry<String, App> entry = testIt.next();
       if (!entry.getValue().isRunning()) {
@@ -113,14 +117,14 @@ public class KafkaMonitor {
       return;
     }
     _executor.shutdownNow();
-    for (App test: _tests.values())
+    for (App test: _apps.values())
       test.stop();
     for (Service service: _services.values())
       service.stop();
   }
 
   public void awaitShutdown() {
-    for (App test: _tests.values())
+    for (App test: _apps.values())
       test.awaitShutdown();
     for (Service service: _services.values())
       service.awaitShutdown();
