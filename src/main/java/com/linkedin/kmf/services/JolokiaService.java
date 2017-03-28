@@ -17,7 +17,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-// Jolokia server allows user to query jmx metric value with HTTP request
+/**
+ * Jolokia server allows user to query jmx metric value with HTTP request
+ */
 public class JolokiaService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
 
@@ -31,14 +33,14 @@ public class JolokiaService implements Service {
     _isRunning = new AtomicBoolean(false);
   }
 
-  public void start() {
+  public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
       LOG.info(_name + "/JolokiaService started at port 8778");
     }
   }
 
-  public void stop() {
+  public synchronized void stop() {
     if (_isRunning.compareAndSet(true, false)) {
       _jolokiaServer.stop();
       LOG.info(_name + "/JolokiaService stopped");
