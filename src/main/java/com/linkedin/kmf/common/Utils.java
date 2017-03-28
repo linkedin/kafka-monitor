@@ -194,7 +194,7 @@ public class Utils {
         }
       }
     } catch (Exception e) {
-      LOG.error("", e);
+      LOG.error("fail to retrieve value for " + mbeanExpr + ":" + attributeExpr, e);
     }
     return values;
   }
