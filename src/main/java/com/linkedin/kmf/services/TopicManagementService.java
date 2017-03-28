@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import kafka.admin.AdminOperationException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
@@ -231,7 +232,7 @@ public class TopicManagementService implements Service  {
   private final String _zkConnect;
   private final ZkUtils _zkUtils;
   private final ScheduledExecutorService _executor;
-  private volatile boolean _running = false;
+  private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final int _configuredTopicReplicationFactor;
   private final boolean _topicCreationEnabled;
@@ -393,28 +394,24 @@ public class TopicManagementService implements Service  {
 
   @Override
   public synchronized void start() {
-    if (_running) {
-      return;
+    if (_isRunning.compareAndSet(false, true)) {
+      Runnable r = new TopicManagementRunnable();
+      _executor.scheduleWithFixedDelay(r, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      LOG.info(_serviceName + "/TopicManagementService started.");
     }
-    Runnable r = new TopicManagementRunnable();
-    _executor.scheduleWithFixedDelay(r, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
-    _running = true;
-    LOG.info(_serviceName + "/TopicManagementService started.");
   }
 
   @Override
   public synchronized void stop() {
-    if (!_running) {
-      return;
+    if (_isRunning.compareAndSet(true, false)) {
+      _executor.shutdown();
+      LOG.info(_serviceName + "/TopicManagementService stopped.");
     }
-    _executor.shutdown();
-    _running = false;
-    LOG.info(_serviceName + "/TopicManagementService stopped.");
   }
 
   @Override
   public boolean isRunning() {
-    return _running;
+    return _isRunning.get();
   }
 
   @Override
