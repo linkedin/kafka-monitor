@@ -10,9 +10,9 @@
 package com.linkedin.kmf.services;
 
 
-import static com.linkedin.kmf.jmx.Utils.getMBeanAttributeValues;
+import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
 
-import com.linkedin.kmf.jmx.MbeanAttributeValue;
+import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.GraphiteMetricsReporterServiceConfig;
 import net.savantly.graphite.GraphiteClient;
 import net.savantly.graphite.GraphiteClientFactory;
