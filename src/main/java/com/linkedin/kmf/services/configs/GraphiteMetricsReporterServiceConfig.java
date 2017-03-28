@@ -35,30 +35,30 @@ public class GraphiteMetricsReporterServiceConfig extends AbstractConfig {
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
-        ConfigDef.Type.LIST,
-        Arrays.asList("kmf.services:*:*"),
-        ConfigDef.Importance.MEDIUM,
-        REPORT_METRICS_DOC)
-        .define(REPORT_INTERVAL_SEC_CONFIG,
-            ConfigDef.Type.INT,
-            1,
-            ConfigDef.Importance.LOW,
-            REPORT_INTERVAL_SEC_DOC)
-        .define(REPORT_GRAPHITE_HOST,
-            ConfigDef.Type.STRING,
-            "localhost",
-            ConfigDef.Importance.MEDIUM,
-            REPORT_GRAPHITE_HOST_DOC)
-        .define(REPORT_GRAPHITE_PORT,
-            ConfigDef.Type.INT,
-            2003,
-            ConfigDef.Importance.MEDIUM,
-            REPORT_GRAPHITE_PORT_DOC)
-        .define(REPORT_GRAPHITE_PREFIX,
-            ConfigDef.Type.STRING,
-            "",
-            ConfigDef.Importance.LOW,
-            REPORT_GRAPHITE_PREFIX_DOC);
+                                    ConfigDef.Type.LIST,
+                                    Arrays.asList("kmf.services:*:*"),
+                                    ConfigDef.Importance.MEDIUM,
+                                    REPORT_METRICS_DOC)
+                            .define(REPORT_INTERVAL_SEC_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    ConfigDef.Importance.LOW,
+                                    REPORT_INTERVAL_SEC_DOC)
+                            .define(REPORT_GRAPHITE_HOST,
+                                    ConfigDef.Type.STRING,
+                                    "localhost",
+                                    ConfigDef.Importance.MEDIUM,
+                                    REPORT_GRAPHITE_HOST_DOC)
+                            .define(REPORT_GRAPHITE_PORT,
+                                    ConfigDef.Type.INT,
+                                    2003,
+                                    ConfigDef.Importance.MEDIUM,
+                                    REPORT_GRAPHITE_PORT_DOC)
+                            .define(REPORT_GRAPHITE_PREFIX,
+                                    ConfigDef.Type.STRING,
+                                    "",
+                                    ConfigDef.Importance.LOW,
+                                    REPORT_GRAPHITE_PREFIX_DOC);
 
   }
 
