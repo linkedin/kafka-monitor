@@ -150,7 +150,7 @@ public class ProduceService implements Service {
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
-      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 40_000, 40_000, TimeUnit.MILLISECONDS);
+      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
       LOG.info(_name + "/ProduceService started");
     }
   }

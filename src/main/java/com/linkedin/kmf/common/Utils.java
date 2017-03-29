@@ -87,7 +87,6 @@ public class Utils {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
       if (AdminUtils.topicExists(zkUtils, topic)) {
-        LOG.info("Monitoring topic \"" + topic + "\" already exists.");
         return getPartitionNumForTopic(zkUrl, topic);
       }
 
@@ -102,9 +101,9 @@ public class Utils {
 
       try {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
-      } catch (TopicExistsException tee) {
+      } catch (TopicExistsException e) {
         //There is a race condition with the consumer.
-        LOG.info("Monitoring topic \"" + topic + "\" already exists (caught exception).");
+        LOG.debug("Monitoring topic \"" + topic + "\" already exists", e);
         return getPartitionNumForTopic(zkUrl, topic);
       }
       LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of "
