@@ -180,8 +180,9 @@ public class TopicManagementService implements Service  {
           LOG.info(_serviceName + " can't determine replication factor of monitored topic " + _topic + ".  Will try rebalance later.");
           return;
         } else if (currentReplicationFactor != _configuredTopicReplicationFactor) {
-          throw new RuntimeException(_serviceName + ": replication factor given as configuration "
-              + TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG + " does not match the topic's current replication factor.");
+          throw new RuntimeException(_serviceName + ": replication factor " + _configuredTopicReplicationFactor +
+              " from config " + TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG +
+              " does not match the topic's current replication factor " + currentReplicationFactor);
         }
 
         if (topicState.someBrokerWithoutLeader() || topicState.someBrokerMissingPartition() || topicState.insufficientPartitions()) {
