@@ -11,9 +11,14 @@ package com.linkedin.kmf.common;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Set;
+
 import kafka.admin.AdminUtils;
 import kafka.admin.RackAwareMode;
 import kafka.server.KafkaConfig;
@@ -29,6 +34,11 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Seq;
+
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanInfo;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 
 /**
@@ -168,4 +178,24 @@ public class Utils {
     return out.toString();
   }
 
+  public static List<MbeanAttributeValue> getMBeanAttributeValues(String mbeanExpr, String attributeExpr) {
+    List<MbeanAttributeValue> values = new ArrayList<>();
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    try {
+      Set<ObjectName> mbeanNames = server.queryNames(new ObjectName(mbeanExpr), null);
+      for (ObjectName mbeanName: mbeanNames) {
+        MBeanInfo mBeanInfo = server.getMBeanInfo(mbeanName);
+        MBeanAttributeInfo[] attributeInfos = mBeanInfo.getAttributes();
+        for (MBeanAttributeInfo attributeInfo: attributeInfos) {
+          if (attributeInfo.getName().equals(attributeExpr) || attributeExpr.length() == 0 || attributeExpr.equals("*")) {
+            double value = (Double) server.getAttribute(mbeanName, attributeInfo.getName());
+            values.add(new MbeanAttributeValue(mbeanName.getCanonicalName(), attributeInfo.getName(), value));
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOG.error("fail to retrieve value for " + mbeanExpr + ":" + attributeExpr, e);
+    }
+    return values;
+  }
 }
