@@ -28,7 +28,7 @@ public class DefaultTopicSchema {
   public static final Schema MESSAGE_V0;
 
   static {
-    MESSAGE_V0 = Schema.createRecord("kafka-monitor-schema", null, "kafka.monitor", false);
+    MESSAGE_V0 = Schema.createRecord("KafkaMonitorSchema", null, "kafka.monitor", false);
     MESSAGE_V0.setFields(Arrays.asList(TOPIC_FIELD, TIME_FIELD, INDEX_FIELD, PRODUCER_ID_FIELD, CONTENT_FIELD));
   }
 
