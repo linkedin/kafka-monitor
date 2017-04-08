@@ -15,13 +15,12 @@ import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.ProduceService;
-import com.linkedin.kmf.services.TopicManagementService;
+import com.linkedin.kmf.services.TopicManagementServiceManager;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +51,7 @@ public class MirrorPipelineMonitor implements App {
 
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
-  private final List<TopicManagementService> _topicManagementServices;
+  private final TopicManagementServiceManager _topicManagementServiceManager;
   private final String _name;
 
   public MirrorPipelineMonitor(Map<String, Object> props, String name) throws Exception {
@@ -62,44 +61,9 @@ public class MirrorPipelineMonitor implements App {
     String topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
     _produceService = new ProduceService(createProduceServiceProps(props, topic), name);
     _consumeService = new ConsumeService(createConsumeServiceProps(props, topic), name);
-    _topicManagementServices = createTopicManagementServices(props, zookeeperUrls, topic, name);
+    _topicManagementServiceManager = new TopicManagementServiceManager(props, zookeeperUrls, topic, name);
   }
 
-  private List<TopicManagementService> createTopicManagementServices(Map<String, Object> props,
-                                                                     List<String> zookeeperUrls,
-                                                                     String topic,
-                                                                     String name) throws Exception {
-    Map<String, Object> topicManagementProps = createTopicManagementServiceProps(props, topic);
-    topicManagementProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, "");
-    TopicManagementServiceConfig config = new TopicManagementServiceConfig(topicManagementProps);
-    double partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_THRESHOLD);
-
-    // Mirrored topics must have the same number of partitions but may have a different
-    // number of brokers. Separate partitionToBrokerRatios must be maintained to achieve this requirement.
-    // TODO: Allow TopicManagementService to handle changing number of brokers
-    Map<String, Integer> zookeeperBrokerCount = new HashMap<>();
-    int maxNumPartitions = 0;
-    for (String zookeeper: zookeeperUrls) {
-      if (zookeeperBrokerCount.containsKey(zookeeper)) {
-        throw new RuntimeException(_name + ": Duplicate zookeeper connections specified for topic management.");
-      }
-
-      int brokerCount = com.linkedin.kmf.common.Utils.getBrokerCount(zookeeper);
-      int numPartitions = (int) Math.ceil(partitionsToBrokerRatio * brokerCount);
-      maxNumPartitions = Math.max(maxNumPartitions, numPartitions);
-      zookeeperBrokerCount.put(zookeeper, brokerCount);
-    }
-
-    List<TopicManagementService> topicManagementServices = new ArrayList<>();
-    for (String zookeeper: zookeeperUrls) {
-      topicManagementProps.put(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zookeeper);
-      double partitionToBrokerRatio = maxNumPartitions / zookeeperBrokerCount.get(zookeeper);
-      topicManagementProps.put(TopicManagementServiceConfig.PARTITIONS_TO_BROKER_RATIO_CONFIG, partitionToBrokerRatio);
-      topicManagementServices.add(new TopicManagementService(topicManagementProps, name + ":" + zookeeper));
-    }
-
-    return topicManagementServices;
-  }
 
   @SuppressWarnings("unchecked")
   private Map<String, Object> createProduceServiceProps(Map<String, Object> props, String topic) {
@@ -119,29 +83,17 @@ public class MirrorPipelineMonitor implements App {
     return consumeServiceProps;
   }
 
-  @SuppressWarnings("unchecked")
-  private Map<String, Object> createTopicManagementServiceProps(Map<String, Object> props, String topic) {
-    Map<String, Object> topicManagementServiceProps = props.containsKey(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG)
-      ? (Map) props.get(MirrorPipelineMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG) : new HashMap<>();
-    topicManagementServiceProps.put(CommonServiceConfig.TOPIC_CONFIG, topic);
-    return topicManagementServiceProps;
-  }
-
   @Override
   public void start() {
     _produceService.start();
     _consumeService.start();
-    for (TopicManagementService topicManagementService : _topicManagementServices) {
-      topicManagementService.start();
-    }
+    _topicManagementServiceManager.start();
     LOG.info(_name + "/MirrorPipelineMonitor started");
   }
 
   @Override
   public void stop() {
-    for (TopicManagementService topicManagementService : _topicManagementServices) {
-      topicManagementService.stop();
-    }
+    _topicManagementServiceManager.stop();
     _produceService.stop();
     _consumeService.stop();
     LOG.info(_name + "/MirrorPipelineMonitor stopped");
@@ -149,20 +101,12 @@ public class MirrorPipelineMonitor implements App {
 
   @Override
   public boolean isRunning() {
-    for (TopicManagementService topicManagementService : _topicManagementServices) {
-      if (!topicManagementService.isRunning()) {
-        return false;
-      }
-    }
-
-    return _produceService.isRunning() && _consumeService.isRunning();
+    return _produceService.isRunning() && _consumeService.isRunning() && _topicManagementServiceManager.isRunning();
   }
 
   @Override
   public void awaitShutdown() {
-    for (TopicManagementService topicManagementService : _topicManagementServices) {
-      topicManagementService.awaitShutdown();
-    }
+    _topicManagementServiceManager.awaitShutdown();
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
   }
