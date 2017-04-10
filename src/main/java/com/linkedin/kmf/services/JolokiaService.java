@@ -36,14 +36,14 @@ public class JolokiaService implements Service {
   public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
-      LOG.info(_name + "/JolokiaService started at port 8778");
+      LOG.info("{}/JolokiaService started at port 8778", _name);
     }
   }
 
   public synchronized void stop() {
     if (_isRunning.compareAndSet(true, false)) {
       _jolokiaServer.stop();
-      LOG.info(_name + "/JolokiaService stopped");
+      LOG.info("{}/JolokiaService stopped", _name);
     }
   }
 

@@ -88,7 +88,7 @@ public class KafkaMonitor {
             LOG.error("Failed to check health of tests and services", e);
           }
         }
-      }, 10, 10, TimeUnit.SECONDS
+      }, 5, 5, TimeUnit.SECONDS
     );
   }
 
@@ -98,7 +98,6 @@ public class KafkaMonitor {
       Map.Entry<String, App> entry = testIt.next();
       if (!entry.getValue().isRunning()) {
         LOG.error("Test " + entry.getKey() + " has stopped.");
-        testIt.remove();
       }
     }
 
@@ -107,7 +106,6 @@ public class KafkaMonitor {
       Map.Entry<String, Service> entry = serviceIt.next();
       if (!entry.getValue().isRunning()) {
         LOG.error("Service " + entry.getKey() + " has stopped.");
-        serviceIt.remove();
       }
     }
   }

@@ -118,7 +118,7 @@ public class ConsumeService implements Service {
           LOG.error(_name + "/ConsumeService failed", e);
         }
       }
-    }, _name + " consume-service");
+    }, _name + " consume-service-thread");
     _thread.setDaemon(true);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -131,6 +131,9 @@ public class ConsumeService implements Service {
   }
 
   private void consume() throws Exception {
+    // Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService
+    Thread.sleep(1000);
+
     Map<Integer, Long> nextIndexes = new HashMap<>();
 
     while (_running.get()) {
@@ -185,7 +188,7 @@ public class ConsumeService implements Service {
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
-      LOG.info(_name + "/ConsumeService started");
+      LOG.info("{}/ConsumeService started", _name);
     }
   }
 
@@ -197,18 +200,18 @@ public class ConsumeService implements Service {
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }
-      LOG.info(_name + "/ConsumeService stopped");
+      LOG.info("{}/ConsumeService stopped", _name);
     }
   }
 
   @Override
   public void awaitShutdown() {
-    LOG.info(_name + "/ConsumeService shutdown completed");
+    LOG.info("{}/ConsumeService shutdown completed", _name);
   }
 
   @Override
   public boolean isRunning() {
-    return _thread.isAlive();
+    return _running.get() && _thread.isAlive();
   }
 
   private class ConsumeMetrics {

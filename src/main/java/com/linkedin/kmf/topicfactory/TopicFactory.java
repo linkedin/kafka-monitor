@@ -13,7 +13,7 @@ import java.util.Properties;
 
 
 /**
- * Constructs the monitored topic if it does not exist.
+ * Constructs the monitor topic if it does not exist.
  *
  * Implementations of this class should have a public constructor with the following signature: <br/>
  *   Constructor(Map&lt;String, ?&gt; config) where config are additional configuration parameters passed in from the Kafka
