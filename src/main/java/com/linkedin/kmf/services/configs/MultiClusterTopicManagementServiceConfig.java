@@ -22,8 +22,8 @@ public class MultiClusterTopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
-  public static final String CONFIG_PER_CLUSTER_CONFIG = "topic.management.config.per.cluster";
-  public static final String CONFIG_PER_CLUSTER_DOC = "A map from cluster name to a TopicManagementService config for each monitored cluster";
+  public static final String PROPS_PER_CLUSTER_CONFIG = "topic.management.props.per.cluster";
+  public static final String PROPS_PER_CLUSTER_DOC = "A map from cluster name to a TopicManagementService config for each monitored cluster";
 
   public static final String REBALANCE_INTERVAL_MS_CONFIG = "topic-management.rebalance.interval.ms";
   public static final String REBALANCE_INTERVAL_MS_DOC = "The gap in ms between the times the cluster balance on the "

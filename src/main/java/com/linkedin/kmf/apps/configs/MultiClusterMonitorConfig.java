@@ -30,8 +30,8 @@ public class MultiClusterMonitorConfig extends AbstractConfig {
   public static final String PRODUCE_SERVICE_CONFIG = "produce.service.props";
   public static final String PRODUCE_SERVICE_DOC = "The properties used to config the produce service.";
 
-  public static final String TOPIC_MANAGEMENT_SERVICE_CONFIG = MultiClusterTopicManagementServiceConfig.CONFIG_PER_CLUSTER_CONFIG;
-  public static final String TOPIC_MANAGEMENT_SERVICE_DOC = MultiClusterTopicManagementServiceConfig.CONFIG_PER_CLUSTER_DOC;
+  public static final String TOPIC_MANAGEMENT_SERVICE_CONFIG = MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG;
+  public static final String TOPIC_MANAGEMENT_SERVICE_DOC = MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_DOC;
 
   public Double getDouble(String key) {
     return (Double) get(key);

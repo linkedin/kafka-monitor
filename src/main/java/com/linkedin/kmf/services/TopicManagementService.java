@@ -38,7 +38,7 @@ public class TopicManagementService implements Service {
     Map<String, Object> configPerCluster = new HashMap<>();
     configPerCluster.put(serviceName, propsWithoutTopic);
     Map<String, Object> serviceProps = new HashMap<>();
-    serviceProps.put(MultiClusterTopicManagementServiceConfig.CONFIG_PER_CLUSTER_CONFIG, configPerCluster);
+    serviceProps.put(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG, configPerCluster);
     serviceProps.put(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG, props.get(TopicManagementServiceConfig.TOPIC_CONFIG));
     return serviceProps;
   }

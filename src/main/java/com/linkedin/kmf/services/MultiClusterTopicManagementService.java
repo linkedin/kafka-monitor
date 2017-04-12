@@ -68,8 +68,8 @@ public class MultiClusterTopicManagementService implements Service {
     _serviceName = serviceName;
     MultiClusterTopicManagementServiceConfig config = new MultiClusterTopicManagementServiceConfig(props);
     String topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
-    _serviceProps = props.containsKey(MultiClusterTopicManagementServiceConfig.CONFIG_PER_CLUSTER_CONFIG)
-        ? (Map) props.get(MultiClusterTopicManagementServiceConfig.CONFIG_PER_CLUSTER_CONFIG) : new HashMap<>();
+    _serviceProps = props.containsKey(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG)
+        ? (Map) props.get(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
 
     for (Map<String, Object> serviceProp: _serviceProps.values()) {
       if (serviceProp.containsKey(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG))
@@ -83,7 +83,7 @@ public class MultiClusterTopicManagementService implements Service {
     _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
       @Override
       public Thread newThread(Runnable r) {
-        return new Thread(r, _serviceName + "-multi-cluster-topic-management-service-thread");
+        return new Thread(r, _serviceName + "-multi-cluster-topic-management-service");
       }
     });
   }

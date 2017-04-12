@@ -348,7 +348,7 @@ public class ProduceService implements Service {
 
     private final AtomicInteger _threadId = new AtomicInteger();
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + "-produce-service-thread-" + _threadId.getAndIncrement());
+      return new Thread(r, _name + "-produce-service-" + _threadId.getAndIncrement());
     }
   }
 

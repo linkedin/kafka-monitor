@@ -118,7 +118,7 @@ public class ConsumeService implements Service {
           LOG.error(_name + "/ConsumeService failed", e);
         }
       }
-    }, _name + " consume-service-thread");
+    }, _name + " consume-service");
     _thread.setDaemon(true);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
