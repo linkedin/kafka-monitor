@@ -16,6 +16,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
 
 @Test
 public class TopicManagementServiceTest {
@@ -47,8 +48,8 @@ public class TopicManagementServiceTest {
     partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[1], node[0]}, null));
 
-    Assert.assertFalse(MultiClusterTopicManagementService.someBrokerNotPreferredLeader(partitions, brokers(2)));
-    Assert.assertFalse(MultiClusterTopicManagementService.someBrokerNotElectedLeader(partitions, brokers(2)));
+    Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(2)));
+    Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(2)));
   }
 
   @Test
@@ -59,9 +60,9 @@ public class TopicManagementServiceTest {
     partitions.add(new PartitionInfo(TOPIC, 1, node[1], new Node[] {node[1], node[0]}, null));
     partitions.add(new PartitionInfo(TOPIC, 2, node[2], new Node[] {node[2], node[0]}, null));
 
-    Assert.assertFalse(MultiClusterTopicManagementService.someBrokerNotPreferredLeader(partitions, brokers(3)));
-    Assert.assertFalse(MultiClusterTopicManagementService.someBrokerNotElectedLeader(partitions, brokers(3)));
-    Assert.assertEquals(MultiClusterTopicManagementService.getReplicationFactor(partitions), 2);
+    Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
+    Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
+    Assert.assertEquals(TopicManagementHelper.getReplicationFactor(partitions), 2);
   }
 
 
@@ -75,8 +76,8 @@ public class TopicManagementServiceTest {
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
     partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
 
-    Assert.assertFalse(MultiClusterTopicManagementService.someBrokerNotPreferredLeader(partitions, brokers(3)));
-    Assert.assertTrue(MultiClusterTopicManagementService.someBrokerNotElectedLeader(partitions, brokers(3)));
+    Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
+    Assert.assertTrue(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
   }
 
   @Test
@@ -89,7 +90,7 @@ public class TopicManagementServiceTest {
     partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
     partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
 
-    Assert.assertTrue(MultiClusterTopicManagementService.someBrokerNotPreferredLeader(partitions, brokers(3)));
-    Assert.assertTrue(MultiClusterTopicManagementService.someBrokerNotElectedLeader(partitions, brokers(3)));
+    Assert.assertTrue(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
+    Assert.assertTrue(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
   }
 }
