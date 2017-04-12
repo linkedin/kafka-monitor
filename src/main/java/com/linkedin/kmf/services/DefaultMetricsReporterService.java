@@ -51,13 +51,13 @@ public class DefaultMetricsReporterService implements Service {
         }
       }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
-    LOG.info(_name + "/DefaultMetricsReporterService started");
+    LOG.info("{}/DefaultMetricsReporterService started", _name);
   }
 
   @Override
   public synchronized void stop() {
     _executor.shutdown();
-    LOG.info(_name + "/DefaultMetricsReporterService stopped");
+    LOG.info("{}/DefaultMetricsReporterService stopped", _name);
   }
 
   @Override
@@ -70,9 +70,9 @@ public class DefaultMetricsReporterService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      LOG.info("Thread interrupted when waiting for {}/DefaultMetricsReporterService to shutdown", _name);
     }
-    LOG.info(_name + "/DefaultMetricsReporterService shutdown completed");
+    LOG.info("{}/DefaultMetricsReporterService shutdown completed", _name);
   }
 
   private void reportMetrics() {

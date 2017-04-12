@@ -48,9 +48,10 @@ import org.slf4j.LoggerFactory;
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES =
-    new String[]{ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-      ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
+  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{
+    ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+    ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
+  };
 
   private final String _name;
   private final ProduceMetrics _sensors;
@@ -60,7 +61,7 @@ public class ProduceService implements Service {
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
-  /** This can be updated while running when new partitions are added to the monitored topic. */
+  /** This can be updated while running when new partitions are added to the monitor topic. */
   private final ConcurrentMap<Integer, AtomicLong> _nextIndexPerPartition;
   /** This is the last thing that should be updated after adding new partition sensors. */
   private final AtomicInteger _partitionNum;
@@ -120,8 +121,6 @@ public class ProduceService implements Service {
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
     _sensors = new ProduceMetrics(metrics, tags);
-
-    LOG.info(_name + ": produce service is initialized.");
   }
 
 
@@ -143,7 +142,7 @@ public class ProduceService implements Service {
     producerProps.putAll(_producerPropsOverride);
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
-    LOG.info(_name + ": Producer is initialized.");
+    LOG.info("{}/ProduceService is initialized.", _name);
   }
 
   @Override
@@ -151,7 +150,7 @@ public class ProduceService implements Service {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
       _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
-      LOG.info(_name + "/ProduceService started");
+      LOG.info("{}/ProduceService started", _name);
     }
   }
 
@@ -192,7 +191,7 @@ public class ProduceService implements Service {
       _produceExecutor.shutdown();
       _handleNewPartitionsExecutor.shutdown();
       _producer.close();
-      LOG.info(_name + "/ProduceService stopped");
+      LOG.info("{}/ProduceService stopped", _name);
     }
   }
 
@@ -202,14 +201,14 @@ public class ProduceService implements Service {
       _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
       _handleNewPartitionsExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      LOG.info("Thread interrupted when waiting for {}/ProduceService to shutdown", _name);
     }
-    LOG.info(_name + "/ProduceService shutdown completed");
+    LOG.info("{}/ProduceService shutdown completed", _name);
   }
 
   @Override
   public boolean isRunning() {
-    return _running.get();
+    return _running.get() && !_handleNewPartitionsExecutor.isShutdown();
   }
 
   private class ProduceMetrics {
@@ -308,23 +307,22 @@ public class ProduceService implements Service {
   }
 
   /**
-   * This should be periodically run to check for new partitions on the monitored topic.  When new partitions are
+   * This should be periodically run to check for new partitions on the monitor topic.  When new partitions are
    * detected the executor is shutdown, the producer is shutdown, a new producer is created (the old producer does not
    * always become aware of the new partitions), new produce runnables are created on a new executor service, new
    * sensors are added for the new partitions.
    */
-
   private class NewPartitionHandler implements Runnable {
 
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionCount <= 0) {
-        LOG.info(_name + ": Topic named " + _topic + " does not exist.");
+        LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
         return;
       } else if (currentPartitionCount == _partitionNum.get()) {
         return;
       }
-      LOG.info(_name + ": Detected new partitions to monitor.");
+      LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
       //TODO: Should the ProduceService exit if we can't restart the producer runnables?
       _produceExecutor.shutdown();
       try {
@@ -350,7 +348,7 @@ public class ProduceService implements Service {
 
     private final AtomicInteger _threadId = new AtomicInteger();
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + "-produce-service-produce-" + _threadId.getAndIncrement());
+      return new Thread(r, _name + "-produce-service-" + _threadId.getAndIncrement());
     }
   }
 

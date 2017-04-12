@@ -103,10 +103,10 @@ public class Utils {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
       } catch (TopicExistsException e) {
         //There is a race condition with the consumer.
-        LOG.debug("Monitoring topic \"" + topic + "\" already exists", e);
+        LOG.debug("Monitoring topic " + topic + " already exists in cluster " + zkUrl, e);
         return getPartitionNumForTopic(zkUrl, topic);
       }
-      LOG.info("Created monitoring topic \"" + topic + "\" with " + partitionCount + " partitions, min ISR of "
+      LOG.info("Created monitoring topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
         + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
@@ -122,9 +122,7 @@ public class Utils {
   public static int getBrokerCount(String zkUrl) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
-      int brokerCount = zkUtils.getAllBrokersInCluster().size();
-
-      return brokerCount;
+      return zkUtils.getAllBrokersInCluster().size();
     } finally {
       zkUtils.close();
     }
@@ -197,4 +195,5 @@ public class Utils {
     }
     return values;
   }
+
 }

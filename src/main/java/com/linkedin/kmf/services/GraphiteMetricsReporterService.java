@@ -66,13 +66,13 @@ public class GraphiteMetricsReporterService implements Service {
           }
         }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
-    LOG.info(_name + "/GraphiteMetricsReporterService started");
+    LOG.info("{}/GraphiteMetricsReporterService started", _name);
   }
 
   @Override
   public synchronized void stop() {
     _executor.shutdown();
-    LOG.info(_name + "/GraphiteMetricsReporterService stopped");
+    LOG.info("{}/GraphiteMetricsReporterService stopped", _name);
   }
 
   @Override
@@ -85,9 +85,9 @@ public class GraphiteMetricsReporterService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      LOG.info("Thread interrupted when waiting for {}/GraphiteMetricsReporterService to shutdown", _name);
     }
-    LOG.info(_name + "/GraphiteMetricsReporterService shutdown completed");
+    LOG.info("{}/GraphiteMetricsReporterService shutdown completed", _name);
   }
 
   private String generateGraphiteMetricName(String bean, String attribute) {

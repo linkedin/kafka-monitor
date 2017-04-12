@@ -66,8 +66,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "kafka-monitor-topic",
-                                    ConfigDef.Importance.MEDIUM,
+                                    ConfigDef.Importance.HIGH,
                                     TOPIC_DOC)
                             .define(PRODUCER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,

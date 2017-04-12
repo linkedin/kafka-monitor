@@ -57,8 +57,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "kafka-monitor-topic",
-                                    ConfigDef.Importance.LOW,
+                                    ConfigDef.Importance.HIGH,
                                     TOPIC_DOC)
                             .define(CONSUMER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,
