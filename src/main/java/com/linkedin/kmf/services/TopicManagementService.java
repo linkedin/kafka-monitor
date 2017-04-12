@@ -28,6 +28,18 @@ public class TopicManagementService implements Service {
     _multiClusterTopicManagementService = new MultiClusterTopicManagementService(serviceProps, serviceName);
   }
 
+  /**
+   * @param props a map of key/value pair used for configuring TopicManagementService
+   * @param serviceName service name
+   * @return a map of the following format:
+   *
+   * {
+   *   "topic.management.props.per.cluster" : {
+   *     // all key/value pair from props except the one with key "topic"
+   *   }
+   *   "topic": topic
+   * }
+   */
   private Map<String, Object> createMultiClusterTopicManagementServiceProps(Map<String, Object> props, String serviceName) {
     Map<String, Object> propsWithoutTopic = new HashMap<>();
     for (Map.Entry<String, Object> entry: props.entrySet()) {
