@@ -18,15 +18,11 @@ public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String REPORT_METRICS_CONFIG = "report.metrics.list";
-  public static final String REPORT_METRICS_DOC = "A list of objectName/attributeName pairs used to filter the metrics "
-                                                        + "that will be exported. Only metrics that match any pair in the list will be exported. "
-                                                        + "Each pair is in the form <code>objectName:attributeName<code>, where objectName and "
-                                                        + "attributeName can contain wild card. If no objectName/attributeName is specified, "
-                                                        + "all metrics with JMX prefix kmf.services will be reported";
+  public static final String REPORT_METRICS_CONFIG = CommonServiceConfig.REPORT_METRICS_CONFIG;
+  public static final String REPORT_METRICS_DOC = CommonServiceConfig.REPORT_METRICS_DOC;
 
-  public static final String REPORT_INTERVAL_SEC_CONFIG = "report.interval.sec";
-  public static final String REPORT_INTERVAL_SEC_DOC = "The interval in second by which DefaultMetricsReporterService will report the metrics values.";
+  public static final String REPORT_INTERVAL_SEC_CONFIG = CommonServiceConfig.REPORT_INTERVAL_SEC_CONFIG;
+  public static final String REPORT_INTERVAL_SEC_DOC = CommonServiceConfig.REPORT_INTERVAL_SEC_DOC;
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,

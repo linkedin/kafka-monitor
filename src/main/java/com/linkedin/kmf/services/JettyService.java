@@ -37,19 +37,19 @@ public class JettyService implements Service {
     _jettyServer.setHandler(resourceHandler);
   }
 
-  public void start() {
+  public synchronized void start() {
     try {
       _jettyServer.start();
-      LOG.info(_name + "/JettyService started at port " + _port);
+      LOG.info("{}/JettyService started at port {}", _name, _port);
     } catch (Exception e) {
       LOG.error(_name + "/JettyService failed to start", e);
     }
   }
 
-  public void stop() {
+  public synchronized void stop() {
     try {
       _jettyServer.stop();
-      LOG.info(_name + "/JettyService stopped");
+      LOG.info("{}/JettyService stopped", _name);
     } catch (Exception e) {
       LOG.error(_name + "/JettyService failed to stop", e);
     }

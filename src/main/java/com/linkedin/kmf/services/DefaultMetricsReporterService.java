@@ -9,18 +9,14 @@
  */
 package com.linkedin.kmf.services;
 
+import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
+
+import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanInfo;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +38,7 @@ public class DefaultMetricsReporterService implements Service {
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     _executor.scheduleAtFixedRate(
       new Runnable() {
         @Override
@@ -55,13 +51,13 @@ public class DefaultMetricsReporterService implements Service {
         }
       }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
-    LOG.info(_name + "/DefaultMetricsReporterService started");
+    LOG.info("{}/DefaultMetricsReporterService started", _name);
   }
 
   @Override
-  public void stop() {
+  public synchronized void stop() {
     _executor.shutdown();
-    LOG.info(_name + "/DefaultMetricsReporterService stopped");
+    LOG.info("{}/DefaultMetricsReporterService stopped", _name);
   }
 
   @Override
@@ -74,9 +70,9 @@ public class DefaultMetricsReporterService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      LOG.info("Thread interrupted when waiting for {}/DefaultMetricsReporterService to shutdown", _name);
     }
-    LOG.info(_name + "/DefaultMetricsReporterService shutdown completed");
+    LOG.info("{}/DefaultMetricsReporterService shutdown completed", _name);
   }
 
   private void reportMetrics() {
@@ -92,43 +88,4 @@ public class DefaultMetricsReporterService implements Service {
     }
     LOG.info(builder.toString());
   }
-
-  private List<MbeanAttributeValue> getMBeanAttributeValues(String mbeanExpr, String attributeExpr) {
-    List<MbeanAttributeValue> values = new ArrayList<>();
-    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-    try {
-      Set<ObjectName> mbeanNames = server.queryNames(new ObjectName(mbeanExpr), null);
-      for (ObjectName mbeanName: mbeanNames) {
-        MBeanInfo mBeanInfo = server.getMBeanInfo(mbeanName);
-        MBeanAttributeInfo[] attributeInfos = mBeanInfo.getAttributes();
-        for (MBeanAttributeInfo attributeInfo: attributeInfos) {
-          if (attributeInfo.getName().equals(attributeExpr) || attributeExpr.length() == 0 || attributeExpr.equals("*")) {
-            double value = (Double) server.getAttribute(mbeanName, attributeInfo.getName());
-            values.add(new MbeanAttributeValue(mbeanName.getCanonicalName(), attributeInfo.getName(), value));
-          }
-        }
-      }
-    } catch (Exception e) {
-      LOG.error("", e);
-    }
-    return values;
-  }
-
-  private class MbeanAttributeValue {
-    private final String _mbean;
-    private final String _attribute;
-    private final double _value;
-
-    public MbeanAttributeValue(String mbean, String attribute, double value) {
-      _mbean = mbean;
-      _attribute = attribute;
-      _value = value;
-    }
-
-    @Override
-    public String toString() {
-      return _mbean + ":" + _attribute + "=" + _value;
-    }
-  }
-
 }

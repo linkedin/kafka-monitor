@@ -9,10 +9,9 @@
  */
 package com.linkedin.kmf.common;
 
+import java.util.Arrays;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-
-import java.util.Arrays;
 
 public class DefaultTopicSchema {
 
@@ -29,7 +28,7 @@ public class DefaultTopicSchema {
   public static final Schema MESSAGE_V0;
 
   static {
-    MESSAGE_V0 = Schema.createRecord("kafka-monitor-schema", null, "kafka.monitor", false);
+    MESSAGE_V0 = Schema.createRecord("KafkaMonitorSchema", null, "kafka.monitor", false);
     MESSAGE_V0.setFields(Arrays.asList(TOPIC_FIELD, TIME_FIELD, INDEX_FIELD, PRODUCER_ID_FIELD, CONTENT_FIELD));
   }
 

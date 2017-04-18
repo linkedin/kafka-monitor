@@ -9,29 +9,14 @@
  */
 package com.linkedin.kmf.tests;
 
+import com.linkedin.kmf.apps.SingleClusterMonitor;
 import com.linkedin.kmf.services.TopicManagementService;
-import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
-import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
-import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.ConsumeService;
-import com.linkedin.kmf.services.JettyService;
-import com.linkedin.kmf.services.JolokiaService;
-import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.ProduceService;
-import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
-import net.sourceforge.argparse4j.ArgumentParsers;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.utils.Utils;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-
-import static net.sourceforge.argparse4j.impl.Arguments.store;
 
 /*
  * @deprecated This class has been deprecated and will be removed in a future release. Please use com.linkedin.kmf.apps.SingleClusterMonitor instead.
@@ -46,6 +31,7 @@ import static net.sourceforge.argparse4j.impl.Arguments.store;
  * allows users to track end-to-end performance, e.g. latency and throughput.
  */
 
+@Deprecated
 public class BasicEndToEndTest implements Test {
   private static final Logger LOG = LoggerFactory.getLogger(BasicEndToEndTest.class);
 
@@ -89,208 +75,7 @@ public class BasicEndToEndTest implements Test {
     _consumeService.awaitShutdown();
   }
 
-  /** Get the command-line argument parser. */
-  private static ArgumentParser argParser() {
-    ArgumentParser parser = ArgumentParsers
-      .newArgumentParser("")
-      .defaultHelp(true)
-      .description("");
-
-    parser.addArgument("--topic")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("TOPIC")
-      .dest("topic")
-      .help("Produce messages to this topic and consume message from this topic");
-
-    parser.addArgument("--producer-id")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .dest("producerId")
-      .help("The producerId will be used by producer client and encoded in the messages to the topic");
-
-    parser.addArgument("--broker-list")
-      .action(store())
-      .required(true)
-      .type(String.class)
-      .metavar("HOST1:PORT1[,HOST2:PORT2[...]]")
-      .dest("brokerList")
-      .help("Comma-separated list of Kafka brokers in the form HOST1:PORT1,HOST2:PORT2,...");
-
-    parser.addArgument("--zookeeper")
-      .action(store())
-      .required(true)
-      .type(String.class)
-      .metavar("HOST:PORT")
-      .dest("zkConnect")
-      .help("The connection string for the zookeeper connection in the form host:port");
-
-    parser.addArgument("--record-size")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("RECORD_SIZE")
-      .dest("recordSize")
-      .help("The size of each record.");
-
-    parser.addArgument("--producer-class")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("PRODUCER_CLASS_NAME")
-      .dest("producerClassName")
-      .help("Specify the class of producer. Available choices include newProducer or class name");
-
-    parser.addArgument("--consumer-class")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("CONSUMER_CLASS_NAME")
-      .dest("consumerClassName")
-      .help("Specify the class of consumer. Available choices include oldConsumer, newConsumer, or class name");
-
-    parser.addArgument("--producer.config")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("PRODUCER_CONFIG")
-      .dest("producerConfig")
-      .help("Producer config properties file.");
-
-    parser.addArgument("--consumer.config")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("CONSUMER_CONFIG")
-      .dest("consumerConfig")
-      .help("Consumer config properties file.");
-
-    parser.addArgument("--report-interval-sec")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("REPORT_INTERVAL_SEC")
-      .dest("reportIntervalSec")
-      .help("Interval in sec with which to export stats");
-
-    parser.addArgument("--record-delay-ms")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("RECORD_DELAY_MS")
-      .dest("recordDelayMs")
-      .help("The delay in ms before sending next record to the same partition");
-
-    parser.addArgument("--latency-percentile-max-ms")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("LATENCY_PERCENTILE_MAX_MS")
-      .dest("latencyPercentileMaxMs")
-      .help("The maximum value in ms expected for latency percentile metric. " +
-            "The percentile will be reported as Double.POSITIVE_INFINITY if its value exceeds the max value.");
-
-    parser.addArgument("--latency-percentile-granularity-ms")
-      .action(store())
-      .required(false)
-      .type(String.class)
-      .metavar("LATENCY_PERCENTILE_GRANULARITY_MS")
-      .dest("latencyPercentileGranularityMs")
-      .help("The granularity in ms of latency percentile metric. This is the width of the bucket used in percentile calculation.");
-
-    parser.addArgument("--topic-creation-enabled")
-      .action(store())
-      .required(false)
-      .type(Boolean.class)
-      .metavar("AUTO_TOPIC_CREATION_ENABLED")
-      .dest("autoTopicCreationEnabled")
-      .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
-
-    parser.addArgument("--topic-rebalance-interval-ms")
-      .action(store())
-      .required(false)
-      .type(Integer.class)
-      .metavar("REBALANCE_MS")
-      .dest("rebalanceMs")
-      .help(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
-
-    return parser;
-  }
-
   public static void main(String[] args) throws Exception {
-    ArgumentParser parser = argParser();
-    if (args.length == 0) {
-      System.out.println(parser.formatHelp());
-      System.exit(-1);
-    }
-
-    Namespace res = parser.parseArgs(args);
-
-    Map<String, Object> props = new HashMap<>();
-
-    // produce service config
-    props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
-    props.put(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
-    if (res.getString("producerClassName") != null)
-      props.put(ProduceServiceConfig.PRODUCER_CLASS_CONFIG, res.getString("producerClassName"));
-    if (res.getString("topic") != null)
-      props.put(ProduceServiceConfig.TOPIC_CONFIG, res.getString("topic"));
-    if (res.getString("producerId") != null)
-      props.put(ProduceServiceConfig.PRODUCER_ID_CONFIG, res.getString("producerId"));
-    if (res.getString("recordDelayMs") != null)
-      props.put(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG, res.getString("recordDelayMs"));
-    if (res.getString("recordSize") != null)
-      props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
-    if (res.getString("producerConfig") != null)
-      props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
-    if (res.getBoolean("autoTopicCreationEnabled") != null)
-      props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
-    if (res.getInt("rebalanceMs") != null)
-      props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
-
-    props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
-
-    // consume service config
-    if (res.getString("consumerConfig") != null)
-      props.put(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG, Utils.loadProps(res.getString("consumerConfig")));
-    if (res.getString("consumerClassName") != null)
-      props.put(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG, res.getString("consumerClassName"));
-    if (res.getString("latencyPercentileMaxMs") != null)
-      props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG, res.getString("latencyPercentileMaxMs"));
-    if (res.getString("latencyPercentileGranularityMs") != null)
-      props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
-
-    BasicEndToEndTest test = new BasicEndToEndTest(props, "end-to-end");
-    test.start();
-
-    // metrics export service config
-    props = new HashMap<>();
-    if (res.getString("reportIntervalSec") != null)
-      props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
-    List<String> metrics = Arrays.asList(
-      "kmf.services:type=produce-service,name=*:produce-availability-avg",
-      "kmf.services:type=produce-service,name=*:records-produced-total",
-      "kmf.services:type=consume-service,name=*:records-consumed-total",
-      "kmf.services:type=consume-service,name=*:records-lost-total",
-      "kmf.services:type=consume-service,name=*:records-duplicated-total",
-      "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
-      "kmf.services:type=produce-service,name=*:records-produced-rate",
-      "kmf.services:type=produce-service,name=*:produce-error-rate",
-      "kmf.services:type=consume-service,name=*:consume-error-rate");
-    props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
-
-
-    DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
-    metricsReporterService.start();
-
-    JolokiaService jolokiaService = new JolokiaService(new HashMap<String, Object>(), "end-to-end");
-    jolokiaService.start();
-
-    JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
-    jettyService.start();
-
-    test.awaitShutdown();
+    SingleClusterMonitor.main(args);
   }
 }

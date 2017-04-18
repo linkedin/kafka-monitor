@@ -12,6 +12,7 @@ package com.linkedin.kmf.apps;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
+import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.JettyService;
@@ -34,36 +35,34 @@ import java.util.Map;
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
 /*
- * The SingleClusterMonitor app is intended to monitor the health and performance of kafka brokers. It creates
+ * The SingleClusterMonitor app is intended to monitor the performance and availability of a given Kafka cluster. It creates
  * one producer and one consumer with the given configuration, produces messages with increasing integer in the
- * message String, consumes messages, and keeps track of number of lost messages, duplicate messages, e2e latency,
- * throughput, etc.
+ * message payload, consumes messages, and keeps track of number of lost messages, duplicate messages, end-to-end latency etc.
  *
- * SingleClusterMonitor app exports these metrics via JMX. It also periodically report metrics if DEBUG level logging
- * is enabled. This information can be used by other application to trigger alert when kafka brokers fail. It also
- * allows users to track end-to-end performance, e.g. latency and throughput.
+ * SingleClusterMonitor app exports these metrics via JMX. It also periodically report metrics if INFO level logging
+ * is enabled. This information can be used by other application to trigger alert when availability of the Kafka cluster drops.
  */
 
 public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
 
+  private final TopicManagementService _topicManagementService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
-  private final TopicManagementService _topicManagementService;
   private final String _name;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
+    _topicManagementService = new TopicManagementService(props, name);
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name);
-    _topicManagementService = new TopicManagementService(props, name);
   }
 
   @Override
   public void start() {
+    _topicManagementService.start();
     _produceService.start();
     _consumeService.start();
-    _topicManagementService.start();
     LOG.info(_name + "/SingleClusterMonitor started");
   }
 
@@ -77,7 +76,7 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public boolean isRunning() {
-    return _produceService.isRunning() && _consumeService.isRunning() && _topicManagementService.isRunning();
+    return _topicManagementService.isRunning() && _produceService.isRunning() && _consumeService.isRunning();
   }
 
   @Override
@@ -206,13 +205,21 @@ public class SingleClusterMonitor implements App {
       .dest("autoTopicCreationEnabled")
       .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
+    parser.addArgument("--replication-factor")
+        .action(store())
+        .required(false)
+        .type(Integer.class)
+        .metavar("REPLICATION_FACTOR")
+        .dest("replicationFactor")
+        .help(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_DOC);
+
     parser.addArgument("--topic-rebalance-interval-ms")
       .action(store())
       .required(false)
       .type(Integer.class)
       .metavar("REBALANCE_MS")
       .dest("rebalanceMs")
-      .help(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
+      .help(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
 
     return parser;
   }
@@ -243,10 +250,6 @@ public class SingleClusterMonitor implements App {
       props.put(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG, res.getString("recordSize"));
     if (res.getString("producerConfig") != null)
       props.put(ProduceServiceConfig.PRODUCER_PROPS_CONFIG, Utils.loadProps(res.getString("producerConfig")));
-    if (res.getBoolean("autoTopicCreationEnabled") != null)
-      props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
-    if (res.getInt("rebalanceMs") != null)
-      props.put(TopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
     props.put(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG, 5);
 
@@ -260,7 +263,15 @@ public class SingleClusterMonitor implements App {
     if (res.getString("latencyPercentileGranularityMs") != null)
       props.put(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG, res.getString("latencyPercentileGranularityMs"));
 
-    SingleClusterMonitor app = new SingleClusterMonitor(props, "end-to-end");
+    // topic management service config
+    if (res.getBoolean("autoTopicCreationEnabled") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+    if (res.getInt("replicationFactor") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG, res.getInt("replicationFactor"));
+    if (res.getInt("rebalanceMs") != null)
+      props.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
+
+    SingleClusterMonitor app = new SingleClusterMonitor(props, "single-cluster-monitor");
     app.start();
 
     // metrics export service config
@@ -269,6 +280,7 @@ public class SingleClusterMonitor implements App {
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
+      "kmf.services:type=consume-service,name=*:consume-availability-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",
@@ -279,7 +291,6 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:consume-error-rate");
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
-
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
@@ -289,6 +300,10 @@ public class SingleClusterMonitor implements App {
     JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
     jettyService.start();
 
+    if (!app.isRunning()) {
+      LOG.error("Some services have stopped");
+      System.exit(-1);
+    }
     app.awaitShutdown();
   }
 }

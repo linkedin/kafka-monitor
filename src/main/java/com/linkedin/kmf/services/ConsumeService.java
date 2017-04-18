@@ -11,11 +11,19 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.DefaultTopicSchema;
 import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
-import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
+import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
+import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
@@ -36,14 +44,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
@@ -63,8 +63,8 @@ public class ConsumeService implements Service {
 
   public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) ?
-        (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
+    Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
+      ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
@@ -131,6 +131,9 @@ public class ConsumeService implements Service {
   }
 
   private void consume() throws Exception {
+    // Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService
+    Thread.sleep(1000);
+
     Map<Integer, Long> nextIndexes = new HashMap<>();
 
     while (_running.get()) {
@@ -182,33 +185,33 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
-      LOG.info(_name + "/ConsumeService started");
+      LOG.info("{}/ConsumeService started", _name);
     }
   }
 
   @Override
-  public void stop() {
+  public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       try {
         _consumer.close();
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }
-      LOG.info(_name + "/ConsumeService stopped");
+      LOG.info("{}/ConsumeService stopped", _name);
     }
   }
 
   @Override
   public void awaitShutdown() {
-    LOG.info(_name + "/ConsumeService shutdown completed");
+    LOG.info("{}/ConsumeService shutdown completed", _name);
   }
 
   @Override
   public boolean isRunning() {
-    return _thread.isAlive();
+    return _running.get() && _thread.isAlive();
   }
 
   private class ConsumeMetrics {
@@ -271,8 +274,8 @@ public class ConsumeService implements Service {
             if (new Double(recordsDelayedRate).isNaN())
               recordsDelayedRate = 0;
 
-            double consumeAvailability = recordsConsumedRate + recordsLostRate > 0 ?
-              (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
+            double consumeAvailability = recordsConsumedRate + recordsLostRate > 0
+              ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
 
             return consumeAvailability;
           }

@@ -10,9 +10,9 @@
 package com.linkedin.kmf.services.configs;
 
 import com.linkedin.kmf.consumer.NewConsumer;
+import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import java.util.Map;
 
 public class ConsumeServiceConfig extends AbstractConfig {
 
@@ -57,8 +57,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     BOOTSTRAP_SERVERS_DOC)
                             .define(TOPIC_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "kafka-monitor-topic",
-                                    ConfigDef.Importance.LOW,
+                                    ConfigDef.Importance.HIGH,
                                     TOPIC_DOC)
                             .define(CONSUMER_CLASS_CONFIG,
                                     ConfigDef.Type.STRING,

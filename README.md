@@ -33,7 +33,7 @@ branch to compile with Kafka 0.10.
 
 - We advise advanced users to run Kafka Monitor with
 `./bin/kafka-monitor-start.sh config/kafka-monitor.properties`. The default
-kafak-monitor.properties in the repo provides an simple example of how to
+kafka-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
 `zookeeper.connect` and `bootstrap.servers` to point to your cluster.
 

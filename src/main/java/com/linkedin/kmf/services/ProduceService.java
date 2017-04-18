@@ -10,6 +10,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.Utils;
+import com.linkedin.kmf.partitioner.KMPartitioner;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
@@ -44,22 +45,23 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES =
-    new String[]{ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-      ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG };
+  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{
+    ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
+    ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
+  };
 
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
+  private KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
-  /** This can be updated while running when new partitions are added to the monitored topic. */
+  /** This can be updated while running when new partitions are added to the monitor topic. */
   private final ConcurrentMap<Integer, AtomicLong> _nextIndexPerPartition;
   /** This is the last thing that should be updated after adding new partition sensors. */
   private final AtomicInteger _partitionNum;
@@ -80,6 +82,7 @@ public class ProduceService implements Service {
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
 
+    _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
     _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
@@ -118,8 +121,6 @@ public class ProduceService implements Service {
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
     _sensors = new ProduceMetrics(metrics, tags);
-
-    LOG.info(_name + ": produce service is initialized.");
   }
 
 
@@ -141,37 +142,56 @@ public class ProduceService implements Service {
     producerProps.putAll(_producerPropsOverride);
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
-    LOG.info("Producer is initialized.");
+    LOG.info("{}/ProduceService is initialized.", _name);
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       initializeStateForPartitions();
-      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 40_000, 40_000, TimeUnit.MILLISECONDS);
-      LOG.info(_name + "/ProduceService started");
+      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
+      LOG.info("{}/ProduceService started", _name);
     }
   }
 
   private void initializeStateForPartitions() {
+    Map<Integer, String> keyMapping = generateKeyMappings();
     int partitionNum = _partitionNum.get();
     for (int partition = 0; partition < partitionNum; partition++) {
+      String key = keyMapping.get(partition);
       //This is what preserves sequence numbers across restarts
       if (!_nextIndexPerPartition.containsKey(partition)) {
         _nextIndexPerPartition.put(partition, new AtomicLong(0));
         _sensors.addPartitionSensors(partition);
       }
-      _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+      _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition, key), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
     }
   }
 
+  private Map<Integer, String> generateKeyMappings() {
+    int partitionNum = _partitionNum.get();
+    HashMap<Integer, String> keyMapping = new HashMap<>();
+
+    int nextInt = 0;
+    while (keyMapping.size() < partitionNum) {
+      String key = Integer.toString(nextInt);
+      int partition = _partitioner.partition(key, partitionNum);
+      if (!keyMapping.containsKey(partition)) {
+        keyMapping.put(partition, key);
+      }
+      nextInt++;
+    }
+
+    return keyMapping;
+  }
+
   @Override
-  public void stop() {
+  public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       _produceExecutor.shutdown();
       _handleNewPartitionsExecutor.shutdown();
       _producer.close();
-      LOG.info(_name + "/ProduceService stopped");
+      LOG.info("{}/ProduceService stopped", _name);
     }
   }
 
@@ -181,14 +201,14 @@ public class ProduceService implements Service {
       _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
       _handleNewPartitionsExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      LOG.info("Thread interrupted when waiting for {}/ProduceService to shutdown", _name);
     }
-    LOG.info(_name + "/ProduceService shutdown completed");
+    LOG.info("{}/ProduceService shutdown completed", _name);
   }
 
   @Override
   public boolean isRunning() {
-    return _running.get();
+    return _running.get() && !_handleNewPartitionsExecutor.isShutdown();
   }
 
   private class ProduceMetrics {
@@ -257,20 +277,21 @@ public class ProduceService implements Service {
    */
   private class ProduceRunnable implements Runnable {
     private final int _partition;
+    private final String _key;
 
-    ProduceRunnable(int partition) {
+    ProduceRunnable(int partition, String key) {
       _partition = partition;
+      _key = key;
     }
 
     public void run() {
       try {
         long nextIndex = _nextIndexPerPartition.get(_partition).get();
         String message = Utils.jsonFromFields(_topic, nextIndex, System.currentTimeMillis(), _producerId, _recordSize);
-        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, null, message);
+        BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, _key, message);
         RecordMetadata metadata = _producer.send(record, _sync);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
-
         if (nextIndex == -1 && _sync) {
           nextIndex = metadata.offset();
         } else {
@@ -286,23 +307,22 @@ public class ProduceService implements Service {
   }
 
   /**
-   * This should be periodically run to check for new partitions on the monitored topic.  When new partitions are
+   * This should be periodically run to check for new partitions on the monitor topic.  When new partitions are
    * detected the executor is shutdown, the producer is shutdown, a new producer is created (the old producer does not
    * always become aware of the new partitions), new produce runnables are created on a new executor service, new
    * sensors are added for the new partitions.
    */
-
   private class NewPartitionHandler implements Runnable {
 
     public void run() {
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionCount <= 0) {
-        LOG.info(_name + ": Topic named " + _topic + " does not exist.");
+        LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
         return;
       } else if (currentPartitionCount == _partitionNum.get()) {
         return;
       }
-      LOG.info(_name + ": Detected new partitions to monitor.");
+      LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
       //TODO: Should the ProduceService exit if we can't restart the producer runnables?
       _produceExecutor.shutdown();
       try {
@@ -328,7 +348,7 @@ public class ProduceService implements Service {
 
     private final AtomicInteger _threadId = new AtomicInteger();
     public Thread newThread(Runnable r) {
-      return new Thread(r, _name + "-produce-service-produce-" + _threadId.getAndIncrement());
+      return new Thread(r, _name + "-produce-service-" + _threadId.getAndIncrement());
     }
   }
 
