@@ -19,7 +19,7 @@ IF [%1] EQU [] (
 	EXIT /B 1
 )
 
-set COMMAND=%BASE_DIR%\kmf-run-class.bat com.linkedin.kmf.core.KafkaMonitor %* 
+set COMMAND=%BASE_DIR%\kmf-run-class.bat com.linkedin.kmf.KafkaMonitor %*
 
 rem echo basedir: %BASE_DIR%
 
