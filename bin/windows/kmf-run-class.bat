@@ -10,7 +10,7 @@ REM an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expre
 setlocal enabledelayedexpansion
 
 IF [%1] EQU [] (
-	echo USAGE: %0 com.linkedin.kmf.core.KafkaMonitor config/kafka-monitor.properties
+	echo USAGE: %0 com.linkedin.kmf.KafkaMonitor config/kafka-monitor.properties
 	EXIT /B 1
 )
 
@@ -34,22 +34,12 @@ IF ["%SCALA_BINARY_VERSION%"] EQU [""] (
 )
 
 rem Classpath addition for kafka-core dependencies
-for %%i in (%BASE_DIR%\core\build\libs\*.jar) do (
-	call :concat %%i
-)
-
-rem Classpath addition for kafka-perf dependencies
-for %%i in (%BASE_DIR%\services\build\libs\*.jar) do (
-	call :concat %%i
-)
-
-rem Classpath addition for kafka-clients
-for %%i in (%BASE_DIR%\tests\build\libs\*.jar) do (
+for %%i in (%BASE_DIR%\build\libs\*.jar) do (
 	call :concat %%i
 )
 
 rem Classpath addition for kafka-examples
-for %%i in (%BASE_DIR%\services\build\dependant-libs\*.jar) do (
+for %%i in (%BASE_DIR%\build\dependant-libs\*.jar) do (
 	call :concat %%i
 )
 
