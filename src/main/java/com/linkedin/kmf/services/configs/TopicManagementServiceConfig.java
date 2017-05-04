@@ -65,7 +65,6 @@ public class TopicManagementServiceConfig extends AbstractConfig {
       .define(PARTITIONS_TO_BROKERS_RATIO_CONFIG,
               ConfigDef.Type.DOUBLE,
               1.5,
-              atLeast(1),
               ConfigDef.Importance.LOW, PARTITIONS_TO_BROKERS_RATIO_DOC)
       .define(TOPIC_CREATION_ENABLED_CONFIG,
               ConfigDef.Type.BOOLEAN,
