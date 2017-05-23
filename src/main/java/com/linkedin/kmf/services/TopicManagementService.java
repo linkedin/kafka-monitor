@@ -52,6 +52,8 @@ public class TopicManagementService implements Service {
     Map<String, Object> serviceProps = new HashMap<>();
     serviceProps.put(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG, configPerCluster);
     serviceProps.put(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG, props.get(TopicManagementServiceConfig.TOPIC_CONFIG));
+    if (props.containsKey(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG))
+      serviceProps.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, props.get(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG));
     return serviceProps;
   }
 
