@@ -32,18 +32,21 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
   public static final String PARTITIONS_TO_BROKERS_RATIO_CONFIG = "topic-management.partitionsToBrokersRatio";
-  public static final String PARTITIONS_TO_BROKERS_RATIO_DOC = "New partitions are created when the actual ratio falls below this threshold."
-      + " partitionsToBrokerRatio will be the lower bound on the number of partitions per broker when a topic is"
-      + " created or when the partition is added.";
+  public static final String PARTITIONS_TO_BROKERS_RATIO_DOC = "New partitions are added when the actual ratio falls below this threshold."
+      + " This config provides a loose lower bound on the partitionNum-to-brokerNum ratio when the monitor topic is created or when partition is added.";
+
+  public static final String MIN_PARTITION_NUM_CONFIG = "topic-management.minPartitionNum";
+  public static final String MIN_PARTITION_NUM_DOC = "New partitions are added when the actual partition number falls below this threshold."
+      + " This config provides a loose lower bound on the partition number of the monitor topic when the topic is created or when partition is added.";
 
   public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
       + "replication factor used.";
 
   public static final String TOPIC_CREATION_ENABLED_CONFIG = "topic-management.topicCreationEnabled";
-  public static final String TOPIC_CREATION_ENABLED_DOC = "When true this automatically creates the topic mentioned by \""
-    + CommonServiceConfig.TOPIC_CONFIG + "\" with replication factor \"" + TOPIC_REPLICATION_FACTOR_CONFIG + "and min ISR of max("
-    + TOPIC_REPLICATION_FACTOR_CONFIG + "-1, 1) with number of brokers * \"" + PARTITIONS_TO_BROKERS_RATIO_CONFIG + "\" partitions.";
+  public static final String TOPIC_CREATION_ENABLED_DOC = String.format("When true this service automatically creates the topic named"
+      + " in the config with replication factor %s and min ISR as max(%s - 1, 1). The partition number is determined based on %s and %s",
+      TOPIC_REPLICATION_FACTOR_CONFIG, TOPIC_REPLICATION_FACTOR_CONFIG, PARTITIONS_TO_BROKERS_RATIO_CONFIG, MIN_PARTITION_NUM_DOC);
 
   public static final String TOPIC_FACTORY_CLASS_CONFIG = "topic-management.topicFactory.class.name";
   public static final String TOPIC_FACTORY_CLASS_DOC = "The name of the class used to create topics.  This class must implement "
@@ -64,8 +67,14 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               TOPIC_DOC)
       .define(PARTITIONS_TO_BROKERS_RATIO_CONFIG,
               ConfigDef.Type.DOUBLE,
-              1.5,
-              ConfigDef.Importance.LOW, PARTITIONS_TO_BROKERS_RATIO_DOC)
+              1.0,
+              ConfigDef.Importance.LOW,
+              PARTITIONS_TO_BROKERS_RATIO_DOC)
+      .define(MIN_PARTITION_NUM_CONFIG,
+              ConfigDef.Type.INT,
+              1,
+              ConfigDef.Importance.LOW,
+              MIN_PARTITION_NUM_DOC)
       .define(TOPIC_CREATION_ENABLED_CONFIG,
               ConfigDef.Type.BOOLEAN,
               true,

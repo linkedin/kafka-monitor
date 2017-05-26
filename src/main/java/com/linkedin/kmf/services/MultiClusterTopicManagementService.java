@@ -53,7 +53,15 @@ import static com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS;
  * This service periodically checks and rebalances the monitor topics across a pipeline of Kafka clusters so that
  * leadership of the partitions of the monitor topic in each cluster is distributed evenly across brokers in the cluster.
  *
- * It also makes sure that the number of partitions of the monitor topics is same across the monitored clusters.
+ * More specifically, this service may do some or all of the following tasks depending on the config:
+ *
+ * - Create the monitor topic using the user-specified replication factor and partition number
+ * - Increase partition number of the monitor topic if either partitionsToBrokersRatio or minPartitionNum is not satisfied
+ * - Increase replication factor of the monitor topic if the user-specified replicationFactor is not satisfied
+ * - Reassign partition across brokers to make sure each broker acts as preferred leader of at least one partition of the monitor topic
+ * - Trigger preferred leader election to make sure each broker acts as leader of at least one partition of the monitor topic.
+ * - Make sure the number of partitions of the monitor topic is same across all monitored custers.
+ *
  */
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
@@ -134,6 +142,13 @@ public class MultiClusterTopicManagementService implements Service {
           helper.maybeCreateTopic();
         }
 
+        /*
+         * The partition number of the monitor topics should be the minimum partition number that satisifies the following conditions:
+         * - partition number of the monitor topics across all monitored clusters should be the same
+         * - partitionNum / brokerNum >= user-configured partitionsToBrokersRatio.
+         * - partitionNum >= user-configured minPartitionNum
+         */
+
         int minPartitionNum = 0;
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           minPartitionNum = Math.max(minPartitionNum, helper.minPartitionNum());
@@ -164,7 +179,8 @@ public class MultiClusterTopicManagementService implements Service {
     private final String _topic;
     private final String _zkConnect;
     private final int _replicationFactor;
-    private final double _partitionsToBrokerRatio;
+    private final double _minPartitionsToBrokersRatio;
+    private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
@@ -173,7 +189,8 @@ public class MultiClusterTopicManagementService implements Service {
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
       _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
-      _partitionsToBrokerRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
+      _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
+      _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
@@ -182,13 +199,13 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeCreateTopic() throws Exception {
       if (_topicCreationEnabled) {
-        _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _partitionsToBrokerRatio, new Properties());
+        _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _minPartitionsToBrokersRatio, new Properties());
       }
     }
 
     int minPartitionNum() {
       int brokerCount = Utils.getBrokerCount(_zkConnect);
-      return (int) Math.ceil(_partitionsToBrokerRatio * brokerCount);
+      return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }
 
     void maybeAddPartitions(int minPartitionNum) {

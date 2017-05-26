@@ -48,7 +48,7 @@ different Kafka clusters that are connected by MirrorMaker to monitor their
 end-to-end latency.
 
 - Kafka Monitor by default will automatically create the monitor topic based on
-the e.g.  `topic-management.replicationFactor` and `topic-management.partitionsToBrokerRatio`
+the e.g.  `topic-management.replicationFactor` and `topic-management.partitionsToBrokersRatio`
 specified in the config. replicationFactor is 1 by default and you probably
 want to change it to the same replication factor as used for your existing
 topics. You can disable auto topic creation by setting `produce.topic.topicCreationEnabled` to false.
