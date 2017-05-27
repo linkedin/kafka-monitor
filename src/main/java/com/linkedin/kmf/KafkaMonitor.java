@@ -12,7 +12,6 @@ package com.linkedin.kmf;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
-import com.linkedin.kmf.tests.Test;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,13 +54,15 @@ public class KafkaMonitor {
         throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
       String className = (String) props.get(CLASS_NAME_CONFIG);
 
-      if (className.startsWith(App.class.getPackage().getName()) ||
-          className.startsWith(Test.class.getPackage().getName())) {
+      Class<?> cls = Class.forName(className);
+      if (App.class.isAssignableFrom(cls)) {
         App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, test);
-      } else {
+      } else if (Service.class.isAssignableFrom(cls)) {
         Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _services.put(name, service);
+      } else {
+        throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
     }
     _executor = Executors.newSingleThreadScheduledExecutor();
