@@ -55,6 +55,9 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_FACTORY_PROPS_CONFIG = "topic-management.topicFactory.props";
   public static final String TOPIC_FACTORY_PROPS_DOC = "A configuration map for the topic factory.";
 
+  public static final String TOPIC_PROPS_CONFIG = "topic-management.topic.props";
+  public static final String TOPIC_PROPS_DOC = "A configuration map for the topic";
+
   static {
     CONFIG = new ConfigDef()
       .define(ZOOKEEPER_CONNECT_CONFIG,
