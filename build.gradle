@@ -59,12 +59,7 @@ allprojects {
     configFile = new File(rootDir, "checkstyle/checkstyle.xml")
   }
 
-  task createConfigDocDir() {
-    outputs.dir configDocDir
-    file(configDocDir).mkdirs()
-  }
-
-  task createConfigDocs( dependsOn : ['createConfigDocDir', 'compileJava'], type : JavaExec) {
+  task createConfigDocs( dependsOn : compileJava, type : JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = 'com.linkedin.kmf.common.ConfigDocumentationGenerator'
     args = [configDocDir,
