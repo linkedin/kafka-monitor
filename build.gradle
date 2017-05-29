@@ -68,7 +68,7 @@ allprojects {
             'com.linkedin.kmf.services.configs.JettyServiceConfig',
             'com.linkedin.kmf.services.configs.ProduceServiceConfig',
             'com.linkedin.kmf.services.configs.TopicManagementServiceConfig',
-            'com.linkedin.kmf.apps.configs.MirrorPipelineMonitorConfig']
+            'com.linkedin.kmf.apps.configs.MultiClusterMonitorConfig']
   }
 
   build.dependsOn createConfigDocs
