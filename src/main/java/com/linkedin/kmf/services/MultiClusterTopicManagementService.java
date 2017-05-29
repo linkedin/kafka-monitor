@@ -182,6 +182,7 @@ public class MultiClusterTopicManagementService implements Service {
     private final double _minPartitionsToBrokersRatio;
     private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
+    private final Properties _topicProperties;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -192,6 +193,10 @@ public class MultiClusterTopicManagementService implements Service {
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+      _topicProperties = new Properties();
+      if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG))
+        _topicProperties.putAll((Map) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG));
+
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
@@ -199,7 +204,7 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeCreateTopic() throws Exception {
       if (_topicCreationEnabled) {
-        _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _minPartitionsToBrokersRatio, new Properties());
+        _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _minPartitionsToBrokersRatio, _topicProperties);
       }
     }
 
