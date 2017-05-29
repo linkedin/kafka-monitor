@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -78,7 +77,6 @@ public class KafkaMonitor {
       }
     }
     _executor = Executors.newSingleThreadScheduledExecutor();
-
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
@@ -119,18 +117,14 @@ public class KafkaMonitor {
   }
 
   private void checkHealth() {
-    Iterator<Map.Entry<String, App>> testIt = _apps.entrySet().iterator();
-    while (testIt.hasNext()) {
-      Map.Entry<String, App> entry = testIt.next();
+    for (Map.Entry<String, App> entry: _apps.entrySet()) {
       if (!entry.getValue().isRunning()) {
         _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
         LOG.error("App " + entry.getKey() + " is not fully running.");
       }
     }
 
-    Iterator<Map.Entry<String, Service>> serviceIt = _services.entrySet().iterator();
-    while (serviceIt.hasNext()) {
-      Map.Entry<String, Service> entry = serviceIt.next();
+    for (Map.Entry<String, Service> entry: _services.entrySet()) {
       if (!entry.getValue().isRunning()) {
         _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
         LOG.error("Service " + entry.getKey() + " is not fully running.");
