@@ -12,14 +12,22 @@ package com.linkedin.kmf;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.Measurable;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,12 +41,15 @@ import java.util.concurrent.TimeUnit;
 public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
+  private static final String METRIC_GROUP_NAME = "kafka-monitor";
+  private static final String JMX_PREFIX = "kmf";
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
    */
   private final ConcurrentMap<String, App> _apps;
   private final ConcurrentMap<String, Service> _services;
+  private final ConcurrentMap<String, Object> _offlineRunnables;
   private final ScheduledExecutorService _executor;
   /** When true start has been called on this instance of Kafka monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
@@ -66,6 +77,18 @@ public class KafkaMonitor {
       }
     }
     _executor = Executors.newSingleThreadScheduledExecutor();
+    _offlineRunnables = new ConcurrentHashMap<>();
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(JMX_PREFIX));
+    Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
+    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
+        new Measurable() {
+          @Override
+          public double measure(MetricConfig config, long now) {
+            return _offlineRunnables.size();
+          }
+        }
+    );
   }
 
   public synchronized void start() {
@@ -94,19 +117,17 @@ public class KafkaMonitor {
   }
 
   private void checkHealth() {
-    Iterator<Map.Entry<String, App>> testIt = _apps.entrySet().iterator();
-    while (testIt.hasNext()) {
-      Map.Entry<String, App> entry = testIt.next();
+    for (Map.Entry<String, App> entry: _apps.entrySet()) {
       if (!entry.getValue().isRunning()) {
-        LOG.error("Test " + entry.getKey() + " has stopped.");
+        _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
+        LOG.error("App " + entry.getKey() + " is not fully running.");
       }
     }
 
-    Iterator<Map.Entry<String, Service>> serviceIt = _services.entrySet().iterator();
-    while (serviceIt.hasNext()) {
-      Map.Entry<String, Service> entry = serviceIt.next();
+    for (Map.Entry<String, Service> entry: _services.entrySet()) {
       if (!entry.getValue().isRunning()) {
-        LOG.error("Service " + entry.getKey() + " has stopped.");
+        _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
+        LOG.error("Service " + entry.getKey() + " is not fully running.");
       }
     }
   }
