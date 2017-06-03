@@ -249,12 +249,15 @@ public class MultiClusterTopicManagementService implements Service {
           reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
         }
 
-        if (someBrokerNotPreferredLeader(partitionInfoList, brokers) && zkUtils.getPartitionsBeingReassigned().isEmpty()) {
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotPreferredLeader(partitionInfoList, brokers) &&
+            zkUtils.getPartitionsBeingReassigned().isEmpty()) {
           LOG.info("MultiClusterTopicManagementService will reassign partitions of the topic {} in cluster {}", _topic, _zkConnect);
           reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
         }
 
-        if (someBrokerNotElectedLeader(partitionInfoList, brokers)) {
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotElectedLeader(partitionInfoList, brokers)) {
           LOG.info("MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in cluster {}", _topic, _zkConnect);
           triggerPreferredLeaderElection(zkUtils, partitionInfoList);
         }
