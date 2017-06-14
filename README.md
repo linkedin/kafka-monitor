@@ -101,6 +101,20 @@ attribute-name of the JMX metric in the query above.
 ./gradlew eclipse
 ```
 
+## Packaging Kafka Monitor a deb
+- Go through Build Kafka Monitor
+- Create ```opt/kafka-monitor``` and move ```build```, ```config```, and ```bin``` directories inside it
+- Create ```etc/kafka-monitor``` directory
+- If using ```fpm``` to build the deb, run a command such as (change the version):
+```
+fpm -s dir -t deb -a all -n "kafka-monitor" -v 0.1 \
+-m "PagerDuty, Inc." \
+--description "Kafka performance monitor" \
+--license "Apache" \
+--after-remove debian/postrm.sh \
+opt etc
+```
+
 ## Wiki
 
 - [Motivation](https://github.com/linkedin/kafka-monitor/wiki/Motivation)
