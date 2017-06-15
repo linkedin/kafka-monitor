@@ -9,7 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
-import java.util.Map;
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -43,7 +44,7 @@ public class MultiClusterTopicManagementServiceConfig extends AbstractConfig {
               REBALANCE_INTERVAL_MS_DOC);
   }
 
-  public MultiClusterTopicManagementServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public MultiClusterTopicManagementServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

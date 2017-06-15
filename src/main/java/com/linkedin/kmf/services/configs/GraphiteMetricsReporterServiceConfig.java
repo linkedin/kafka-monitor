@@ -9,11 +9,12 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Arrays;
-import java.util.Map;
 
 public class GraphiteMetricsReporterServiceConfig extends AbstractConfig {
   private static final ConfigDef CONFIG;
@@ -62,7 +63,7 @@ public class GraphiteMetricsReporterServiceConfig extends AbstractConfig {
 
   }
 
-  public GraphiteMetricsReporterServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public GraphiteMetricsReporterServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

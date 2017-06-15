@@ -9,15 +9,11 @@
  */
 package com.linkedin.kmf;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import com.linkedin.kmf.services.Service;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -26,13 +22,16 @@ import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.BufferedReader;
-import java.io.FileReader;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
@@ -54,23 +53,23 @@ public class KafkaMonitor {
   /** When true start has been called on this instance of Kafka monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
 
-  public KafkaMonitor(Map<String, Map> testProps) throws Exception {
+  public KafkaMonitor(Config testConfig) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    for (Map.Entry<String, Map> entry : testProps.entrySet()) {
+    for (Map.Entry<String, ConfigValue> entry : testConfig.root().entrySet()) {
       String name = entry.getKey();
-      Map props = entry.getValue();
-      if (!props.containsKey(CLASS_NAME_CONFIG))
+      Config serviceConfig = testConfig.getConfig(name);
+      if (!serviceConfig.hasPath(CLASS_NAME_CONFIG))
         throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
-      String className = (String) props.get(CLASS_NAME_CONFIG);
+      String className = serviceConfig.getString(CLASS_NAME_CONFIG);
 
       Class<?> cls = Class.forName(className);
       if (App.class.isAssignableFrom(cls)) {
-        App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
+        App test = (App) Class.forName(className).getConstructor(Config.class, String.class).newInstance(serviceConfig, name);
         _apps.put(name, test);
       } else if (Service.class.isAssignableFrom(cls)) {
-        Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
+        Service service = (Service) Class.forName(className).getConstructor(Config.class, String.class).newInstance(serviceConfig, name);
         _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
@@ -160,19 +159,10 @@ public class KafkaMonitor {
       return;
     }
 
-
-    StringBuilder buffer = new StringBuilder();
-    try (BufferedReader br = new BufferedReader(new FileReader(args[0].trim()))) {
-      String line;
-      while ((line = br.readLine()) != null) {
-        if (!line.startsWith("#"))
-          buffer.append(line);
-      }
-    }
+    Config config = ConfigFactory.load(args[0]).getConfig("kafka-monitor");
 
     @SuppressWarnings("unchecked")
-    Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
+    KafkaMonitor kafkaMonitor = new KafkaMonitor(config);
     kafkaMonitor.start();
     LOG.info("KafkaMonitor started");
 

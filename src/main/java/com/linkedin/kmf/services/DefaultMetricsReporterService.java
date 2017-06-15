@@ -9,17 +9,18 @@
  */
 package com.linkedin.kmf.services;
 
-import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
-
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
 
 public class DefaultMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricsReporterService.class);
@@ -29,9 +30,9 @@ public class DefaultMetricsReporterService implements Service {
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
 
-  public DefaultMetricsReporterService(Map<String, Object> props, String name) {
+  public DefaultMetricsReporterService(Config serviceConfig, String name) {
     _name = name;
-    DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(props);
+    DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(serviceConfig);
     _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();

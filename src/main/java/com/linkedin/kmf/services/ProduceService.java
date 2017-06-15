@@ -15,20 +15,7 @@ import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import com.typesafe.config.Config;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
@@ -44,6 +31,21 @@ import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
@@ -76,9 +78,9 @@ public class ProduceService implements Service {
   private final String _zkConnect;
   private final boolean _treatZeroThroughputAsUnavailable;
 
-  public ProduceService(Map<String, Object> props, String name) throws Exception {
+  public ProduceService(Config serviceConfig, String name) throws Exception {
     _name = name;
-    ProduceServiceConfig config = new ProduceServiceConfig(props);
+    ProduceServiceConfig config = new ProduceServiceConfig(serviceConfig);
     _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
@@ -94,8 +96,8 @@ public class ProduceService implements Service {
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
-    _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)
-      ? (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
+    _producerPropsOverride = serviceConfig.hasPath(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)
+      ? Utils.configToMapProperties(serviceConfig.getConfig(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)) : new HashMap();
 
     for (String property: NONOVERRIDABLE_PROPERTIES) {
       if (_producerPropsOverride.containsKey(property)) {

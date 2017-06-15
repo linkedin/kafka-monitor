@@ -14,12 +14,12 @@ import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.StatsdMetricsReporterServiceConfig;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import com.typesafe.config.Config;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +36,8 @@ public class StatsdMetricsReporterService implements Service {
   private final StatsDClient _statsdClient;
   private final String _metricNamePrefix;
 
-  public StatsdMetricsReporterService(Map<String, Object> props, String name) {
-    StatsdMetricsReporterServiceConfig config = new StatsdMetricsReporterServiceConfig(props);
+  public StatsdMetricsReporterService(Config serviceConfig, String name) {
+    StatsdMetricsReporterServiceConfig config = new StatsdMetricsReporterServiceConfig(serviceConfig);
 
     _name = name;
     _metricNames = config.getList(StatsdMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);

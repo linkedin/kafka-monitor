@@ -10,14 +10,16 @@
 package com.linkedin.kmf;
 
 import com.linkedin.kmf.services.Service;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import org.testng.annotations.Test;
 
 
@@ -78,10 +80,8 @@ public class KafkaMonitorTest {
 
   private KafkaMonitor kafkaMonitor() throws Exception {
     FakeService.clearCounters();
-    Map<String, Map> config = new HashMap<>();
-    Map<String, Object> fakeServiceConfig = new HashMap<>();
-    config.put("fake-service", fakeServiceConfig);
-    fakeServiceConfig.put(KafkaMonitor.CLASS_NAME_CONFIG, FakeService.class.getName());
+    Config fakeServiceConfig = ConfigFactory.empty().withValue(KafkaMonitor.CLASS_NAME_CONFIG, ConfigValueFactory.fromAnyRef(FakeService.class.getName()));
+    Config config = ConfigFactory.empty().withValue("fake-service", fakeServiceConfig.root());
     return new KafkaMonitor(config);
   }
 
@@ -93,7 +93,7 @@ public class KafkaMonitorTest {
     private final AtomicBoolean _isRunning = new AtomicBoolean();
 
     /** required */
-    public FakeService(Map<String, Map> config, String serviceInstanceName) {
+    public FakeService(Config config, String serviceInstanceName) {
 
     }
 

@@ -37,8 +37,8 @@ branch to compile with Kafka 0.10.
 ### Configuration Tips
 
 - We advise advanced users to run Kafka Monitor with
-`./bin/kafka-monitor-start.sh config/kafka-monitor.properties`. The default
-kafka-monitor.properties in the repo provides an simple example of how to
+`./bin/kafka-monitor-start.sh config/kafka-monitor.conf`. The default
+kafka-monitor.conf in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
 `zookeeper.connect` and `bootstrap.servers` to point to your cluster.
 
@@ -46,7 +46,7 @@ monitor a single cluster. You probably need to change the value of
 Config class for respective service, e.g. ProduceServiceConfig.java and
 ConsumeServiceConfig.java.
 
-- You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
+- You can specify multiple SingleClusterMonitor in the kafka-monitor.conf to
 monitor multiple Kafka clusters in one Kafka Monitor process. As another
 advanced use-cse, you can point ProduceService and ConsumeService to two
 different Kafka clusters that are connected by MirrorMaker to monitor their
@@ -62,7 +62,7 @@ topics. You can disable auto topic creation by setting `produce.topic.topicCreat
 to ensure partition# >= broker#. It can also reassign partition and trigger
 preferred leader election to ensure that each broker acts as leader of at least
 one partition of the monitor topic. To use this feature, use either
-EndToEndTest or TopicManagementService in the properties file.
+EndToEndTest or TopicManagementService in the config file.
 
 
 ### Build Kafka Monitor
@@ -74,7 +74,7 @@ $ ./gradlew jar
 
 ### Start KafkaMonitor to run tests/services specified in the config file
 ```
-$ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
+$ ./bin/kafka-monitor-start.sh config/kafka-monitor.config
 ```
 
 ### Run Kafka Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)

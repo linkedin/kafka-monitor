@@ -10,15 +10,15 @@
 package com.linkedin.kmf.topicfactory;
 
 import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 
-import java.util.Map;
 import java.util.Properties;
 
 
 public class DefaultTopicFactory implements TopicFactory {
 
   /** This constructor is required by TopicFactory but does nothing. */
-  public DefaultTopicFactory(Map<String, ?> config) {
+  public DefaultTopicFactory(Config config) {
   }
 
   @Override

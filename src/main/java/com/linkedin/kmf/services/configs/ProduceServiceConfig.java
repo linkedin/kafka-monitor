@@ -9,9 +9,10 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.partitioner.NewKMPartitioner;
 import com.linkedin.kmf.producer.NewProducer;
-import java.util.Map;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -117,7 +118,7 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     PRODUCE_THREAD_NUM_DOC);
   }
 
-  public ProduceServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public ProduceServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

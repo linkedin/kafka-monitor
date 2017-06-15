@@ -9,16 +9,8 @@
  */
 package com.linkedin.kmf.common;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Properties;
-import java.util.Set;
-
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 import kafka.admin.AdminUtils;
 import kafka.admin.RackAwareMode;
 import kafka.server.KafkaConfig;
@@ -39,6 +31,17 @@ import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Properties;
+import java.util.Set;
 
 
 /**
@@ -188,6 +191,15 @@ public class Utils {
       LOG.error("fail to retrieve value for " + mbeanExpr + ":" + attributeExpr, e);
     }
     return values;
+  }
+
+  public static Map<String, Object> configToMapProperties(Config config) {
+    Map<String, Object> properties = new HashMap<>();
+    for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
+      properties.put(entry.getKey(), entry.getValue().unwrapped());
+    }
+
+    return properties;
   }
 
 }

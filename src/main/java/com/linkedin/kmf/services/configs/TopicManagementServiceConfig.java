@@ -9,9 +9,10 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.topicfactory.DefaultTopicFactory;
 import com.linkedin.kmf.topicfactory.TopicFactory;
-import java.util.Map;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -97,7 +98,7 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               TOPIC_FACTORY_CLASS_DOC);
   }
 
-  public TopicManagementServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public TopicManagementServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

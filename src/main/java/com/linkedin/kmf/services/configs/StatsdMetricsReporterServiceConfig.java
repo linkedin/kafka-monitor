@@ -13,11 +13,12 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Arrays;
-import java.util.Map;
 
 public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
   private static final ConfigDef CONFIG;
@@ -66,7 +67,7 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
 
   }
 
-  public StatsdMetricsReporterServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public StatsdMetricsReporterServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

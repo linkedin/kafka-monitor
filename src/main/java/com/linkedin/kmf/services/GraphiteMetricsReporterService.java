@@ -10,10 +10,9 @@
 package com.linkedin.kmf.services;
 
 
-import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
-
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.GraphiteMetricsReporterServiceConfig;
+import com.typesafe.config.Config;
 import net.savantly.graphite.GraphiteClient;
 import net.savantly.graphite.GraphiteClientFactory;
 import net.savantly.graphite.impl.SimpleCarbonMetric;
@@ -24,10 +23,11 @@ import org.slf4j.LoggerFactory;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
 
 public class GraphiteMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(GraphiteMetricsReporterService.class);
@@ -39,10 +39,10 @@ public class GraphiteMetricsReporterService implements Service {
   private final GraphiteClient _graphiteClient;
   private final String _metricNamePrefix;
 
-  public GraphiteMetricsReporterService(Map<String, Object> props, String name)
+  public GraphiteMetricsReporterService(Config serviceConfig, String name)
       throws SocketException, UnknownHostException {
     _name = name;
-    GraphiteMetricsReporterServiceConfig config = new GraphiteMetricsReporterServiceConfig(props);
+    GraphiteMetricsReporterServiceConfig config = new GraphiteMetricsReporterServiceConfig(serviceConfig);
     _metricNames = config.getList(GraphiteMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(GraphiteMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();

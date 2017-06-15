@@ -10,9 +10,10 @@
 
 package com.linkedin.kmf.apps.configs;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
-import java.util.Map;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -45,7 +46,7 @@ public class MultiClusterMonitorConfig extends AbstractConfig {
               TOPIC_DOC);
   }
 
-  public MultiClusterMonitorConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public MultiClusterMonitorConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

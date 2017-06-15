@@ -9,8 +9,9 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.NewConsumer;
-import java.util.Map;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -82,7 +83,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
 
   }
 
-  public ConsumeServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public ConsumeServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

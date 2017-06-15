@@ -9,9 +9,10 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import java.util.Map;
 
 public class JettyServiceConfig extends AbstractConfig {
 
@@ -28,7 +29,7 @@ public class JettyServiceConfig extends AbstractConfig {
                                     PORT_DOC);
   }
 
-  public JettyServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public JettyServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

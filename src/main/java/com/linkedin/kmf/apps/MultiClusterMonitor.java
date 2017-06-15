@@ -13,8 +13,9 @@ import com.linkedin.kmf.apps.configs.MultiClusterMonitorConfig;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.MultiClusterTopicManagementService;
 import com.linkedin.kmf.services.ProduceService;
-import java.util.HashMap;
-import java.util.Map;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,38 +35,34 @@ public class MultiClusterMonitor implements App {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public MultiClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  public MultiClusterMonitor(Config serviceConfig, String name) throws Exception {
     _name = name;
-    MultiClusterMonitorConfig config = new MultiClusterMonitorConfig(props);
-    _topicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(props, config), name);
-    _produceService = new ProduceService(createProduceServiceProps(props, config), name);
-    _consumeService = new ConsumeService(createConsumeServiceProps(props, config), name);
+    MultiClusterMonitorConfig config = new MultiClusterMonitorConfig(serviceConfig);
+    _topicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(serviceConfig, config), name);
+    _produceService = new ProduceService(createProduceServiceProps(serviceConfig, config), name);
+    _consumeService = new ConsumeService(createConsumeServiceProps(serviceConfig, config), name);
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createProduceServiceProps(Map<String, Object> props, MultiClusterMonitorConfig config) {
-    Map<String, Object> serviceProps = props.containsKey(MultiClusterMonitorConfig.PRODUCE_SERVICE_CONFIG)
-        ? (Map) props.get(MultiClusterMonitorConfig.PRODUCE_SERVICE_CONFIG) : new HashMap<>();
-    serviceProps.put(MultiClusterMonitorConfig.TOPIC_CONFIG, config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG));
-
-    return serviceProps;
+  private Config createProduceServiceProps(Config serviceConfig, MultiClusterMonitorConfig config) {
+    Config produceServiceConfig = serviceConfig.hasPath(MultiClusterMonitorConfig.PRODUCE_SERVICE_CONFIG)
+        ? serviceConfig.getConfig(MultiClusterMonitorConfig.PRODUCE_SERVICE_CONFIG) : ConfigFactory.empty();
+    
+    return produceServiceConfig.withValue(MultiClusterMonitorConfig.TOPIC_CONFIG, ConfigValueFactory.fromAnyRef(config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG)));
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createConsumeServiceProps(Map<String, Object> props, MultiClusterMonitorConfig config) {
-    Map<String, Object> serviceProps = props.containsKey(MultiClusterMonitorConfig.CONSUME_SERVICE_CONFIG)
-        ? (Map) props.get(MultiClusterMonitorConfig.CONSUME_SERVICE_CONFIG) : new HashMap<>();
-    serviceProps.put(MultiClusterMonitorConfig.TOPIC_CONFIG, config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG));
-
-    return serviceProps;
+  private Config createConsumeServiceProps(Config serviceConfig, MultiClusterMonitorConfig config) {
+    Config consumeServiceConfig = serviceConfig.hasPath(MultiClusterMonitorConfig.CONSUME_SERVICE_CONFIG)
+        ? serviceConfig.getConfig(MultiClusterMonitorConfig.CONSUME_SERVICE_CONFIG) : ConfigFactory.empty();
+    return consumeServiceConfig.withValue(MultiClusterMonitorConfig.TOPIC_CONFIG, ConfigValueFactory.fromAnyRef(config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG)));
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> createMultiClusterTopicManagementServiceProps(Map<String, Object> props, MultiClusterMonitorConfig config) {
-    Map<String, Object> serviceProps = new HashMap<>();
-    serviceProps.put(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG, props.get(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG));
-    serviceProps.put(MultiClusterMonitorConfig.TOPIC_CONFIG, config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG));
-    return serviceProps;
+  private Config createMultiClusterTopicManagementServiceProps(Config serviceConfig, MultiClusterMonitorConfig config) {
+    return ConfigFactory.empty()
+        .withValue(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG, serviceConfig.getValue(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG))
+        .withValue(MultiClusterMonitorConfig.TOPIC_CONFIG, ConfigValueFactory.fromAnyRef(config.getString(MultiClusterMonitorConfig.TOPIC_CONFIG)));
   }
 
   @Override

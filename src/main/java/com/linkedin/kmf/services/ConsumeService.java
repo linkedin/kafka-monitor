@@ -16,14 +16,7 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.consumer.OldConsumer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import com.typesafe.config.Config;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
@@ -45,6 +38,15 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String METRIC_GROUP_NAME = "consume-service";
@@ -61,11 +63,11 @@ public class ConsumeService implements Service {
   private final AtomicBoolean _running;
   private final int _latencySlaMs;
 
-  public ConsumeService(Map<String, Object> props, String name) throws Exception {
+  public ConsumeService(Config serviceConfig, String name) throws Exception {
     _name = name;
-    Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
-      ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
-    ConsumeServiceConfig config = new ConsumeServiceConfig(props);
+    Map consumerPropsOverride = serviceConfig.hasPath(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
+      ? Utils.configToMapProperties(serviceConfig.getConfig(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) : new HashMap<>();
+    ConsumeServiceConfig config = new ConsumeServiceConfig(serviceConfig);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);

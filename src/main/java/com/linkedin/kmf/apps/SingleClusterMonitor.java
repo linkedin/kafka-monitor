@@ -9,28 +9,30 @@
  */
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.DefaultMetricsReporterService;
+import com.linkedin.kmf.services.JettyService;
+import com.linkedin.kmf.services.JolokiaService;
+import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
-import com.linkedin.kmf.services.ConsumeService;
-import com.linkedin.kmf.services.JettyService;
-import com.linkedin.kmf.services.JolokiaService;
-import com.linkedin.kmf.services.DefaultMetricsReporterService;
-import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.utils.Utils;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
@@ -51,11 +53,11 @@ public class SingleClusterMonitor implements App {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  public SingleClusterMonitor(Config monitorConfig, String name) throws Exception {
     _name = name;
-    _topicManagementService = new TopicManagementService(props, name);
-    _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name);
+    _topicManagementService = new TopicManagementService(monitorConfig, name);
+    _produceService = new ProduceService(monitorConfig, name);
+    _consumeService = new ConsumeService(monitorConfig, name);
   }
 
   @Override
@@ -271,7 +273,8 @@ public class SingleClusterMonitor implements App {
     if (res.getInt("rebalanceMs") != null)
       props.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
 
-    SingleClusterMonitor app = new SingleClusterMonitor(props, "single-cluster-monitor");
+    Config appConfig = ConfigFactory.parseMap(props);
+    SingleClusterMonitor app = new SingleClusterMonitor(appConfig, "single-cluster-monitor");
     app.start();
 
     // metrics export service config
@@ -291,13 +294,14 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:consume-error-rate");
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
-    DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
+    Config reporterConfig = ConfigFactory.parseMap(props);
+    DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(reporterConfig, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new HashMap<String, Object>(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(ConfigFactory.empty(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
+    JettyService jettyService = new JettyService(ConfigFactory.empty(), "end-to-end");
     jettyService.start();
 
     if (!app.isRunning()) {

@@ -9,9 +9,10 @@
  */
 package com.linkedin.kmf.common;
 
-import java.util.Arrays;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+
+import java.util.Arrays;
 
 public class DefaultTopicSchema {
 

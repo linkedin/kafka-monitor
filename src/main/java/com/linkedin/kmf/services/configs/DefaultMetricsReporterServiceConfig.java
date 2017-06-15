@@ -9,10 +9,12 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+
 import java.util.Arrays;
-import java.util.Map;
 
 public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
 
@@ -38,7 +40,7 @@ public class DefaultMetricsReporterServiceConfig extends AbstractConfig {
 
   }
 
-  public DefaultMetricsReporterServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public DefaultMetricsReporterServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

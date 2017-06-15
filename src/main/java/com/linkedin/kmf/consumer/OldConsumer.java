@@ -11,11 +11,12 @@ package com.linkedin.kmf.consumer;
 
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
-import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
+import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.serializer.StringDecoder;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

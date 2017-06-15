@@ -10,12 +10,12 @@
 package com.linkedin.kmf.tests;
 
 import com.linkedin.kmf.apps.SingleClusterMonitor;
-import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.TopicManagementService;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
 
 
 /*
@@ -40,11 +40,11 @@ public class BasicEndToEndTest implements Test {
   private final TopicManagementService _topicManagementService;
   private final String _name;
 
-  public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
+  public BasicEndToEndTest(Config config, String name) throws Exception {
     _name = name;
-    _topicManagementService = new TopicManagementService(props, name);
-    _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name);
+    _topicManagementService = new TopicManagementService(config, name);
+    _produceService = new ProduceService(config, name);
+    _consumeService = new ConsumeService(config, name);
   }
 
   @Override
