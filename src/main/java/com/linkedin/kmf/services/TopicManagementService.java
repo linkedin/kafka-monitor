@@ -14,6 +14,9 @@ import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfi
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -21,10 +24,13 @@ import com.typesafe.config.ConfigFactory;
  * leadership of partitions of the monitor topic is distributed evenly across brokers in the cluster
  */
 public class TopicManagementService implements Service {
+  private static final Logger LOG = LoggerFactory.getLogger(TopicManagementService.class);
   private final MultiClusterTopicManagementService _multiClusterTopicManagementService;
 
   public TopicManagementService(Config serviceConfig, String serviceName) throws Exception {
     Config config = createMultiClusterTopicManagementServiceProps(serviceConfig, serviceName);
+    LOG.info("Loading TopicManagementService with config: \n" + config.root().render(ConfigRenderOptions.defaults().setOriginComments(false).setComments(false).setJson(false)));
+
     _multiClusterTopicManagementService = new MultiClusterTopicManagementService(config, serviceName);
   }
 

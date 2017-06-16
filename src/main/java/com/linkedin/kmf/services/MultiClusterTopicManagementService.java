@@ -211,6 +211,7 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeCreateTopic() throws Exception {
       if (_topicCreationEnabled) {
+        LOG.info("creating topic '" + _topic + "' if it does not exist yet");
         _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _minPartitionsToBrokersRatio, _topicProperties);
       }
     }
