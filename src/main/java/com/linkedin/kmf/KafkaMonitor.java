@@ -155,7 +155,7 @@ public class KafkaMonitor {
 
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.properties");
+      LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.conf");
       return;
     }
 

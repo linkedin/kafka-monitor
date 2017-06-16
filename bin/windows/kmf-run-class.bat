@@ -10,12 +10,12 @@ REM an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expre
 setlocal enabledelayedexpansion
 
 IF [%1] EQU [] (
-	echo USAGE: %0 com.linkedin.kmf.KafkaMonitor config/kafka-monitor.properties
+	echo USAGE: %0 com.linkedin.kmf.KafkaMonitor config/kafka-monitor.conf
 	EXIT /B 1
 )
 
 IF [%2] EQU [] (
-	echo USAGE: %0 %1 config/kafka-monitor.properties
+	echo USAGE: %0 %1 config/kafka-monitor.conf
 	EXIT /B 1
 )
 

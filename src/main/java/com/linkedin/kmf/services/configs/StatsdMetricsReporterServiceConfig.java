@@ -8,7 +8,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *
  *
- * In order to enable the StatsD metrics export, add the following section to kafka-monitor.properties file
+ * In order to enable the StatsD metrics export, add the following section to kafka-monitor.conf file
  *
  */
 package com.linkedin.kmf.services.configs;
