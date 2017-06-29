@@ -130,7 +130,7 @@ public class ProduceService implements Service {
     // Assign default config. This has the lowest priority.
     producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
     producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "20000");
-    producerProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+    producerProps.put(ProducerConfig.RETRIES_CONFIG, "3");
     producerProps.put(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "true");
     producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
     producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
