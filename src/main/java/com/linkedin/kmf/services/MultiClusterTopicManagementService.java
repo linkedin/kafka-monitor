@@ -36,6 +36,8 @@ import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
+import kafka.server.ConfigType;
+import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.common.Node;
@@ -193,9 +195,16 @@ public class MultiClusterTopicManagementService implements Service {
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+
       _topicProperties = new Properties();
-      if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG))
-        _topicProperties.putAll((Map) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG));
+      if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
+        for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
+          _topicProperties.put(entry.getKey(), entry.getValue().toString());
+      }
+      if (!_topicProperties.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
+        int defaultMinIsr = Math.max(_replicationFactor - 1, 1);
+        _topicProperties.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
+      }
 
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
@@ -245,8 +254,16 @@ public class MultiClusterTopicManagementService implements Service {
               _replicationFactor, currentReplicationFactor, _topic, _zkConnect));
 
         if (_replicationFactor > currentReplicationFactor && zkUtils.getPartitionsBeingReassigned().isEmpty()) {
-          LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}", _topic, _zkConnect);
+          LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
+              + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, _replicationFactor);
           reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
+        }
+
+        Properties currentProperties = AdminUtils.fetchEntityConfig(zkUtils, ConfigType.Topic(), _topic);
+        if (!currentProperties.equals(_topicProperties)) {
+          LOG.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+              + "in cluster {} from {} to {}.", _topic, _zkConnect, currentProperties, _topicProperties);
+          AdminUtils.changeTopicConfig(zkUtils, _topic, _topicProperties);
         }
 
         if (partitionInfoList.size() >= brokers.size() &&
