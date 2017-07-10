@@ -37,7 +37,6 @@ import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
 import kafka.server.ConfigType;
-import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.common.Node;
@@ -201,10 +200,6 @@ public class MultiClusterTopicManagementService implements Service {
         for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
           _topicProperties.put(entry.getKey(), entry.getValue().toString());
       }
-      if (!_topicProperties.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
-        int defaultMinIsr = Math.max(_replicationFactor - 1, 1);
-        _topicProperties.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
-      }
 
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
@@ -259,11 +254,18 @@ public class MultiClusterTopicManagementService implements Service {
           reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
         }
 
+        // Update the properties of the monitor topic if any config is different from the user-specified config
         Properties currentProperties = AdminUtils.fetchEntityConfig(zkUtils, ConfigType.Topic(), _topic);
-        if (!currentProperties.equals(_topicProperties)) {
+        Properties expectedProperties = new Properties();
+        for (Object key: currentProperties.keySet())
+          expectedProperties.put(key, currentProperties.get(key));
+        for (Object key: _topicProperties.keySet())
+          expectedProperties.put(key, _topicProperties.get(key));
+
+        if (!currentProperties.equals(expectedProperties)) {
           LOG.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-              + "in cluster {} from {} to {}.", _topic, _zkConnect, currentProperties, _topicProperties);
-          AdminUtils.changeTopicConfig(zkUtils, _topic, _topicProperties);
+              + "in cluster {} from {} to {}.", _topic, _zkConnect, currentProperties, expectedProperties);
+          AdminUtils.changeTopicConfig(zkUtils, _topic, expectedProperties);
         }
 
         if (partitionInfoList.size() >= brokers.size() &&
