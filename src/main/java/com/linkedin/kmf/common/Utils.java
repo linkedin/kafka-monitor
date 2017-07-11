@@ -89,15 +89,8 @@ public class Utils {
       if (AdminUtils.topicExists(zkUtils, topic)) {
         return getPartitionNumForTopic(zkUrl, topic);
       }
-
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
-
       int partitionCount = (int) Math.ceil(brokerCount * partitionToBrokerRatio);
-
-      int defaultMinIsr = Math.max(replicationFactor - 1, 1);
-      if (!topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp())) {
-        topicConfig.setProperty(KafkaConfig.MinInSyncReplicasProp(), Integer.toString(defaultMinIsr));
-      }
 
       try {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
