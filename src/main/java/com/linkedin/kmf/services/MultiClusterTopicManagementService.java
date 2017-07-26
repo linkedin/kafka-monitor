@@ -242,16 +242,17 @@ public class MultiClusterTopicManagementService implements Service {
           throw new IllegalStateException("Topic " + _topic + " does not exist in cluster " + _zkConnect);
 
         int currentReplicationFactor = getReplicationFactor(partitionInfoList);
+        int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
 
         if (_replicationFactor < currentReplicationFactor)
-          throw new RuntimeException(String.format("Configured replication factor %d "
+          LOG.debug(String.format("Configured replication factor %d "
                   + "is smaller than the current replication factor %d of the topic %s in cluster %s",
               _replicationFactor, currentReplicationFactor, _topic, _zkConnect));
 
-        if (_replicationFactor > currentReplicationFactor && zkUtils.getPartitionsBeingReassigned().isEmpty()) {
+        if (expectedReplicationFactor > currentReplicationFactor && zkUtils.getPartitionsBeingReassigned().isEmpty()) {
           LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
-              + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, _replicationFactor);
-          reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
+              + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, expectedReplicationFactor);
+          reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
         }
 
         // Update the properties of the monitor topic if any config is different from the user-specified config
@@ -272,7 +273,7 @@ public class MultiClusterTopicManagementService implements Service {
             someBrokerNotPreferredLeader(partitionInfoList, brokers) &&
             zkUtils.getPartitionsBeingReassigned().isEmpty()) {
           LOG.info("MultiClusterTopicManagementService will reassign partitions of the topic {} in cluster {}", _topic, _zkConnect);
-          reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), _replicationFactor);
+          reassignPartitions(zkUtils, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
         }
 
         if (partitionInfoList.size() >= brokers.size() &&

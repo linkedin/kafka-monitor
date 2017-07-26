@@ -118,18 +118,22 @@ public class KafkaMonitor {
 
   private void checkHealth() {
     for (Map.Entry<String, App> entry: _apps.entrySet()) {
-      if (!entry.getValue().isRunning()) {
+      if (!entry.getValue().isRunning())
         _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
-        LOG.error("App " + entry.getKey() + " is not fully running.");
-      }
     }
 
     for (Map.Entry<String, Service> entry: _services.entrySet()) {
-      if (!entry.getValue().isRunning()) {
+      if (!entry.getValue().isRunning())
         _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
-        LOG.error("Service " + entry.getKey() + " is not fully running.");
-      }
     }
+
+    for (Map.Entry<String, Object> entry: _offlineRunnables.entrySet()) {
+      if (entry.getValue() instanceof App)
+        LOG.error("App " + entry.getKey() + " is not fully running.");
+      else
+        LOG.error("Service " + entry.getKey() + " is not fully running.");
+    }
+
   }
 
   public synchronized void stop() {

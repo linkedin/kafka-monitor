@@ -40,8 +40,9 @@ public class TopicManagementServiceConfig extends AbstractConfig {
       + " This config provides a loose lower bound on the partition number of the monitor topic when the topic is created or when partition is added.";
 
   public static final String TOPIC_REPLICATION_FACTOR_CONFIG = "topic-management.replicationFactor";
-  public static final String TOPIC_REPLICATION_FACTOR_DOC = "When a topic is created automatically this is the "
-      + "replication factor used.";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "This replication factor is used to create the monitor topic. "
+      + "The larger one of the current replication factor and the configured replication factor is used to expand partition "
+      + "of the monitor topic.";
 
   public static final String TOPIC_CREATION_ENABLED_CONFIG = "topic-management.topicCreationEnabled";
   public static final String TOPIC_CREATION_ENABLED_DOC = String.format("When true this service automatically creates the topic named"
