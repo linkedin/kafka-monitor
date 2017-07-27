@@ -245,9 +245,8 @@ public class MultiClusterTopicManagementService implements Service {
         int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
 
         if (_replicationFactor < currentReplicationFactor)
-          LOG.debug(String.format("Configured replication factor %d "
-                  + "is smaller than the current replication factor %d of the topic %s in cluster %s",
-              _replicationFactor, currentReplicationFactor, _topic, _zkConnect));
+          LOG.debug("Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster {}",
+              _replicationFactor, currentReplicationFactor, _topic, _zkConnect);
 
         if (expectedReplicationFactor > currentReplicationFactor && zkUtils.getPartitionsBeingReassigned().isEmpty()) {
           LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
