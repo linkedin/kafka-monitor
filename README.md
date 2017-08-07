@@ -25,6 +25,12 @@ the monitor topic.
 Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
 building in order to support both Java 7 and Java 8 at runtime.
 
+Kafka Monitor supports Apache Kafka 0.8 to 0.11:
+- Use branch 0.8.2.2 to work with Apache Kafka 0.8
+- Use branch 0.9.0.1 to work with Apache Kafka 0.9
+- Use branch 0.10.2.1 to work with Apache Kafka 0.10
+- Use master branch to work with Apache Kafka 0.11
+
 Kafka Monitor supports Apache Kafka 0.8 and 0.9. Use branch 0.8.2.2 to monitor Apache
 Kafka cluster 0.8. Use branch 0.9.0.1 to compile with Kafka 0.9. Use master
 branch to compile with Kafka 0.10.
@@ -75,6 +81,14 @@ $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ### Run SingleClusterMonitor app to monitor kafka cluster
 ```
 $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
+```
+
+### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters
+Edit `config/multi-cluster-monitor.properties` to specify the right broker and
+zookeeper url as suggested by the comment in the properties file
+
+```
+$ ./bin/kafka-monitor-start.sh config/multi-cluster-monitor.properties
 ```
 
 ### Get metric values (e.g. service availability, message loss rate) in real-time as time series graphs
