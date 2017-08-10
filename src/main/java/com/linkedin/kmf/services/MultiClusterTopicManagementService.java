@@ -298,10 +298,19 @@ public class MultiClusterTopicManagementService implements Service {
       for (Broker broker : brokers) {
         brokersMetadata.$plus$eq(new BrokerMetadata(broker.id(), broker.rack()));
       }
-      scala.collection.Map<Object, Seq<Object>> partitionToReplicas =
+      scala.collection.Map<Object, Seq<Object>> newAssignment =
           AdminUtils.assignReplicasToBrokers(brokersMetadata, partitionCount, replicationFactor, 0, 0);
-      String jsonReassignmentData = formatAsReassignmentJson(topic, partitionToReplicas);
-      zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath(), jsonReassignmentData, zkUtils.DefaultAcls());
+
+      scala.collection.mutable.ArrayBuffer<String> topicList = new scala.collection.mutable.ArrayBuffer<>();
+      topicList.$plus$eq(topic);
+      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment = zkUtils.getPartitionAssignmentForTopics(topicList).apply(topic);
+      String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
+      String newAssignmentJson = formatAsReassignmentJson(topic, newAssignment);
+
+      LOG.info("Reassign partitions for topic " + topic);
+      LOG.info("Current partition replica assignment " + currentAssignmentJson);
+      LOG.info("New partition replica assignment " + newAssignmentJson);
+      zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath(), newAssignmentJson, zkUtils.DefaultAcls());
     }
 
     private static List<PartitionInfo> getPartitionInfo(ZkUtils zkUtils, String topic) {
@@ -335,7 +344,8 @@ public class MultiClusterTopicManagementService implements Service {
       for (PartitionInfo partitionInfo : partitionInfoList) {
         if (replicationFactor != partitionInfo.replicas().length) {
           String topic = partitionInfoList.get(0).topic();
-          throw new RuntimeException("Partitions of the topic " + topic + " have different replication factor");
+          LOG.warn("Partitions of the topic " + topic + " have different replication factor");
+          return -1;
         }
       }
       return replicationFactor;
