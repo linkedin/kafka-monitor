@@ -250,6 +250,11 @@ public class ProduceService implements Service {
               // If there is either succeeded or failed produce to a partition, consider its availability as 0.
               if (recordsProduced + produceError > 0) {
                 availabilitySum += recordsProduced / (recordsProduced + produceError);
+              } else {
+                // A partition's availability is 1.0 as long as there is no error when kafka-monitor produces to this partition
+                // In the case that it takes too long to produce this message, we consider this to be a performance issue
+                // and it will be captured by the ConsumeAvailability if the latency exceeds consume.latency.sla.ms.
+                availabilitySum += 1.0;
               }
             }
             // Assign equal weight to per-partition availability when calculating overall availability
