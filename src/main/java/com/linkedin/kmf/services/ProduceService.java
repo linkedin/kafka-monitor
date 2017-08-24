@@ -320,6 +320,8 @@ public class ProduceService implements Service {
   private class NewPartitionHandler implements Runnable {
 
     public void run() {
+      LOG.debug("{}/ProduceService check partition number for topic {}.", _name, _topic);
+
       int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionCount <= 0) {
         LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
