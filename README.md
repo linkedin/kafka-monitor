@@ -82,7 +82,7 @@ $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
 ```
 
-### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters
+### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters connected by MirrorMaker
 Edit `config/multi-cluster-monitor.properties` to specify the right broker and
 zookeeper url as suggested by the comment in the properties file
 
