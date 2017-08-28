@@ -74,6 +74,7 @@ public class ProduceService implements Service {
   private final String _producerClassName;
   private final int _threadsNum;
   private final String _zkConnect;
+  private final boolean _treatZeroThroughputAsUnavailable;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -89,6 +90,7 @@ public class ProduceService implements Service {
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
+    _treatZeroThroughputAsUnavailable = config.getBoolean(ProduceServiceConfig.PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_CONFIG);
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
@@ -248,10 +250,13 @@ public class ProduceService implements Service {
               // If there is either succeeded or failed produce to a partition, consider its availability as 0.
               if (recordsProduced + produceError > 0) {
                 availabilitySum += recordsProduced / (recordsProduced + produceError);
-              } else {
-                // A partition's availability is 1.0 as long as there is no error when kafka-monitor produces to this partition
-                // In the case that it takes too long to produce this message, we consider this to be a performance issue
-                // and it will be captured by the ConsumeAvailability if the latency exceeds consume.latency.sla.ms.
+              } else if (!_treatZeroThroughputAsUnavailable) {
+                // If user configures treatZeroThroughputAsUnavailable to be false, a partition's availability
+                // is 1.0 as long as there is no exception thrown from producer.
+                // This allows kafka admin to exactly monitor the availability experienced by Kafka users which
+                // will block and retry for a certain amount of time based on its configuration (e.g. retries, retry.backoff.ms).
+                // Note that if it takes a long time for messages to be retries and sent, the latency in the ConsumeService
+                // will increase and it will reduce ConsumeAvailability if the latency exceeds consume.latency.sla.ms
                 availabilitySum += 1.0;
               }
             }
