@@ -101,8 +101,6 @@ public class ProduceService implements Service {
       }
     }
 
-    _partitionNum.set(Utils.getPartitionNumForTopic(_zkConnect, _topic));
-
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       _producerClassName = NewProducer.class.getCanonicalName();
     } else {
@@ -148,15 +146,15 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
-      initializeStateForPartitions();
+      int partitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+      initializeStateForPartitions(partitionNum);
       _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
       LOG.info("{}/ProduceService started", _name);
     }
   }
 
-  private void initializeStateForPartitions() {
-    Map<Integer, String> keyMapping = generateKeyMappings();
-    int partitionNum = _partitionNum.get();
+  private void initializeStateForPartitions(int partitionNum) {
+    Map<Integer, String> keyMapping = generateKeyMappings(partitionNum);
     for (int partition = 0; partition < partitionNum; partition++) {
       String key = keyMapping.get(partition);
       //This is what preserves sequence numbers across restarts
@@ -165,11 +163,11 @@ public class ProduceService implements Service {
         _sensors.addPartitionSensors(partition);
       }
       _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition, key), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+      _partitionNum.set(partitionNum);
     }
   }
 
-  private Map<Integer, String> generateKeyMappings() {
-    int partitionNum = _partitionNum.get();
+  private Map<Integer, String> generateKeyMappings(int partitionNum) {
     HashMap<Integer, String> keyMapping = new HashMap<>();
 
     int nextInt = 0;
@@ -322,11 +320,11 @@ public class ProduceService implements Service {
     public void run() {
       LOG.debug("{}/ProduceService check partition number for topic {}.", _name, _topic);
 
-      int currentPartitionCount = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-      if (currentPartitionCount <= 0) {
+      int currentPartitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+      if (currentPartitionNum <= 0) {
         LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
         return;
-      } else if (currentPartitionCount == _partitionNum.get()) {
+      } else if (currentPartitionNum == _partitionNum.get()) {
         return;
       }
       LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
@@ -338,7 +336,6 @@ public class ProduceService implements Service {
         throw new IllegalStateException(e);
       }
       _producer.close();
-      _partitionNum.set(currentPartitionCount);
       try {
         initializeProducer();
       } catch (Exception e) {
@@ -346,7 +343,7 @@ public class ProduceService implements Service {
         throw new IllegalStateException(e);
       }
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
-      initializeStateForPartitions();
+      initializeStateForPartitions(currentPartitionNum);
       LOG.info("New partitions added to monitoring.");
     }
   }
