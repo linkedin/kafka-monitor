@@ -77,6 +77,15 @@ $ ./gradlew jar
 $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ```
 
+### Run Kafka Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
+Edit `config/kafka-monitor.properties` to specify custom configurations for prodcuer in the key/value map `produce.producer.props` in
+`config/kafka-monitor.properties`. Similarly specify configurations for
+consumer as well. The documentation for producer and consumer in the key/value maps can be found in the Apache Kafka wiki.
+
+```
+$ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
+```
+
 ### Run SingleClusterMonitor app to monitor kafka cluster
 ```
 $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
