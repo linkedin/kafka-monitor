@@ -87,6 +87,11 @@ $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ```
 
 ### Run SingleClusterMonitor app to monitor kafka cluster
+
+Metrics `produce-availability-avg` and `consume-availability-avg` demonstrate
+whether messages can be properly produced to and consumed from this cluster.
+See Service Overview wiki for how these metrics are derived.
+
 ```
 $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
 ```
@@ -94,6 +99,11 @@ $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zo
 ### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters connected by MirrorMaker
 Edit `config/multi-cluster-monitor.properties` to specify the right broker and
 zookeeper url as suggested by the comment in the properties file
+
+Metrics `produce-availability-avg` and `consume-availability-avg` demonstrate
+whether messages can be properly produced to the source cluster and consumed
+from the destination cluster. See config/multi-cluster-monitor.properties for
+the full jmx path for these metrics.
 
 ```
 $ ./bin/kafka-monitor-start.sh config/multi-cluster-monitor.properties
@@ -104,9 +114,11 @@ Open ```localhost:8000/index.html``` in your web browser
 
 You can edit webapp/index.html to easily add new metrics to be displayed.
 
-### Query metric value (e.g. service availability) via HTTP request
+### Query metric value (e.g. produce availability and consume availability) via HTTP request
 ```
 curl localhost:8778/jolokia/read/kmf.services:type=produce-service,name=*/produce-availability-avg
+
+curl localhost:8778/jolokia/read/kmf.services:type=consume-service,name=*/consume-availability-avg
 ```
 
 You can query other JMX metric value as well by substituting object-name and
