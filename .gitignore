@@ -2,3 +2,6 @@
 .DS_Store
 build/
 logs/
+*.iml
+/kafka-monitor.ipr
+/kafka-monitor.iws
