@@ -165,8 +165,8 @@ public class ProduceService implements Service {
         _sensors.addPartitionSensors(partition);
       }
       _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition, key), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
-      _partitionNum.set(partitionNum);
     }
+    _partitionNum.set(partitionNum);
   }
 
   private Map<Integer, String> generateKeyMappings(int partitionNum) {
