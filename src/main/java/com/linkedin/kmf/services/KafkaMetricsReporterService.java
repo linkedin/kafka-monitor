@@ -58,7 +58,7 @@ public class KafkaMetricsReporterService implements Service {
 
         _zkConnect = config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
         _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-        Utils.createTopicIfNotExists(_zkConnect, _topic, 1, 1, new Properties());
+        Utils.createTopicIfNotExists(_zkConnect, _topic, 1, 1, new Properties()); // fixed partition and factor
     }
 
     @Override
@@ -77,7 +77,7 @@ public class KafkaMetricsReporterService implements Service {
     }
 
     @Override
-    public void stop() {
+    public synchronized void stop() {
         _executor.shutdown();
         _producer.close();
         LOG.info("{}/KafkaMetricsReporterService stopped", _name);
