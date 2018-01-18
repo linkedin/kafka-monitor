@@ -30,6 +30,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.security.JaasUtils;
+import org.apache.zookeeper.ZKUtil;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +104,33 @@ public class Utils {
         + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
+    } finally {
+      zkUtils.close();
+    }
+  }
+
+  /**
+   * Create general topic (for Kafka metrics reporter).
+   *
+   * @param zkUrl zookeeper connection url
+   * @param topic topic name
+   * @param replicationFactor replication factor
+   * @param partitionCount topic partition number
+   * @param topicConfig additional topic configuration
+   */
+  public static void createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
+                                           int partitionCount, Properties topicConfig) {
+    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+    try {
+      if(!AdminUtils.topicExists(zkUtils, topic)) {
+        try {
+          AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+        } catch (TopicExistsException e) {
+          LOG.debug("Creating topic " + topic + " already exists in cluster " + zkUrl, e);
+        }
+        LOG.info("Created topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
+                + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+      }
     } finally {
       zkUtils.close();
     }
