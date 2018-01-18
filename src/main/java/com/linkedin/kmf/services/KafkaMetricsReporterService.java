@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.KafkaMetricsReporterServiceConfig;
-import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;

@@ -30,7 +30,6 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.security.JaasUtils;
-import org.apache.zookeeper.ZKUtil;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
