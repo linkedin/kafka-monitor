@@ -121,7 +121,7 @@ public class Utils {
                                            int partitionCount, Properties topicConfig) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
-      if(!AdminUtils.topicExists(zkUtils, topic)) {
+      if (!AdminUtils.topicExists(zkUtils, topic)) {
         try {
           AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
         } catch (TopicExistsException e) {
