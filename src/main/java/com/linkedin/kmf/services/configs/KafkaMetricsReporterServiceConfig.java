@@ -15,13 +15,6 @@ import org.apache.kafka.common.config.ConfigDef;
 import java.util.Arrays;
 import java.util.Map;
 
-/**
- * Created by IntelliJ IDEA.
- * User: hackerwin7
- * Date: 2018/01/18
- * Time: 10:38 AM
- * Desc:
- */
 public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
@@ -42,37 +35,37 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
   public static final String PRODUCER_ID_CONFIG = "produce.producer.id";
-  public static final String PRODUCER_ID_DOC = "Client id that will be used in the record sent by produce service.";
+  public static final String PRODUCER_ID_DOC = "Client id that will be used in the record sent by kafka reporter service.";
 
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
-      ConfigDef.Type.LIST,
-      Arrays.asList("kmf.services:*:*"),
-      ConfigDef.Importance.MEDIUM,
-      REPORT_METRICS_DOC)
-      .define(REPORT_INTERVAL_SEC_CONFIG,
-        ConfigDef.Type.INT,
-        1,
-        ConfigDef.Importance.LOW,
-        REPORT_INTERVAL_SEC_DOC)
-      .define(ZOOKEEPER_CONNECT_CONFIG,
-        ConfigDef.Type.STRING,
-        ConfigDef.Importance.HIGH,
-        ZOOKEEPER_CONNECT_DOC)
-      .define(BOOTSTRAP_SERVERS_CONFIG,
-        ConfigDef.Type.STRING,
-        ConfigDef.Importance.HIGH,
-        BOOTSTRAP_SERVERS_DOC)
-      .define(TOPIC_CONFIG,
-        ConfigDef.Type.STRING,
-        ConfigDef.Importance.HIGH,
-        TOPIC_DOC)
-      .define(PRODUCER_ID_CONFIG,
-        ConfigDef.Type.STRING,
-        "kmf-producer-metrics",
-        ConfigDef.Importance.LOW,
-        PRODUCER_ID_DOC);
+                                    ConfigDef.Type.LIST,
+                                    Arrays.asList("kmf.services:*:*"),
+                                    ConfigDef.Importance.MEDIUM,
+                                    REPORT_METRICS_DOC)
+                            .define(REPORT_INTERVAL_SEC_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    ConfigDef.Importance.LOW,
+                                    REPORT_INTERVAL_SEC_DOC)
+                            .define(ZOOKEEPER_CONNECT_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    ConfigDef.Importance.HIGH,
+                                    ZOOKEEPER_CONNECT_DOC)
+                            .define(BOOTSTRAP_SERVERS_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    ConfigDef.Importance.HIGH,
+                                    BOOTSTRAP_SERVERS_DOC)
+                            .define(TOPIC_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    ConfigDef.Importance.HIGH,
+                                    TOPIC_DOC)
+                            .define(PRODUCER_ID_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    "kmf-producer-metrics",
+                                    ConfigDef.Importance.LOW,
+                                    PRODUCER_ID_DOC);
   }
 
   public KafkaMetricsReporterServiceConfig(Map<?, ?> props) {

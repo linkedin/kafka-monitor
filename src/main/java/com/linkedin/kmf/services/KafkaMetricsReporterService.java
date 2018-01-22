@@ -30,13 +30,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Created by IntelliJ IDEA.
- * User: hackerwin7
- * Date: 2018/01/18
- * Time: 11:30 AM
- * Desc:
- */
 public class KafkaMetricsReporterService implements Service {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
@@ -49,7 +42,6 @@ public class KafkaMetricsReporterService implements Service {
   private KafkaProducer<String, String> _producer;
   private final String _producerId;
   private final String _brokerList;
-  private final String _zkConnect;
   private final String _topic;
 
   private final ObjectMapper _parser = new ObjectMapper();
@@ -65,9 +57,9 @@ public class KafkaMetricsReporterService implements Service {
     _producerId = config.getString(KafkaMetricsReporterServiceConfig.PRODUCER_ID_CONFIG);
     initializeProducer();
 
-    _zkConnect = config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createTopicIfNotExists(_zkConnect, _topic, 1, 1, new Properties()); // fixed partition and factor
+    Utils.createTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG)
+      , _topic, 1, 1, new Properties()); // fixed partition and factor
   }
 
   @Override
