@@ -116,20 +116,22 @@ public class Utils {
    * @param replicationFactor replication factor
    * @param partitionCount topic partition number
    * @param topicConfig additional topic configuration
+   * @return the number of partitions
    */
-  public static void createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
+  public static int createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
                                            int partitionCount, Properties topicConfig) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
-      if (!AdminUtils.topicExists(zkUtils, topic)) {
-        try {
-          AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
-        } catch (TopicExistsException e) {
-          LOG.debug("Creating topic " + topic + " already exists in cluster " + zkUrl, e);
-        }
-        LOG.info("Created topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
-                + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+      if (AdminUtils.topicExists(zkUtils, topic)) {
+        return getPartitionNumForTopic(zkUrl, topic);
       }
+      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+      LOG.info("Created topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
+        + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+      return partitionCount;
+    } catch (TopicExistsException e) {
+      LOG.debug("Creating topic " + topic + " already exists in cluster " + zkUrl, e);
+      return getPartitionNumForTopic(zkUrl, topic);
     } finally {
       zkUtils.close();
     }

@@ -15,6 +15,8 @@ import org.apache.kafka.common.config.ConfigDef;
 import java.util.Arrays;
 import java.util.Map;
 
+import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
+
 public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
@@ -34,7 +36,10 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
-  public static final String PRODUCER_ID_CONFIG = "produce.producer.id";
+  public static final String TOPIC_REPLICATION_FACTOR = "report.topic.replication.factor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "This replication factor is used to create the metrics reporter topic.";
+
+  public static final String PRODUCER_ID_CONFIG = "report.produce.producer.id";
   public static final String PRODUCER_ID_DOC = "Client id that will be used in the record sent by kafka reporter service.";
 
 
@@ -61,6 +66,12 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.STRING,
                                     ConfigDef.Importance.HIGH,
                                     TOPIC_DOC)
+                            .define(TOPIC_REPLICATION_FACTOR,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    atLeast(1),
+                                    ConfigDef.Importance.LOW,
+                                    TOPIC_REPLICATION_FACTOR_DOC)
                             .define(PRODUCER_ID_CONFIG,
                                     ConfigDef.Type.STRING,
                                     "kmf-producer-metrics",
