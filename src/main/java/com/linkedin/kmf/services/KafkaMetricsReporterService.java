@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 public class KafkaMetricsReporterService implements Service {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
+  private static final String METRICS_PRODUCER_ID = "kafka-metrics-reporter-id";
 
   private final String _name;
   private final List<String> _metricsNames;
@@ -40,7 +41,6 @@ public class KafkaMetricsReporterService implements Service {
   private final ScheduledExecutorService _executor;
 
   private KafkaProducer<String, String> _producer;
-  private final String _producerId;
   private final String _brokerList;
   private final String _topic;
 
@@ -54,14 +54,14 @@ public class KafkaMetricsReporterService implements Service {
     _executor = Executors.newSingleThreadScheduledExecutor();
 
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    _producerId = config.getString(KafkaMetricsReporterServiceConfig.PRODUCER_ID_CONFIG);
     initializeProducer();
 
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
+    Utils.createMonitoringTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
                                  _topic,
                                  config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
-                                 1, // fixed partition count
+                                 0,
+                                 1, // fixed partition count 1
                                  new Properties());
   }
 
@@ -111,7 +111,7 @@ public class KafkaMetricsReporterService implements Service {
     producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
     producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-    producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
+    producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, METRICS_PRODUCER_ID);
     producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, _brokerList);
     _producer = new KafkaProducer<>(producerProps);
   }

@@ -39,9 +39,6 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
   public static final String TOPIC_REPLICATION_FACTOR = "report.topic.replication.factor";
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "This replication factor is used to create the metrics reporter topic.";
 
-  public static final String PRODUCER_ID_CONFIG = "report.produce.producer.id";
-  public static final String PRODUCER_ID_DOC = "Client id that will be used in the record sent by kafka reporter service.";
-
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
@@ -71,12 +68,7 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
                                     1,
                                     atLeast(1),
                                     ConfigDef.Importance.LOW,
-                                    TOPIC_REPLICATION_FACTOR_DOC)
-                            .define(PRODUCER_ID_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    "kmf-producer-metrics",
-                                    ConfigDef.Importance.LOW,
-                                    PRODUCER_ID_DOC);
+                                    TOPIC_REPLICATION_FACTOR_DOC);
   }
 
   public KafkaMetricsReporterServiceConfig(Map<?, ?> props) {

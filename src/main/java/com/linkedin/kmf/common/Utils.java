@@ -79,18 +79,19 @@ public class Utils {
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
+   * @param minPartitionNum partition number to be created at least
    * @param topicConfig additional parameters for the topic for example min.insync.replicas
    * @return the number of partitions created
    */
   public static int createMonitoringTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-      double partitionToBrokerRatio, Properties topicConfig) {
+      double partitionToBrokerRatio, int minPartitionNum, Properties topicConfig) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
       if (AdminUtils.topicExists(zkUtils, topic)) {
         return getPartitionNumForTopic(zkUrl, topic);
       }
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
-      int partitionCount = (int) Math.ceil(brokerCount * partitionToBrokerRatio);
+      int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
 
       try {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
@@ -103,35 +104,6 @@ public class Utils {
         + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
-    } finally {
-      zkUtils.close();
-    }
-  }
-
-  /**
-   * Create general topic (for Kafka metrics reporter).
-   *
-   * @param zkUrl zookeeper connection url
-   * @param topic topic name
-   * @param replicationFactor replication factor
-   * @param partitionCount topic partition number
-   * @param topicConfig additional topic configuration
-   * @return the number of partitions
-   */
-  public static int createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-                                           int partitionCount, Properties topicConfig) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
-    try {
-      if (AdminUtils.topicExists(zkUtils, topic)) {
-        return getPartitionNumForTopic(zkUrl, topic);
-      }
-      AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
-      LOG.info("Created topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
-        + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
-      return partitionCount;
-    } catch (TopicExistsException e) {
-      LOG.debug("Creating topic " + topic + " already exists in cluster " + zkUrl, e);
-      return getPartitionNumForTopic(zkUrl, topic);
     } finally {
       zkUtils.close();
     }
