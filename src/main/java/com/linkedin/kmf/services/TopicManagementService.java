@@ -40,10 +40,10 @@ public class TopicManagementService implements Service {
    * @return a map of the following format:
    *
    * {
-   *   "topic.management.props.per.cluster" : {
+   *   topic.management.props.per.cluster : {
    *     // all key/value pair from props except the one with key "topic"
    *   }
-   *   "topic": topic
+   *   topic: topic
    * }
    */
   private Config createMultiClusterTopicManagementServiceProps(Config config, String serviceName) {
