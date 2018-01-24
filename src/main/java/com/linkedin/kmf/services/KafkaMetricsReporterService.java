@@ -57,7 +57,7 @@ public class KafkaMetricsReporterService implements Service {
     initializeProducer();
 
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createMonitoringTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
+    Utils.createTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
                                  _topic,
                                  config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
                                  0,
