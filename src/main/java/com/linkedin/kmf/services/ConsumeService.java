@@ -265,9 +265,9 @@ public class ConsumeService implements Service {
         new Measurable() {
           @Override
           public double measure(MetricConfig config, long now) {
-            double recordsConsumedRate = _sensors.metrics.metrics().get(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsLostRate = _sensors.metrics.metrics().get(new MetricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsDelayedRate = _sensors.metrics.metrics().get(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsConsumedRate = _sensors.metrics.metrics().get(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, "records consumed rate", tags)).value();
+            double recordsLostRate = _sensors.metrics.metrics().get(new MetricName("records-lost-rate", METRIC_GROUP_NAME, "records lost rate", tags)).value();
+            double recordsDelayedRate = _sensors.metrics.metrics().get(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, "records delayed rate", tags)).value();
 
             if (new Double(recordsLostRate).isNaN())
               recordsLostRate = 0;
