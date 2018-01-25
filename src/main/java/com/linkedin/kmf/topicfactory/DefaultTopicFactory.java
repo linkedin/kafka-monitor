@@ -23,6 +23,6 @@ public class DefaultTopicFactory implements TopicFactory {
 
   @Override
   public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicConfig) {
-    return Utils.createMonitoringTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, topicConfig);
+    return Utils.createTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig);
   }
 }

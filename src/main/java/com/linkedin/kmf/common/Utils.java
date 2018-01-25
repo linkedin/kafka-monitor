@@ -70,7 +70,7 @@ public class Utils {
   }
 
   /**
-   * Create the topic that the monitor uses to monitor the cluster.  This method attempts to create a topic so that all
+   * Create the topic.  This method attempts to create a topic so that all
    * the brokers in the cluster will have partitionToBrokerRatio partitions.  If the topic exists, but has different parameters
    * then this does nothing to update the parameters.
    *
@@ -79,18 +79,19 @@ public class Utils {
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
+   * @param minPartitionNum partition number to be created at least
    * @param topicConfig additional parameters for the topic for example min.insync.replicas
    * @return the number of partitions created
    */
-  public static int createMonitoringTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-      double partitionToBrokerRatio, Properties topicConfig) {
+  public static int createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
+                                           double partitionToBrokerRatio, int minPartitionNum, Properties topicConfig) {
     ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
       if (AdminUtils.topicExists(zkUtils, topic)) {
         return getPartitionNumForTopic(zkUrl, topic);
       }
       int brokerCount = zkUtils.getAllBrokersInCluster().size();
-      int partitionCount = (int) Math.ceil(brokerCount * partitionToBrokerRatio);
+      int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
 
       try {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
