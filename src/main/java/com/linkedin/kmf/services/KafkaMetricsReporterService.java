@@ -130,7 +130,7 @@ public class KafkaMetricsReporterService implements Service {
       }
     }
     try {
-      LOG.info("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
+      LOG.debug("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
       _producer.send(new ProducerRecord<String, String>(_topic, _parser.writeValueAsString(metrics)));
     } catch (JsonProcessingException e) {
       LOG.warn("unsupported json format: " + metrics, e);

@@ -36,7 +36,7 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
-  public static final String TOPIC_REPLICATION_FACTOR = "report.topic.replication.factor";
+  public static final String TOPIC_REPLICATION_FACTOR = "reporter.kafka.topic.replication.factor";
   public static final String TOPIC_REPLICATION_FACTOR_DOC = "This replication factor is used to create the metrics reporter topic.";
 
 
