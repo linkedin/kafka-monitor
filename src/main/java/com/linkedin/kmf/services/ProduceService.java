@@ -241,8 +241,8 @@ public class ProduceService implements Service {
             double availabilitySum = 0.0;
             int partitionNum = _partitionNum.get();
             for (int partition = 0; partition < partitionNum; partition++) {
-              double recordsProduced = _sensors.metrics.metrics().get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
-              double produceError = _sensors.metrics.metrics().get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              double recordsProduced = metrics.metrics().get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+              double produceError = metrics.metrics().get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
               // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
               if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
                 produceError = 0;
