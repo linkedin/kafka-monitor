@@ -9,6 +9,8 @@
  */
 package com.linkedin.kmf.services.configs;
 
+import com.linkedin.kmf.common.Utils;
+import com.typesafe.config.Config;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -71,7 +73,7 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
                                     TOPIC_REPLICATION_FACTOR_DOC);
   }
 
-  public KafkaMetricsReporterServiceConfig(Map<?, ?> props) {
-    super(CONFIG, props);
+  public KafkaMetricsReporterServiceConfig(Config config) {
+    super(CONFIG, Utils.configToMapProperties(config));
   }
 }

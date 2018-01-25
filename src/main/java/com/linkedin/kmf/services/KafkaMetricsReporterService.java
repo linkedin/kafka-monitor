@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.KafkaMetricsReporterServiceConfig;
+import com.typesafe.config.Config;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -46,9 +47,9 @@ public class KafkaMetricsReporterService implements Service {
 
   private final ObjectMapper _parser = new ObjectMapper();
 
-  public KafkaMetricsReporterService(Map<String, Object> props, String name) throws Exception {
+  public KafkaMetricsReporterService(Config serviceConfig, String name) throws Exception {
     _name = name;
-    KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(props);
+    KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(serviceConfig);
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(KafkaMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
