@@ -17,7 +17,7 @@ public class CommonServiceConfig {
   public static final String ZOOKEEPER_CONNECT_DOC = "Zookeeper connect string.";
 
   public static final String BOOTSTRAP_SERVERS_CONFIG = CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
-  public static final String BOOTSTRAP_SERVERS_DOC = CommonClientConfigs.BOOSTRAP_SERVERS_DOC;
+  public static final String BOOTSTRAP_SERVERS_DOC = CommonClientConfigs.BOOTSTRAP_SERVERS_DOC;
 
   public static final String TOPIC_CONFIG = "topic";
   public static final String TOPIC_DOC = "Topic to be used by the service.";
