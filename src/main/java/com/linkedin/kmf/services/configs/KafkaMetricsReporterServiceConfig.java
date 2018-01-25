@@ -15,7 +15,6 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Arrays;
-import java.util.Map;
 
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
