@@ -215,7 +215,6 @@ public class ConsumeService implements Service {
   }
 
   private class ConsumeMetrics {
-    public final Metrics metrics;
     private final Sensor _bytesConsumed;
     private final Sensor _consumeError;
     private final Sensor _recordsConsumed;
@@ -224,9 +223,7 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelay;
     private final Sensor _recordsDelayed;
 
-    public ConsumeMetrics(Metrics metrics, final Map<String, String> tags) {
-      this.metrics = metrics;
-
+    public ConsumeMetrics(final Metrics metrics, final Map<String, String> tags) {
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
 
@@ -265,9 +262,9 @@ public class ConsumeService implements Service {
         new Measurable() {
           @Override
           public double measure(MetricConfig config, long now) {
-            double recordsConsumedRate = _sensors.metrics.metrics().get(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsLostRate = _sensors.metrics.metrics().get(new MetricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsDelayedRate = _sensors.metrics.metrics().get(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
+            double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
 
             if (new Double(recordsLostRate).isNaN())
               recordsLostRate = 0;
