@@ -12,7 +12,6 @@ package com.linkedin.kmf.services;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.linkedin.kmf.common.ConfigPublisher;
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
-import com.linkedin.kmf.services.configs.JolokiaServiceConfig;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerCollection;
