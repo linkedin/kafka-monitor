@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.configs.JolokiaServiceConfig;
 import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
@@ -26,10 +27,13 @@ public class JolokiaService implements Service {
   private final String _name;
   private final JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
+  private final int _port;
 
   public JolokiaService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
+    JolokiaServiceConfig config = new JolokiaServiceConfig(props);
+    _port = config.getInt(JolokiaServiceConfig.PORT_CONFIG);
+    _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=" + _port), false);
     _isRunning = new AtomicBoolean(false);
   }
 

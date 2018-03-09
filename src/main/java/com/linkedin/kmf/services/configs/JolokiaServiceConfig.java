@@ -11,32 +11,25 @@ package com.linkedin.kmf.services.configs;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+
 import java.util.Map;
 
-public class JettyServiceConfig extends AbstractConfig {
+public class JolokiaServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String PORT_CONFIG = "jetty.port";
-  public static final String PORT_DOC = "Port to be used by the Jetty service.";
-
-  public static final String JOLOKIA_URL_CONFIG = "jolokia.url";
-  public static final String JOLOKIA_URL_DOC = "URL to the Jolokia endpoint";
+  public static final String PORT_CONFIG = "jolokia.port";
+  public static final String PORT_DOC = "Port to be used by the Jolokia service.";
 
   static {
     CONFIG = new ConfigDef().define(PORT_CONFIG,
                                     ConfigDef.Type.INT,
-                                    8000,
+                                    8778,
                                     ConfigDef.Importance.LOW,
-                                    PORT_DOC)
-                            .define(JOLOKIA_URL_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    "http://__IP__:8778/jolokia",
-                                    ConfigDef.Importance.LOW,
-                                    JOLOKIA_URL_DOC);
+                                    PORT_DOC);
   }
 
-  public JettyServiceConfig(Map<?, ?> props) {
+  public JolokiaServiceConfig(Map<?, ?> props) {
     super(CONFIG, props);
   }
 }

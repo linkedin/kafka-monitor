@@ -156,7 +156,7 @@
     return charts;
   }
 
-  function updateChartAndValueTable(mbeans, charts, cells) {
+  function updateChartAndValueTable(j4p, mbeans, charts, cells) {
     var requests = $.map(mbeans, function (mbean) {
       return {
         type: "read",
@@ -195,17 +195,30 @@
   ];
 
   var ip = location.host.split(':')[0];
-  var j4p = new Jolokia({url: "http://" + ip + ":8778/jolokia"});
-  var charts = createMetricsCharts(monitoredMbeans);
-  var cells = createMetricsTable(monitoredMbeans);
-  createSearchBox();
+  var configRequest = new XMLHttpRequest();
+  configRequest.open('GET', 'jetty-service/config/value/map');
+  configRequest.onload = function() {
+      if (configRequest.status === 200) {
 
-  // Initialize tab
-  $('#tabs').tabs($.fn.tabs.tabProps);
+        var jettyConfig = JSON.parse(configRequest.responseText);
 
-  setInterval(function () {
-    updateChartAndValueTable(monitoredMbeans, charts, cells);
-  }, pollIntervalMs);
+        var j4p = new Jolokia({url: jettyConfig["jolokia.url"].replace(/__IP__/g, ip)});
+        var charts = createMetricsCharts(monitoredMbeans);
+        var cells = createMetricsTable(monitoredMbeans);
+        createSearchBox();
+
+        // Initialize tab
+        $('#tabs').tabs($.fn.tabs.tabProps);
+
+        setInterval(function () {
+          updateChartAndValueTable(j4p, monitoredMbeans, charts, cells);
+        }, pollIntervalMs);
+
+      }
+  };
+  configRequest.send();
+
+
 
 </script>
 
