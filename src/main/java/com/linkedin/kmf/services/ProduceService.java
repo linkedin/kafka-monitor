@@ -39,6 +39,8 @@ import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Avg;
+import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
@@ -215,6 +217,7 @@ public class ProduceService implements Service {
     public final Metrics metrics;
     private final Sensor _recordsProduced;
     private final Sensor _produceError;
+    private final Sensor _produceDelay;
     private final ConcurrentMap<Integer, Sensor> _recordsProducedPerPartition;
     private final ConcurrentMap<Integer, Sensor> _produceErrorPerPartition;
     private final Map<String, String> _tags;
@@ -233,6 +236,10 @@ public class ProduceService implements Service {
       _produceError = metrics.sensor("produce-error");
       _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME, "The average number of errors per second", tags), new Rate());
       _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, "The total number of errors", tags), new Total());
+
+      _produceDelay = metrics.sensor("produce-delay");
+      _produceDelay.add(new MetricName("produce-delay-ms-avg", METRIC_GROUP_NAME, "The average delay in ms for produce request", tags), new Avg());
+      _produceDelay.add(new MetricName("produce-delay-ms-max", METRIC_GROUP_NAME, "The maximum delay in ms for produce request", tags), new Max());
 
       metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, "The average produce availability", tags),
         new Measurable() {
@@ -295,9 +302,11 @@ public class ProduceService implements Service {
     public void run() {
       try {
         long nextIndex = _nextIndexPerPartition.get(_partition).get();
-        String message = Utils.jsonFromFields(_topic, nextIndex, System.currentTimeMillis(), _producerId, _recordSize);
+        long currMs = System.currentTimeMillis();
+        String message = Utils.jsonFromFields(_topic, nextIndex, currMs, _producerId, _recordSize);
         BaseProducerRecord record = new BaseProducerRecord(_topic, _partition, _key, message);
         RecordMetadata metadata = _producer.send(record, _sync);
+        _sensors._produceDelay.record(System.currentTimeMillis() - currMs);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
         if (nextIndex == -1 && _sync) {
