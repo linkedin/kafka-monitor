@@ -48,7 +48,7 @@ ConsumeServiceConfig.java.
 
 - You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
 monitor multiple Kafka clusters in one Kafka Monitor process. As another
-advanced use-cse, you can point ProduceService and ConsumeService to two
+advanced use-case, you can point ProduceService and ConsumeService to two
 different Kafka clusters that are connected by MirrorMaker to monitor their
 end-to-end latency.
 
