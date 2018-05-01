@@ -50,6 +50,9 @@ import org.slf4j.LoggerFactory;
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
+  private static final String ZOOKEEPER_CONNECT = "ZOOKEEPER_CONNECT";
+  private static final String BOOTSTRAP_SERVERS = "BOOTSTRAP_SERVERS";
+
   private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
@@ -81,8 +84,19 @@ public class ProduceService implements Service {
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
-    _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
+
+    if (System.getenv(ZOOKEEPER_CONNECT) != null) {
+      _zkConnect = System.getenv(ZOOKEEPER_CONNECT);
+    } else {
+      _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    }
+
+    if (System.getenv(BOOTSTRAP_SERVERS) != null) {
+      _brokerList = System.getenv(BOOTSTRAP_SERVERS);
+    } else {
+      _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
+    }
+
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
 
     _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);

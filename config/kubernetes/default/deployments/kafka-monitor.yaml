@@ -22,3 +22,8 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
+        env:
+          - name: STATSD_HOST
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName

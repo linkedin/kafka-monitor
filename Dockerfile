@@ -1,11 +1,12 @@
-FROM debian:jessie
+FROM anapsix/alpine-java
 
-RUN apt-get -y update && \
-    apt-get -y install netcat-traditional && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/kafka-monitor
+ADD build/ build/
+ADD bin/kafka-monitor-start.sh bin/kafka-monitor-start.sh
+ADD bin/kmf-run-class.sh bin/kmf-run-class.sh
+ADD config/kafka-monitor.properties config/env/production/kafka-monitor.properties
+ADD config/log4j.properties config/log4j.properties
+ADD docker/kafka-monitor-docker-entry.sh docker/kafka-monitor-docker-entry.sh
+ADD webapp/ webapp/
 
-COPY . /data/kafka-monitor
-WORKDIR /data/kafka-monitor
-
-EXPOSE 8080
-ENTRYPOINT ["bash", "-c", "while true ; do  echo -e \"HTTP/1.1 200 OK\nContent-Type: text/plain; charset=utf-8\n\nWelcome to Moda! Your app (kafka-monitor)is set up correctly 🍦\" | nc -l -p 8080 -q 1 ; done"]
+CMD ["/opt/kafka-monitor/docker/kafka-monitor-docker-entry.sh"]

@@ -28,6 +28,9 @@ import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
 
 public class StatsdMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(StatsdMetricsReporterService.class);
+  private static final String STATSD_HOST = "STATSD_HOST";
+  private static final String STATSD_PORT = "STATSD_PORT";
+
 
   private final String _name;
   private final List<String> _metricNames;
@@ -44,9 +47,17 @@ public class StatsdMetricsReporterService implements Service {
     _reportIntervalSec = config.getInt(StatsdMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
     _metricNamePrefix = config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX);
-    _statsdClient = new NonBlockingStatsDClient(_metricNamePrefix,
-            config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
-            config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
+
+    if (System.getenv(STATSD_HOST) != null && System.getenv(STATSD_PORT) != null) {
+      String statsdHost = System.getenv(STATSD_HOST);
+      int statsdPort = Integer.parseInt(System.getenv(STATSD_PORT));
+
+      _statsdClient = new NonBlockingStatsDClient(_metricNamePrefix, statsdHost, statsdPort);
+    } else {
+      _statsdClient = new NonBlockingStatsDClient(_metricNamePrefix,
+              config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
+              config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
+    }
   }
 
   @Override
