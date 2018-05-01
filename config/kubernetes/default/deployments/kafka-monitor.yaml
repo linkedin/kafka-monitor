@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kafka-monitor
+  annotations:
+    heaven.githubapp.com/inject-app-config-into-containers: "kafka-monitor"
+    heaven.githubapp.com/inject-heaven-env-vars-into-containers: "kafka-monitor"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kafka-monitor
+  template:
+    metadata:
+      labels:
+        app: kafka-monitor
+    spec:
+      containers:
+      - name: kafka-monitor
+        image: kafka-monitor
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
