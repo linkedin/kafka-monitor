@@ -41,6 +41,8 @@ import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
 import org.apache.kafka.common.metrics.stats.Max;
+import org.apache.kafka.common.metrics.stats.Percentile;
+import org.apache.kafka.common.metrics.stats.Percentiles;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
@@ -77,6 +79,8 @@ public class ProduceService implements Service {
   private final int _threadsNum;
   private final String _zkConnect;
   private final boolean _treatZeroThroughputAsUnavailable;
+  private final int _latencyPercentileMaxMs;
+  private final int _latencyPercentileGranularityMs;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -84,7 +88,8 @@ public class ProduceService implements Service {
     _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
-
+    _latencyPercentileMaxMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
+    _latencyPercentileGranularityMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
@@ -240,6 +245,13 @@ public class ProduceService implements Service {
       _produceDelay = metrics.sensor("produce-delay");
       _produceDelay.add(new MetricName("produce-delay-ms-avg", METRIC_GROUP_NAME, "The average delay in ms for produce request", tags), new Avg());
       _produceDelay.add(new MetricName("produce-delay-ms-max", METRIC_GROUP_NAME, "The maximum delay in ms for produce request", tags), new Max());
+
+      // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
+      int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
+      int sizeInBytes = 4 * bucketNum;
+      _produceDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
+          new Percentile(new MetricName("produce-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile delay in ms for produce request", tags), 99.0),
+          new Percentile(new MetricName("produce-delay-ms-999th", METRIC_GROUP_NAME, "The 999th percentile delay in ms for produce request", tags), 99.9)));
 
       metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, "The average produce availability", tags),
         new Measurable() {
