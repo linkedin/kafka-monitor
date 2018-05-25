@@ -34,7 +34,6 @@ public class StatsdMetricsReporterService implements Service {
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
   private final StatsDClient _statsdClient;
-  private final String _metricNamePrefix;
 
   public StatsdMetricsReporterService(Map<String, Object> props, String name) {
     StatsdMetricsReporterServiceConfig config = new StatsdMetricsReporterServiceConfig(props);
@@ -43,8 +42,7 @@ public class StatsdMetricsReporterService implements Service {
     _metricNames = config.getList(StatsdMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(StatsdMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
-    _metricNamePrefix = config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX);
-    _statsdClient = new NonBlockingStatsDClient(_metricNamePrefix,
+    _statsdClient = new NonBlockingStatsDClient(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX),
             config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
             config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
   }
@@ -91,10 +89,8 @@ public class StatsdMetricsReporterService implements Service {
     String service = bean.split(":")[1];
     String serviceName = service.split(",")[0].split("=")[1];
     String serviceType = service.split(",")[1].split("=")[1];
-    String[] segs = {_metricNamePrefix, serviceType, serviceName, attribute};
-    String metricName = StringUtils.join(segs, ".");
-
-    return _metricNamePrefix.isEmpty() ? metricName.substring(1) : metricName;
+    String[] segs = {serviceType, serviceName, attribute};
+    return StringUtils.join(segs, ".");
   }
 
   private void reportMetrics() {
