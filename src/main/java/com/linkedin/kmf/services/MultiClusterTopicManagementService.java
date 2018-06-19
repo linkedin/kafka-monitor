@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
-import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
 import kafka.server.ConfigType;
@@ -220,11 +219,15 @@ public class MultiClusterTopicManagementService implements Service {
     void maybeAddPartitions(int minPartitionNum) {
       ZkUtils zkUtils = ZkUtils.apply(_zkConnect, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
       try {
-        int partitionNum = getPartitionInfo(zkUtils, _topic).size();
+        scala.collection.Map<Object, scala.collection.Seq<Object>> existingAssignment = getPartitionAssignment(zkUtils, _topic);
+        int partitionNum = existingAssignment.size();
+
         if (partitionNum < minPartitionNum) {
           LOG.info("MultiClusterTopicManagementService will increase partition of the topic {} "
               + "in cluster {} from {} to {}.", _topic, _zkConnect, partitionNum, minPartitionNum);
-          AdminUtils.addPartitions(zkUtils, _topic, minPartitionNum, null, false, RackAwareMode.Enforced$.MODULE$);
+
+          scala.Option<scala.collection.Map<java.lang.Object, scala.collection.Seq<java.lang.Object>>> replicaAssignment = scala.Option.apply(null);
+          AdminUtils.addPartitions(zkUtils, _topic, existingAssignment, getAllBrokers(zkUtils), minPartitionNum, replicaAssignment, false);
         }
       } finally {
         zkUtils.close();
@@ -311,6 +314,23 @@ public class MultiClusterTopicManagementService implements Service {
       LOG.info("Current partition replica assignment " + currentAssignmentJson);
       LOG.info("New partition replica assignment " + newAssignmentJson);
       zkUtils.createPersistentPath(ZkUtils.ReassignPartitionsPath(), newAssignmentJson, zkUtils.DefaultAcls());
+    }
+
+    private static scala.collection.mutable.ArrayBuffer<BrokerMetadata> getAllBrokers(ZkUtils zkUtils) {
+      Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkUtils.getAllBrokersInCluster());
+      scala.collection.mutable.ArrayBuffer<BrokerMetadata> brokersMetadata = new scala.collection.mutable.ArrayBuffer<>(brokers.size());
+      for (Broker broker : brokers) {
+        brokersMetadata.$plus$eq(new BrokerMetadata(broker.id(), broker.rack()));
+      }
+      return brokersMetadata;
+    }
+
+    private static scala.collection.Map<Object, scala.collection.Seq<Object>> getPartitionAssignment(ZkUtils zkUtils, String topic) {
+      scala.collection.mutable.ArrayBuffer<String> topicList = new scala.collection.mutable.ArrayBuffer<>();
+      topicList.$plus$eq(topic);
+      scala.collection.Map<Object, scala.collection.Seq<Object>> partitionAssignment =
+          zkUtils.getPartitionAssignmentForTopics(topicList).apply(topic);
+      return partitionAssignment;
     }
 
     private static List<PartitionInfo> getPartitionInfo(ZkUtils zkUtils, String topic) {
