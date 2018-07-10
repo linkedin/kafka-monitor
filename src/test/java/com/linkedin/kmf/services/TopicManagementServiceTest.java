@@ -14,7 +14,7 @@ import java.util.List;
 import kafka.cluster.Broker;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.protocol.SecurityProtocol;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
