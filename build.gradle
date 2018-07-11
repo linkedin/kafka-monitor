@@ -55,6 +55,7 @@ allprojects {
 
   checkstyle {
     configFile = new File(rootDir, "checkstyle/checkstyle.xml")
+    configProperties = [ "suppressionFile" : new File(rootDir, "checkstyle/suppressions.xml") ]
   }
 
   test.dependsOn('checkstyleMain', 'checkstyleTest')
