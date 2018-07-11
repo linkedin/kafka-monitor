@@ -25,6 +25,7 @@ allprojects {
     compile 'org.jolokia:jolokia-jvm:1.3.3'
     compile 'net.savantly:graphite-client:1.1.0-RELEASE'
     compile 'com.timgroup:java-statsd-client:3.0.1'
+    compile 'com.signalfx.public:signalfx-codahale:0.0.47'
 
     testCompile 'org.testng:testng:6.8.8'
   }
