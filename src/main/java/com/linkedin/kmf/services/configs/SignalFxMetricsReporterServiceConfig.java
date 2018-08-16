@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 SignalFx, Inc. All rights reserved.
+ * Copyright (C) 2018 SignalFx, Inc. Licensed under the Apache 2 License.
  */
 package com.linkedin.kmf.services.configs;
 
