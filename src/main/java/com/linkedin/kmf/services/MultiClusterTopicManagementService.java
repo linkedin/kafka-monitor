@@ -171,6 +171,8 @@ public class MultiClusterTopicManagementService implements Service {
           }
         }
       } catch (Throwable t) {
+        // Need to catch throwable because there is scala API that can throw NoSuchMethodError in runtime
+        // and such error is not caught by compilation
         LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
         stop();
       }
