@@ -30,7 +30,8 @@ Kafka Monitor supports Apache Kafka 0.8 to 0.11:
 - Use branch 0.9.0.1 to work with Apache Kafka 0.9
 - Use branch 0.10.2.1 to work with Apache Kafka 0.10
 - Use branch 0.11.x to work with Apache Kafka 0.11
-- Use master branch to work with Apache Kafka 1.0
+- Use branch 1.0.x to work with Apache Kafka 1.0
+- Use master branch to work with Apache Kafka 1.1
 
 
 ### Configuration Tips
