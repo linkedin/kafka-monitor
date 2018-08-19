@@ -14,7 +14,6 @@ import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
-import com.linkedin.kmf.consumer.OldConsumer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -93,11 +92,6 @@ public class ConsumeService implements Service {
 
     if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName())) {
       consumerClassName = NewConsumer.class.getCanonicalName();
-    } else if (consumerClassName.equals(OldConsumer.class.getCanonicalName()) || consumerClassName.equals(OldConsumer.class.getSimpleName())) {
-      consumerClassName = OldConsumer.class.getCanonicalName();
-      // The name/value of these configs are changed in the new consumer.
-      consumerProps.put("auto.commit.enable", "false");
-      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
     }
 
     // Assign config specified for ConsumeService.

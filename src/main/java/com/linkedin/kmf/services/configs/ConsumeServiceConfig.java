@@ -29,7 +29,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
 
   public static final String CONSUMER_CLASS_CONFIG = "consume.consumer.class";
   public static final String CONSUMER_CLASS_DOC = "Consumer class that will be instantiated as consumer in the consume service. "
-    + "It can be NewConsumer, OldConsumer, or full class name of any class that implements the KMBaseConsumer interface.";
+    + "It can be NewConsumer or full class name of any class that implements the KMBaseConsumer interface.";
 
   public static final String LATENCY_PERCENTILE_MAX_MS_CONFIG = "consume.latency.percentile.max.ms";
   public static final String LATENCY_PERCENTILE_MAX_MS_DOC = "This is used to derive the bucket number used to configure latency percentile metric. "
