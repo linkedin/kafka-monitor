@@ -162,11 +162,7 @@ public class SignalFxMetricsReporterService implements Service {
     SettableDoubleGauge gauge = null;
 
     if (signalFxMetricName.contains("partition")) {
-      String partitionNumber = "" + signalFxMetricName.charAt(signalFxMetricName.length() - 1);
-      signalFxMetricName = signalFxMetricName.substring(0,  signalFxMetricName.length() - 2);
-      gauge = _metricMetadata.forMetric(new SettableDoubleGauge())
-          .withMetricName(signalFxMetricName).metric();
-      _metricMetadata.forMetric(gauge).withDimension("partition", partitionNumber);
+      gauge = createPartitionMetric(signalFxMetricName);
     } else {
       gauge = _metricMetadata.forMetric(new SettableDoubleGauge())
           .withMetricName(signalFxMetricName).metric();
@@ -180,4 +176,15 @@ public class SignalFxMetricsReporterService implements Service {
 
     return gauge;
   }
+
+  private SettableDoubleGauge createPartitionMetric(String signalFxMetricName) {
+    int divider = signalFxMetricName.lastIndexOf('-');
+    String partitionNumber = signalFxMetricName.substring(divider + 1);
+    signalFxMetricName = signalFxMetricName.substring(0,  divider);
+    SettableDoubleGauge gauge = _metricMetadata.forMetric(new SettableDoubleGauge())
+        .withMetricName(signalFxMetricName).metric();
+    _metricMetadata.forMetric(gauge).withDimension("partition", partitionNumber);
+    return gauge;
+  }
 }
+
