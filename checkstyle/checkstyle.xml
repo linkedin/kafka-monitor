@@ -21,6 +21,10 @@
     <property name="header" value="/\*\*\nCopyright 2016 LinkedIn Corp. Licensed under the Apache License.*"/>
   </module>
 
+  <module name="SuppressionFilter">
+    <property name="file" value="${suppressionFile}"/>
+  </module>
+
   <module name="TreeWalker">
 
     <!-- code cleanup -->
