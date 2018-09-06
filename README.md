@@ -140,7 +140,7 @@ attribute-name of the JMX metric in the query above.
 
 - [Motivation](https://github.com/linkedin/kafka-monitor/wiki/Motivation)
 - [Design Overview](https://github.com/linkedin/kafka-monitor/wiki/Design-Overview)
-- [Service Design](https://github.com/linkedin/kafka-monitor/wiki/Service-Design)
+- [Service and App Overview](https://github.com/linkedin/kafka-monitor/wiki)
 - [Future Work](https://github.com/linkedin/kafka-monitor/wiki/Future-Work)
 
 
