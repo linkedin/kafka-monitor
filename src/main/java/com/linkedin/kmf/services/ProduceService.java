@@ -251,7 +251,8 @@ public class ProduceService implements Service {
       int sizeInBytes = 4 * bucketNum;
       _produceDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
           new Percentile(new MetricName("produce-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile delay in ms for produce request", tags), 99.0),
-          new Percentile(new MetricName("produce-delay-ms-999th", METRIC_GROUP_NAME, "The 999th percentile delay in ms for produce request", tags), 99.9)));
+          new Percentile(new MetricName("produce-delay-ms-999th", METRIC_GROUP_NAME, "The 999th percentile delay in ms for produce request", tags), 99.9),
+          new Percentile(new MetricName("produce-delay-ms-9999th", METRIC_GROUP_NAME, "The 9999th percentile delay in ms for produce request", tags), 99.99)));
 
       metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, "The average produce availability", tags),
         new Measurable() {
