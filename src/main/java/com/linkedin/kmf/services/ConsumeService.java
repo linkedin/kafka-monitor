@@ -250,8 +250,8 @@ public class ConsumeService implements Service {
       int sizeInBytes = 4 * bucketNum;
       _recordsDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
         new Percentile(new MetricName("records-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile latency of records from producer to consumer", tags), 99.0),
-        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, "The 999th percentile latency of records from producer to consumer", tags), 99.9),
-        new Percentile(new MetricName("records-delay-ms-9999th", METRIC_GROUP_NAME, "The 9999th percentile latency of records from producer to consumer", tags), 99.99)));
+        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, "The 99.9th percentile latency of records from producer to consumer", tags), 99.9),
+        new Percentile(new MetricName("records-delay-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of records from producer to consumer", tags), 99.99)));
 
       metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
         new Measurable() {
