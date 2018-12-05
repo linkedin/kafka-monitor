@@ -186,11 +186,16 @@
   var monitoredMbeans = [
     {name: "kmf.services:type=produce-service,name=*", attribute: "produce-availability-avg"},
     {name: "kmf.services:type=produce-service,name=*", attribute: "records-produced-rate"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-avg"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-99th"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-999th"},
+    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-9999th"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-lost-rate"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-duplicated-rate"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-avg"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-99th"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-999th"},
+    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-9999th"},
     {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-max"},
   ];
 
