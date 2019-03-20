@@ -225,6 +225,7 @@ public class ProduceService implements Service {
     private final Sensor _produceDelay;
     private final ConcurrentMap<Integer, Sensor> _recordsProducedPerPartition;
     private final ConcurrentMap<Integer, Sensor> _produceErrorPerPartition;
+    private final ConcurrentMap<Integer, Boolean> _produceErrorInLastSendPerPartition;
     private final Map<String, String> _tags;
 
     public ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
@@ -233,6 +234,7 @@ public class ProduceService implements Service {
 
       _recordsProducedPerPartition = new ConcurrentHashMap<>();
       _produceErrorPerPartition = new ConcurrentHashMap<>();
+      _produceErrorInLastSendPerPartition = new ConcurrentHashMap<>();
 
       _recordsProduced = metrics.sensor("records-produced");
       _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME, "The average number of records per second that are produced", tags), new Rate());
@@ -277,7 +279,14 @@ public class ProduceService implements Service {
                 // will block and retry for a certain amount of time based on its configuration (e.g. retries, retry.backoff.ms).
                 // Note that if it takes a long time for messages to be retries and sent, the latency in the ConsumeService
                 // will increase and it will reduce ConsumeAvailability if the latency exceeds consume.latency.sla.ms
-                availabilitySum += 1.0;
+                // If timeout is set to more than 60 seconds (the current samples window duration),
+                // the error sample might be expired before the next error can be produced.
+                // In order to detect offline partition with high producer timeout config, the error status during last
+                // send is also checked before declaring 1.0 availability for the partition.
+                Boolean lastSendError = _produceErrorInLastSendPerPartition.get(partition);
+                if (lastSendError == null || !lastSendError) {
+                  availabilitySum += 1.0;
+                }
               }
             }
             // Assign equal weight to per-partition availability when calculating overall availability
@@ -322,6 +331,7 @@ public class ProduceService implements Service {
         _sensors._produceDelay.record(System.currentTimeMillis() - currMs);
         _sensors._recordsProduced.record();
         _sensors._recordsProducedPerPartition.get(_partition).record();
+        _sensors._produceErrorInLastSendPerPartition.put(_partition, false);
         if (nextIndex == -1 && _sync) {
           nextIndex = metadata.offset();
         } else {
@@ -331,6 +341,7 @@ public class ProduceService implements Service {
       } catch (Exception e) {
         _sensors._produceError.record();
         _sensors._produceErrorPerPartition.get(_partition).record();
+        _sensors._produceErrorInLastSendPerPartition.put(_partition, true);
         LOG.warn(_name + " failed to send message", e);
       }
     }

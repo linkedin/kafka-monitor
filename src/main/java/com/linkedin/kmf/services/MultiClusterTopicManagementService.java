@@ -74,6 +74,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
   private final int _scheduleIntervalMs;
+  private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
 
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
@@ -84,6 +85,7 @@ public class MultiClusterTopicManagementService implements Service {
         ? (Map) props.get(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
       @Override
       public Thread newThread(Runnable r) {
@@ -109,8 +111,11 @@ public class MultiClusterTopicManagementService implements Service {
   @Override
   public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
-      Runnable r = new TopicManagementRunnable();
-      _executor.scheduleWithFixedDelay(r, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      Runnable tmRunnable = new TopicManagementRunnable();
+      _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      Runnable pleRunnable = new PreferredLeaderElectionRunnable();
+      _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs,
+          TimeUnit.MILLISECONDS);
       LOG.info("{}/MultiClusterTopicManagementService started.", _serviceName);
     }
   }
@@ -179,6 +184,30 @@ public class MultiClusterTopicManagementService implements Service {
     }
   }
 
+  // Check if Preferred leader election is requested during Topic Management (TopicManagementRunnable),
+  // trigger Preferred leader election when there is no partition reassignment in progress.
+  private class PreferredLeaderElectionRunnable implements Runnable {
+    @Override
+    public void run() {
+      try {
+        for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
+          String clusterName = entry.getKey();
+          TopicManagementHelper helper = entry.getValue();
+          try {
+            helper.maybeElectLeader();
+          } catch (IOException | ZkNodeExistsException | AdminOperationException e) {
+            LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
+          }
+        }
+      } catch (Throwable t) {
+        // Need to catch throwable because there is scala API that can throw NoSuchMethodError in runtime
+        // and such error is not caught by compilation
+        LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
+        stop();
+      }
+    }
+  }
+
   static class TopicManagementHelper {
 
     private final boolean _topicCreationEnabled;
@@ -189,6 +218,7 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
+    private boolean _preferredLeaderElectionRequested;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -198,6 +228,7 @@ public class MultiClusterTopicManagementService implements Service {
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
+      _preferredLeaderElectionRequested = false;
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
 
       _topicProperties = new Properties();
@@ -251,7 +282,7 @@ public class MultiClusterTopicManagementService implements Service {
       try {
         List<PartitionInfo> partitionInfoList = getPartitionInfo(zkClient, _topic);
         Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkClient.getAllBrokersInCluster());
-
+        boolean partitionReassigned = false;
         if (partitionInfoList.size() == 0)
           throw new IllegalStateException("Topic " + _topic + " does not exist in cluster " + _zkConnect);
 
@@ -266,6 +297,7 @@ public class MultiClusterTopicManagementService implements Service {
           LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
               + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, expectedReplicationFactor);
           reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+          partitionReassigned = true;
         }
 
         // Update the properties of the monitor topic if any config is different from the user-specified config
@@ -287,12 +319,42 @@ public class MultiClusterTopicManagementService implements Service {
             !zkClient.reassignPartitionsInProgress()) {
           LOG.info("MultiClusterTopicManagementService will reassign partitions of the topic {} in cluster {}", _topic, _zkConnect);
           reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+          partitionReassigned = true;
         }
 
         if (partitionInfoList.size() >= brokers.size() &&
             someBrokerNotElectedLeader(partitionInfoList, brokers)) {
-          LOG.info("MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in cluster {}", _topic, _zkConnect);
+          if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
+            LOG.info(
+                "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in cluster {}",
+                _topic, _zkConnect);
+            triggerPreferredLeaderElection(zkClient, partitionInfoList);
+            _preferredLeaderElectionRequested = false;
+          } else {
+            _preferredLeaderElectionRequested = true;
+          }
+        }
+      } finally {
+        zkClient.close();
+      }
+    }
+
+    void maybeElectLeader() throws Exception {
+      if (!_preferredLeaderElectionRequested) {
+        return;
+      }
+
+      KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), ZK_SESSION_TIMEOUT_MS,
+          ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener");
+
+      try {
+        if(!zkClient.reassignPartitionsInProgress()) {
+          List<PartitionInfo> partitionInfoList = getPartitionInfo(zkClient, _topic);
+          LOG.info(
+              "MultiClusterTopicManagementService will trigger requested preferred leader election for the topic {} in cluster {}",
+              _topic, _zkConnect);
           triggerPreferredLeaderElection(zkClient, partitionInfoList);
+          _preferredLeaderElectionRequested = false;
         }
       } finally {
         zkClient.close();
