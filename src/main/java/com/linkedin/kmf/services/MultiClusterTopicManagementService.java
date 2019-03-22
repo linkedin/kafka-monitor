@@ -348,7 +348,7 @@ public class MultiClusterTopicManagementService implements Service {
           ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener");
 
       try {
-        if(!zkClient.reassignPartitionsInProgress()) {
+        if (!zkClient.reassignPartitionsInProgress()) {
           List<PartitionInfo> partitionInfoList = getPartitionInfo(zkClient, _topic);
           LOG.info(
               "MultiClusterTopicManagementService will trigger requested preferred leader election for the topic {} in cluster {}",
