@@ -15,7 +15,7 @@ import java.util.Properties;
 /**
  * Constructs the monitor topic if it does not exist.
  *
- * Implementations of this class should have a public constructor with the following signature: <br/>
+ * Implementations of this class should have a public constructor with the following signature:
  *   Constructor(Map&lt;String, ?&gt; config) where config are additional configuration parameters passed in from the Kafka
  *   Monitor configuration.
  */
