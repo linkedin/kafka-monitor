@@ -17,8 +17,6 @@ allprojects {
   apply plugin: 'java'
   apply plugin: 'checkstyle'
 
-  version = "2.0.0"
-
   sourceCompatibility = 8
   targetCompatibility = 8
 
