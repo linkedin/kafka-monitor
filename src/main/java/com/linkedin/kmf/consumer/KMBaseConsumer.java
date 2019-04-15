@@ -12,7 +12,7 @@ package com.linkedin.kmf.consumer;
 /**
  * A base consumer used to abstract different consumer classes.
  *
- * Implementations of this class must have constructor with the following signature: <br/>
+ * Implementations of this class must have constructor with the following signature:
  *   Constructor({@link java.util.Properties} properties).
  */
 public interface KMBaseConsumer {

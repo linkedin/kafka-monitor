@@ -1,13 +1,26 @@
+
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
+  }
+}
+
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
+
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
   apply plugin: 'java'
   apply plugin: 'checkstyle'
 
-  version = "1.0.0"
-
   sourceCompatibility = 8
   targetCompatibility = 8
+
+  group = 'com.linkedin.kmf'
 
   repositories {
     mavenCentral()
@@ -32,22 +45,63 @@ allprojects {
   }
 
   tasks.create(name: "copyDependantLibs", type: Copy) {
-    from (configurations.testRuntime) {
+    from(configurations.testRuntime) {
       include('slf4j-log4j12*')
     }
-    from (configurations.runtime) {
-    }
+    from(configurations.runtime) {}
     into "build/dependant-libs"
     duplicatesStrategy 'exclude'
   }
 
   jar {
+    doFirst {
+      manifest {
+        //embed version information into jar manifests
+        attributes('Name': "${project.name}",
+            'Specification-Title': "${project.name}",
+            'Specification-Version': "${project.version}",
+            'Specification-Vendor': "LinkedIn",
+            'Implementation-Title': "${project.name}",
+            'Implementation-Version': "${project.version}",
+            'Implementation-Vendor': "LinkedIn")
+      }
+    }
+
     dependsOn 'copyDependantLibs'
   }
 
+  task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+    classifier "sources"
+  }
+
+  task javadocJar(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
+  }
+
   task testJar(type: Jar) {
-    classifier = 'test'
-    from sourceSets.test.output
+    from sourceSets.test.allJava
+    classifier = 'tests'
+  }
+
+  publishing {
+    publications {
+      MyPublication(MavenPublication) {
+        groupId project.group
+        artifactId project.name
+        version project.version
+
+        from components.java
+        artifact sourceJar
+        artifact javadocJar
+        artifact testJar
+
+        pom {
+          description = 'kafka monitor'
+        }
+      }
+    }
   }
 
   artifacts {
@@ -56,7 +110,7 @@ allprojects {
 
   checkstyle {
     configFile = new File(rootDir, "checkstyle/checkstyle.xml")
-    configProperties = [ "suppressionFile" : new File(rootDir, "checkstyle/suppressions.xml") ]
+    configProperties = ["suppressionFile": new File(rootDir, "checkstyle/suppressions.xml")]
   }
 
   test.dependsOn('checkstyleMain', 'checkstyleTest')
@@ -71,6 +125,26 @@ allprojects {
   }
 }
 
-task wrapper(type: Wrapper) {
-   gradleVersion = '4.8.1'
+bintray {
+  user = System.getenv('BINTRAY_USER')
+  key = System.getenv('BINTRAY_KEY')
+
+  publications = ['MyPublication']
+
+  pkg {
+    repo = 'maven'
+    name = 'kafka-monitor'
+    userOrg = 'linkedin'
+    licenses = ['Apache-2.0'] //this is validated by bintray and must be a valid license
+    vcsUrl = 'https://github.com/linkedin/kafka-monitor.git'
+    version {
+      name = project.version
+    }
+    publish = true
+  }
+}
+
+wrapper {
+  gradleVersion = '5.2.1'
+  distributionType = Wrapper.DistributionType.ALL
 }
