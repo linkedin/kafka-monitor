@@ -1,4 +1,34 @@
 language: java
+dist: trusty
+jdk: oraclejdk8
 
-jdk:
-  - oraclejdk8
+env:
+  global:
+    # these secure values are encrypted for linkedin/kafka-monitor. for use in forked repos, set env vars in your own build - they should win over these (as these wont be decodable in forked builds)
+    - secure: ghCdYRfSGI7BtA0rB0UfzEJWszKwvnSy1Y0LBSWn3wdo3e0ibHdofwfeQ5YAczXun+RpGvaUwJRgkSDOsL6DFF8N2hODNkzR+DFNRJv5CFOYuCPJZwPpw/Sr7blCkpZleWmJBW7sqRPa7Yyu5/QpdezRM4tHP/RCxjr9IKgQwOknYyVGUf81Wa3Y+MF5iqR434WItfFpHR7uU5sis592iR4aKS4bcEQ9DCqcrCsrr3RFAft6aM5NZjAhO7tXe3vu5IrtqbB/MFNLrnRO0T6kXcifVqVrHQ/ePzl2iyPIdKygiDgK9VOYg6TfT5maHLwoCK511qnhMlitsy/0qx8CsF33rS0hXS5+EDSJ3qoB38Rqgi2K08uGjWgwwXtUg+2CkyEDA2gpEDIELQSFvG0WEHmAim9Azfxiiyx+HwNJ0zkKeOPUXU3uLDeOGXsUB6vxqjrWvAGtUqCZ5g2qEI8geGH3Zopmg9j665FywawV0OAehj4I2Tn0rBDORbIsu3XWgcZIbq/D8sb4Xhb65CB4wSvcco5g25zQzXruDk6MjB76bthtnIbO9hvIVwADxx2MdWXOX873ApjRoffGtRev+ugfEZCEuWxBvtgJ2owCSdTOm8TIjAwjsc4eBuLqEWQplwnoGhRA12zch4t/itOGv0ABoT9/tVjhiLwtTzmHTFc=
+    - secure: I88NyZbbsV4j5a14k1ModOLsQygs7cXjCY98QQcQNRV0FKvvk/ka7xEvwiOFPWFOFy7TUf9O2VjNA8M4oWGqop9MwYNysAccuX6y/VMAldOPlQ23PG7C+Tr44u2YgvbJCdjtmpVKh842yrU8nlHcfLKBGMaqRxjBg4kHNr0lyTGIU83UBsU26yFiUBuE0EwdWXcrlX+ZvfS523BezquWnFW+75R4z2e0i++/vGqKnlBsqXzzxR61aFnYuSN0CDj+XbG1hsc1dcNJbjLVfO8zOSd25oDYVEX+dfBEfD+4LL/3YSjM8EJvUZGghiaDR+K9nm26B+nfvWNOWH8PuqM94t65vueQ4qcUIUXqwhbIf5GixHGTOIj7QOjckPHZ4N4hYkpYMLwPRO+I5VuBEKlboCN90c3+OEEsBSUXSH/JIBI8mmiwkegPV89HtSRntFGFqYtL7Wg/GyJV7DCQSsacJDaM9ErX2z1sUd++QAQA18qdk1Ngl2hnBOWmTgmtefMo9u15iCxDZr+iMeeTA0IvsupyXeO6hN9xFuwRuXD/q40RIYcOgqFeYR9e/pRJ1A29PE4N6uqDe/JBA8oQFH0jCFbO2oEpVJlX9qgp29wWLSvm/93LRK3f8RLt8ZT1BVNEUnRqtkprbDVp2QlN/7fOz9MI9a00SAXv+siaz3oK++k=
+
+install: true
+script:
+- "./gradlew clean build"
+before_cache:
+- rm -rvf $HOME/.gradle/caches/modules-2/metadata*
+- rm -rvf $HOME/.gradle/caches/modules-2/modules-2.lock
+- rm -rvf $HOME/.gradle/caches/*/fileHashes/fileHashes.lock
+- rm -rvf $HOME/.gradle/caches/*/javaCompile/javaCompile.lock
+- rm -rvf $HOME/.gradle/caches/journal-*/*.lock
+- rm -rvf $HOME/.gradle/caches/journal-*/file-access.bin
+- rm -rvf $HOME/.gradle/caches/*/plugin-resolution/
+- rm -rvf $HOME/.gradle/caches/*/scripts/*/cp_proj/
+- sync
+cache:
+  directories:
+  - "$HOME/.gradle/caches/"
+  - "$HOME/.gradle/wrapper/"
+deploy:
+  provider: script
+  script: bash -v scripts/publishToBintray.sh
+  skip_cleanup: true
+  on:
+    all_branches: true
+    tags: true
