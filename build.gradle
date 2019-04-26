@@ -98,7 +98,21 @@ allprojects {
         artifact testJar
 
         pom {
+          name = 'kafka-monitor'
           description = 'kafka monitor'
+          url = 'https://github.com/linkedin/kafka-monitor'
+
+          licenses {
+            license {
+              name = 'The Apache Software License, Version 2.0'
+              url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+            }
+          }
+          scm {
+            connection = 'scm:git:git://github.com:linkedin/kafka-monitor.git'
+            developerConnection = 'scm:git:ssh://github.com:linkedin/kafka-monitor.git'
+            url = 'https://github.com/linkedin/kafka-monitor'
+          }
         }
       }
     }
