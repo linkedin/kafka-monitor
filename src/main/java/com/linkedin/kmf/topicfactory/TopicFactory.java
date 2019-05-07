@@ -9,11 +9,12 @@
  */
 package com.linkedin.kmf.topicfactory;
 
+import java.util.Collection;
 import java.util.Properties;
 
 
 /**
- * Constructs the monitor topic if it does not exist.
+ * Constructs the monitor topic if it does not exist, and provide blacklisted brokers info for topic management service
  *
  * Implementations of this class should have a public constructor with the following signature:
  *   Constructor(Map&lt;String, ?&gt; config) where config are additional configuration parameters passed in from the Kafka
@@ -33,5 +34,11 @@ public interface TopicFactory {
    */
 
   int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicProperties);
+
+  /**
+   * @param zkUrl zookeeper connection url
+   * @return A list of brokers that don't take new partitions or reassigned partitions for topics.
+   */
+  Collection<Integer> getBlackListedBrokers(String zkUrl);
 
 }
