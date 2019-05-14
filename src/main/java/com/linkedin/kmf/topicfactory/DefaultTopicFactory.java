@@ -11,10 +11,10 @@ package com.linkedin.kmf.topicfactory;
 
 import com.linkedin.kmf.common.Utils;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 
 public class DefaultTopicFactory implements TopicFactory {
@@ -29,7 +29,7 @@ public class DefaultTopicFactory implements TopicFactory {
   }
 
   @Override
-  public Collection<Integer> getBlackListedBrokers(String zkUrl) {
+  public Set<Integer> getBlackListedBrokers(String zkUrl) {
     return Collections.emptySet();
   }
 }

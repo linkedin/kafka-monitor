@@ -9,8 +9,8 @@
  */
 package com.linkedin.kmf.topicfactory;
 
-import java.util.Collection;
 import java.util.Properties;
+import java.util.Set;
 
 
 /**
@@ -37,8 +37,8 @@ public interface TopicFactory {
 
   /**
    * @param zkUrl zookeeper connection url
-   * @return A list of brokers that don't take new partitions or reassigned partitions for topics.
+   * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
    */
-  Collection<Integer> getBlackListedBrokers(String zkUrl);
+  Set<Integer> getBlackListedBrokers(String zkUrl);
 
 }

@@ -265,11 +265,11 @@ public class MultiClusterTopicManagementService implements Service {
         if (partitionNum < minPartitionNum) {
           LOG.info("MultiClusterTopicManagementService will increase partition of the topic {} "
               + "in cluster {} from {} to {}.", _topic, _zkConnect, partitionNum, minPartitionNum);
-          Collection<Integer> blackListedBrokers =
+          Set<Integer> blackListedBrokers =
               _topicFactory.getBlackListedBrokers(_zkConnect);
           scala.Option<scala.collection.Map<java.lang.Object, scala.collection.Seq<java.lang.Object>>> replicaAssignment = scala.Option.apply(null);
           scala.Option<Seq<Object>> brokerList = scala.Option.apply(null);
-          Collection<BrokerMetadata> brokers =
+          Set<BrokerMetadata> brokers =
               new HashSet<>(scala.collection.JavaConversions.asJavaCollection(adminZkClient.getBrokerMetadatas(RackAwareMode.Disabled$.MODULE$, brokerList)));
 
           if (!blackListedBrokers.isEmpty()) {
@@ -284,11 +284,11 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    private Collection<Broker> getAvailableBrokers(KafkaZkClient zkClient) {
-      Collection<Broker> brokers =
+    private Set<Broker> getAvailableBrokers(KafkaZkClient zkClient) {
+      Set<Broker> brokers =
           new HashSet<>(scala.collection.JavaConversions.asJavaCollection(zkClient.getAllBrokersInCluster()));
 
-      Collection<Integer> blackListedBrokers =
+      Set<Integer> blackListedBrokers =
           _topicFactory.getBlackListedBrokers(_zkConnect);
 
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
