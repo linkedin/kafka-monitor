@@ -265,14 +265,34 @@ public class MultiClusterTopicManagementService implements Service {
         if (partitionNum < minPartitionNum) {
           LOG.info("MultiClusterTopicManagementService will increase partition of the topic {} "
               + "in cluster {} from {} to {}.", _topic, _zkConnect, partitionNum, minPartitionNum);
-
+          Set<Integer> blackListedBrokers =
+              _topicFactory.getBlackListedBrokers(_zkConnect);
           scala.Option<scala.collection.Map<java.lang.Object, scala.collection.Seq<java.lang.Object>>> replicaAssignment = scala.Option.apply(null);
           scala.Option<Seq<Object>> brokerList = scala.Option.apply(null);
-          adminZkClient.addPartitions(_topic, existingAssignment, adminZkClient.getBrokerMetadatas(RackAwareMode.Disabled$.MODULE$, brokerList), minPartitionNum, replicaAssignment, false);
+          Set<BrokerMetadata> brokers =
+              new HashSet<>(scala.collection.JavaConversions.asJavaCollection(adminZkClient.getBrokerMetadatas(RackAwareMode.Disabled$.MODULE$, brokerList)));
+
+          if (!blackListedBrokers.isEmpty()) {
+            brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
+          }
+          adminZkClient.addPartitions(_topic, existingAssignment,
+              scala.collection.JavaConversions.collectionAsScalaIterable(brokers).toSeq(),
+              minPartitionNum, replicaAssignment, false);
         }
       } finally {
         zkClient.close();
       }
+    }
+
+    private Set<Broker> getAvailableBrokers(KafkaZkClient zkClient) {
+      Set<Broker> brokers =
+          new HashSet<>(scala.collection.JavaConversions.asJavaCollection(zkClient.getAllBrokersInCluster()));
+
+      Set<Integer> blackListedBrokers =
+          _topicFactory.getBlackListedBrokers(_zkConnect);
+
+      brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
+      return brokers;
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
@@ -281,7 +301,7 @@ public class MultiClusterTopicManagementService implements Service {
 
       try {
         List<PartitionInfo> partitionInfoList = getPartitionInfo(zkClient, _topic);
-        Collection<Broker> brokers = scala.collection.JavaConversions.asJavaCollection(zkClient.getAllBrokersInCluster());
+        Collection<Broker> brokers = getAvailableBrokers(zkClient);
         boolean partitionReassigned = false;
         if (partitionInfoList.size() == 0)
           throw new IllegalStateException("Topic " + _topic + " does not exist in cluster " + _zkConnect);

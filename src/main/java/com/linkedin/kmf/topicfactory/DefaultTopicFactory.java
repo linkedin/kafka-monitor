@@ -11,8 +11,10 @@ package com.linkedin.kmf.topicfactory;
 
 import com.linkedin.kmf.common.Utils;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 
 public class DefaultTopicFactory implements TopicFactory {
@@ -24,5 +26,10 @@ public class DefaultTopicFactory implements TopicFactory {
   @Override
   public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicConfig) {
     return Utils.createTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig);
+  }
+
+  @Override
+  public Set<Integer> getBlackListedBrokers(String zkUrl) {
+    return Collections.emptySet();
   }
 }
