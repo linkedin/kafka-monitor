@@ -69,6 +69,6 @@ allprojects {
   }
 }
 
-task wrapper(type: Wrapper) {
-   gradleVersion = '4.8.1'
+wrapper {
+   gradleVersion = '5.4.1'
 }
