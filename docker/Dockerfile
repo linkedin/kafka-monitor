@@ -19,9 +19,13 @@ WORKDIR /opt/kafka-monitor
 ADD build/ build/
 ADD bin/kafka-monitor-start.sh bin/kafka-monitor-start.sh
 ADD bin/kmf-run-class.sh bin/kmf-run-class.sh
+ADD bin/single-cluster-monitor.sh bin/single-cluster-monitor.sh
 ADD config/kafka-monitor.properties config/kafka-monitor.properties
 ADD config/log4j.properties config/log4j.properties
 ADD docker/kafka-monitor-docker-entry.sh kafka-monitor-docker-entry.sh
 ADD webapp/ webapp/
 
 CMD ["/opt/kafka-monitor/kafka-monitor-docker-entry.sh"]
+
+EXPOSE 8000
+EXPOSE 8778
