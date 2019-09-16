@@ -17,10 +17,7 @@ all: push
 TAG ?= latest
 PREFIX ?= quay.io/samsung_cnct/kafka-monitor
 
-build:
-	docker run -t --rm -u gradle -v "${PWD}/..:/home/gradle/project" -w /home/gradle/project gradle /home/gradle/project/gradlew jar
-
-container: build
+container:
 	docker build -t $(PREFIX):$(TAG) -f Dockerfile ..
 
 push: container

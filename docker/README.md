@@ -7,7 +7,7 @@ build will error out complaining of missing files.
 
 ### Build the container locally
 Decide where you would like the built container to be stored.  The 
-default is quay.io/coffeepac/kafak-monitor.  You can probably not
+default is quay.io/samsung_cnct/kafka-monitor. You can probably not
 write to this location so you should specifiy a new location either
 at the command line or in an environment variable
 

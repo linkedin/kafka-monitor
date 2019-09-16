@@ -10,13 +10,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM anapsix/alpine-java:8_jdk AS build
+WORKDIR /home/gradle/project
+ADD . .
+RUN ./gradlew jar
 
 FROM anapsix/alpine-java
 
 MAINTAINER coffeepac@gmail.com
 
 WORKDIR /opt/kafka-monitor
-ADD build/ build/
+COPY --from=build /home/gradle/project/build build/
 ADD bin/kafka-monitor-start.sh bin/kafka-monitor-start.sh
 ADD bin/kmf-run-class.sh bin/kmf-run-class.sh
 ADD bin/single-cluster-monitor.sh bin/single-cluster-monitor.sh
