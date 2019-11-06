@@ -173,7 +173,9 @@ public class ConsumeService implements Service {
         _sensors._recordsDuplicated.record();
       } else if (index > nextIndex) {
         nextIndexes.put(partition, index + 1);
-        _sensors._recordsLost.record(index - nextIndex);
+        long numLostRecords = index - nextIndex;
+        _sensors._recordsLost.record(numLostRecords);
+        LOG.info("_recordsLost recorded: Avro record current index: {} at {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
       }
     }
   }
