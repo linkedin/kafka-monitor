@@ -284,6 +284,7 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",
+      "kmf.services:type=consume-service,name=*:records-lost-rate",
       "kmf.services:type=consume-service,name=*:records-duplicated-total",
       "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
       "kmf.services:type=produce-service,name=*:records-produced-rate",
@@ -301,7 +302,7 @@ public class SingleClusterMonitor implements App {
     jettyService.start();
 
     if (!app.isRunning()) {
-      LOG.error("Some services have stopped");
+      LOG.error("Some services have stopped.");
       System.exit(-1);
     }
     app.awaitShutdown();

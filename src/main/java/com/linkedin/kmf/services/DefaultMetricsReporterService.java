@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DefaultMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricsReporterService.class);
+  private static final String LOG_DIVIDER = "=============================================================";
 
   private final String _name;
   private final List<String> _metricNames;
@@ -39,18 +40,13 @@ public class DefaultMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
-    _executor.scheduleAtFixedRate(
-      new Runnable() {
-        @Override
-        public void run() {
-          try {
-            reportMetrics();
-          } catch (Exception e) {
-            LOG.error(_name + "/DefaultMetricsReporterService failed to report metrics", e);
-          }
-        }
-      }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
-    );
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        reportMetrics();
+      } catch (Exception e) {
+        LOG.error(_name + "/DefaultMetricsReporterService failed to report metrics.", e);
+      }
+    }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS);
     LOG.info("{}/DefaultMetricsReporterService started", _name);
   }
 
@@ -72,7 +68,7 @@ public class DefaultMetricsReporterService implements Service {
     } catch (InterruptedException e) {
       LOG.info("Thread interrupted when waiting for {}/DefaultMetricsReporterService to shutdown", _name);
     }
-    LOG.info("{}/DefaultMetricsReporterService shutdown completed", _name);
+    LOG.info("{}/DefaultMetricsReporterService shutdown completed.", _name);
   }
 
   private void reportMetrics() {
@@ -86,6 +82,6 @@ public class DefaultMetricsReporterService implements Service {
         builder.append("\n");
       }
     }
-    LOG.info(builder.toString());
+    LOG.info("{}\n{}", LOG_DIVIDER, builder.toString());
   }
 }

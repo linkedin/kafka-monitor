@@ -184,7 +184,7 @@ public class ConsumeService implements Service {
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
-      LOG.info("{}/ConsumeService started", _name);
+      LOG.info("{}/ConsumeService started.", _name);
     }
   }
 
@@ -196,13 +196,13 @@ public class ConsumeService implements Service {
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }
-      LOG.info("{}/ConsumeService stopped", _name);
+      LOG.info("{}/ConsumeService stopped.", _name);
     }
   }
 
   @Override
   public void awaitShutdown() {
-    LOG.info("{}/ConsumeService shutdown completed", _name);
+    LOG.info("{}/ConsumeService shutdown completed.", _name);
   }
 
   @Override

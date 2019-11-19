@@ -174,7 +174,7 @@ public class KafkaMonitor {
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
     kafkaMonitor.start();
-    LOG.info("KafkaMonitor started");
+    LOG.info("KafkaMonitor started.");
 
     kafkaMonitor.awaitShutdown();
   }
