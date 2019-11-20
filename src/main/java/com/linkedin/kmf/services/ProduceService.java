@@ -166,7 +166,7 @@ public class ProduceService implements Service {
     Map<Integer, String> keyMapping = generateKeyMappings(partitionNum);
     for (int partition = 0; partition < partitionNum; partition++) {
       String key = keyMapping.get(partition);
-      //This is what preserves sequence numbers across restarts
+      /* This is what preserves sequence numbers across restarts */
       if (!_nextIndexPerPartition.containsKey(partition)) {
         _nextIndexPerPartition.put(partition, new AtomicLong(0));
         _sensors.addPartitionSensors(partition);
@@ -198,7 +198,7 @@ public class ProduceService implements Service {
       _produceExecutor.shutdown();
       _handleNewPartitionsExecutor.shutdown();
       _producer.close();
-      LOG.info("{}/ProduceService stopped", _name);
+      LOG.info("{}/ProduceService stopped.", _name);
     }
   }
 
@@ -208,9 +208,9 @@ public class ProduceService implements Service {
       _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
       _handleNewPartitionsExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      LOG.info("Thread interrupted when waiting for {}/ProduceService to shutdown", _name);
+      LOG.info("Thread interrupted when waiting for {}/ProduceService to shutdown.", _name);
     }
-    LOG.info("{}/ProduceService shutdown completed", _name);
+    LOG.info("{}/ProduceService shutdown completed.", _name);
   }
 
   @Override
