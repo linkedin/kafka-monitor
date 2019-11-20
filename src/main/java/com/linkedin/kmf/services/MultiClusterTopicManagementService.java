@@ -275,11 +275,6 @@ public class MultiClusterTopicManagementService implements Service {
       return AdminClient.create(adminClientProperties);
     }
 
-    private static scala.collection.Map<Object, scala.collection.Seq<Object>> getPartitionAssignment(KafkaZkClient zkClient, String topic) {
-      scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      return zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-    }
-
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
       AdminClient adminClient = buildAdminClient();
       try {
