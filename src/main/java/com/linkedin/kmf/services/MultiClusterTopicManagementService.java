@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -32,7 +31,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import kafka.admin.AdminOperationException;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.cluster.Broker;
@@ -44,6 +42,7 @@ import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -175,7 +174,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeReassignPartitionAndElectLeader();
-          } catch (IOException | AdminOperationException e) {
+          } catch (IOException | KafkaException e) {
             LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
@@ -201,7 +200,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeElectLeader();
-          } catch (IOException | AdminOperationException e) {
+          } catch (IOException | KafkaException e) {
             LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
@@ -278,37 +277,33 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
-      try {
-        Collection<String> topicNames = _adminClient.listTopics().names().get();
-        Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = _adminClient.describeTopics(topicNames).values();
-        KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
-        List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
-        int partitionNum = partitions.size();
-        if (partitionNum < minPartitionNum) {
-          LOG.info("{} will increase partition of the topic {} in the cluster {} from {}"
-              + " to {}.", this.getClass().toString(), _topic, _zkConnect, partitionNum, minPartitionNum);
-          Set<Integer> blackListedBrokers =
-              _topicFactory.getBlackListedBrokers(_zkConnect);
-          Set<BrokerMetadata> brokers = new HashSet<>();
-          Iterator<Node> nodesIterator = _adminClient.describeCluster().nodes().get().iterator();
-          while (nodesIterator.hasNext()) {
-            KafkaFuture<Collection<Node>> clusterNodes = _adminClient.describeCluster().nodes();
-            BrokerMetadata brokerMetadata = new BrokerMetadata(
-                clusterNodes.get().iterator().next().id(), null
-            );
-            brokers.add(brokerMetadata);
-          }
-          if (!blackListedBrokers.isEmpty()) {
-            brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
-          }
-          Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
-          NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, null);
-          newPartitionsMap.put(_topic, newPartitions);
-          _adminClient.createPartitions(newPartitionsMap);
+      Collection<String> topicNames = _adminClient.listTopics().names().get();
+      Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = _adminClient.describeTopics(topicNames).values();
+      KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
+      List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
+      int partitionNum = partitions.size();
+      if (partitionNum < minPartitionNum) {
+        LOG.info("{} will increase partition of the topic {} in the cluster {} from {}"
+            + " to {}.", this.getClass().toString(), _topic, _zkConnect, partitionNum, minPartitionNum);
+        Set<Integer> blackListedBrokers =
+            _topicFactory.getBlackListedBrokers(_zkConnect);
+        Set<BrokerMetadata> brokers = new HashSet<>();
+        for (Node broker : _adminClient.describeCluster().nodes().get()) {
+          BrokerMetadata brokerMetadata = new BrokerMetadata(
+              broker.id(), null
+          );
+          brokers.add(brokerMetadata);
         }
-      } finally {
-        _adminClient.close();
+
+        if (!blackListedBrokers.isEmpty()) {
+          brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
+        }
+        Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
+        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, null);
+        newPartitionsMap.put(_topic, newPartitions);
+        _adminClient.createPartitions(newPartitionsMap);
       }
+
     }
 
     private Set<Broker> getAvailableBrokers(KafkaZkClient zkClient) {
