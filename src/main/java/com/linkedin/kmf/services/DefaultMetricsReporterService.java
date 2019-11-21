@@ -9,17 +9,15 @@
  */
 package com.linkedin.kmf.services;
 
-import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
-
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DefaultMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricsReporterService.class);
@@ -76,12 +74,12 @@ public class DefaultMetricsReporterService implements Service {
     for (String metricName: _metricNames) {
       String mbeanExpr = metricName.substring(0, metricName.lastIndexOf(":"));
       String attributeExpr = metricName.substring(metricName.lastIndexOf(":") + 1);
-      List<MbeanAttributeValue> attributeValues = getMBeanAttributeValues(mbeanExpr, attributeExpr);
+      List<MbeanAttributeValue> attributeValues = com.linkedin.kmf.common.Utils.getMBeanAttributeValues(mbeanExpr, attributeExpr);
       for (MbeanAttributeValue attributeValue: attributeValues) {
         builder.append(attributeValue.toString());
         builder.append("\n");
       }
     }
-    LOG.info("{}\n{}", LOG_DIVIDER, builder.toString());
+//    LOG.info("{}\n{}", LOG_DIVIDER, builder.toString());
   }
 }

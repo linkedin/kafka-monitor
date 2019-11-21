@@ -40,14 +40,15 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -225,6 +226,7 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMsConfig;
     private final List _bootstrapServersConfig;
+    private AdminClient _adminClient;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -248,12 +250,26 @@ public class MultiClusterTopicManagementService implements Service {
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
+      _adminClient = constructAdminClient();
     }
 
     void maybeCreateTopic() throws Exception {
       if (_topicCreationEnabled) {
-        _topicFactory.createTopicIfNotExist(_zkConnect, _topic, _replicationFactor, _minPartitionsToBrokersRatio, _topicProperties);
+        int brokerCount = Utils.getBrokerCount(_zkConnect);
+        int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
+        NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
+        newTopic.configs((Map) _topicProperties);
+        _adminClient.createTopics(Collections.singletonList(newTopic));
       }
+    }
+
+    private AdminClient constructAdminClient() {
+      Properties adminClientProperties = new Properties();
+      adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT.name());
+      adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
+      adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
+
+      return AdminClient.create(adminClientProperties);
     }
 
     int minPartitionNum() {
@@ -261,30 +277,22 @@ public class MultiClusterTopicManagementService implements Service {
       return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }
 
-    private AdminClient constructAdminClient() {
-      final Properties adminClientProperties = new Properties();
-      adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name());
-      adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
-      adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
-      return AdminClient.create(adminClientProperties);
-    }
-
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
-      AdminClient adminClient = constructAdminClient();
       try {
-        Collection<String> topicNames = Collections.singleton(_topic);
-        DescribeTopicsResult describeTopicsResult = adminClient.describeTopics(topicNames);
-        Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = describeTopicsResult.values();
-        int partitionNum = kafkaFutureMap.get(_topic).get().partitions().size();
+        Collection<String> topicNames = _adminClient.listTopics().names().get();
+        Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = _adminClient.describeTopics(topicNames).values();
+        KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
+        List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
+        int partitionNum = partitions.size();
         if (partitionNum < minPartitionNum) {
           LOG.info("{} will increase partition of the topic {} in the cluster {} from {}"
               + " to {}.", this.getClass().toString(), _topic, _zkConnect, partitionNum, minPartitionNum);
           Set<Integer> blackListedBrokers =
               _topicFactory.getBlackListedBrokers(_zkConnect);
           Set<BrokerMetadata> brokers = new HashSet<>();
-          Iterator<Node> nodesIterator = adminClient.describeCluster().nodes().get().iterator();
+          Iterator<Node> nodesIterator = _adminClient.describeCluster().nodes().get().iterator();
           while (nodesIterator.hasNext()) {
-            KafkaFuture<Collection<Node>> clusterNodes = adminClient.describeCluster().nodes();
+            KafkaFuture<Collection<Node>> clusterNodes = _adminClient.describeCluster().nodes();
             BrokerMetadata brokerMetadata = new BrokerMetadata(
                 clusterNodes.get().iterator().next().id(), null
             );
@@ -296,10 +304,10 @@ public class MultiClusterTopicManagementService implements Service {
           Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
           NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, null);
           newPartitionsMap.put(_topic, newPartitions);
-          adminClient.createPartitions(newPartitionsMap);
+          _adminClient.createPartitions(newPartitionsMap);
         }
       } finally {
-        adminClient.close();
+        _adminClient.close();
       }
     }
 
@@ -404,12 +412,11 @@ public class MultiClusterTopicManagementService implements Service {
 
     private void triggerPreferredLeaderElection(List<PartitionInfo> partitionInfoList)
         throws ExecutionException, InterruptedException {
-      AdminClient adminClient = constructAdminClient();
       Collection<TopicPartition> partitions = new HashSet<>();
       for (PartitionInfo javaPartitionInfo : partitionInfoList) {
         partitions.add(new TopicPartition(javaPartitionInfo.topic(), javaPartitionInfo.partition()));
       }
-      ElectPreferredLeadersResult electPreferredLeadersResult = adminClient.electPreferredLeaders(partitions);
+      ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
       LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
     }

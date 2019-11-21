@@ -96,7 +96,7 @@ public class Utils {
       try {
         AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
       } catch (TopicExistsException e) {
-        //There is a race condition with the consumer.
+        // There is a race condition with the consumer.
         LOG.debug("Monitoring topic " + topic + " already exists in cluster " + zkUrl, e);
         return getPartitionNumForTopic(zkUrl, topic);
       }
