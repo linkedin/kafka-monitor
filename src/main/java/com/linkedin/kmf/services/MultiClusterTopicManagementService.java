@@ -42,6 +42,7 @@ import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
@@ -74,7 +75,6 @@ import scala.collection.Seq;
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
-
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
@@ -228,6 +228,7 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _requestTimeoutMsConfig;
     private final List _bootstrapServersConfig;
     private final String _sslTrustStoreLocationConfig;
+    private final String _sslTrustStorePasswordConfig;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -243,6 +244,7 @@ public class MultiClusterTopicManagementService implements Service {
       _requestTimeoutMsConfig = adminConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
       _bootstrapServersConfig = adminConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
       _sslTrustStoreLocationConfig = adminConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+      _sslTrustStorePasswordConfig = adminConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
 
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
@@ -266,18 +268,18 @@ public class MultiClusterTopicManagementService implements Service {
       return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }
 
-    private AdminClient buildAdminClient() {
+    private AdminClient constructAdminClient() {
       final Properties adminClientProperties = new Properties();
-
       adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name());
       adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
       adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
       adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTrustStoreLocationConfig);
+      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTrustStorePasswordConfig);
       return AdminClient.create(adminClientProperties);
     }
 
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
-      AdminClient adminClient = buildAdminClient();
+      AdminClient adminClient = constructAdminClient();
       try {
         Collection<String> topicNames = Collections.singleton(_topic);
         DescribeTopicsResult describeTopicsResult = adminClient.describeTopics(topicNames);
@@ -364,7 +366,7 @@ public class MultiClusterTopicManagementService implements Service {
         if (partitionInfoList.size() >= brokers.size() &&
             someBrokerNotPreferredLeader(partitionInfoList, brokers) &&
             !zkClient.reassignPartitionsInProgress()) {
-          LOG.info("MultiClusterTopicManagementService will reassign partitions of the topic {} in cluster {}", _topic, _zkConnect);
+          LOG.info("{} will reassign partitions of the topic {} in cluster {}", this.getClass().toString(), _topic, _zkConnect);
           reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
           partitionReassigned = true;
         }
@@ -373,9 +375,10 @@ public class MultiClusterTopicManagementService implements Service {
             someBrokerNotElectedLeader(partitionInfoList, brokers)) {
           if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
             LOG.info(
-                "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in cluster {}",
-                _topic, _zkConnect);
-            triggerPreferredLeaderElection(zkClient, partitionInfoList);
+                "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
+                    + "cluster {}", _topic, _zkConnect
+            );
+            triggerPreferredLeaderElection(partitionInfoList);
             _preferredLeaderElectionRequested = false;
           } else {
             _preferredLeaderElectionRequested = true;
@@ -400,7 +403,7 @@ public class MultiClusterTopicManagementService implements Service {
           LOG.info(
               "MultiClusterTopicManagementService will trigger requested preferred leader election for the topic {} in cluster {}",
               _topic, _zkConnect);
-          triggerPreferredLeaderElection(zkClient, partitionInfoList);
+          triggerPreferredLeaderElection(partitionInfoList);
           _preferredLeaderElectionRequested = false;
         }
       } finally {
@@ -408,12 +411,16 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    private static void triggerPreferredLeaderElection(KafkaZkClient zkClient, List<PartitionInfo> partitionInfoList) {
-      scala.collection.mutable.HashSet<TopicPartition> scalaPartitionInfoSet = new scala.collection.mutable.HashSet<>();
+    private void triggerPreferredLeaderElection(List<PartitionInfo> partitionInfoList)
+        throws ExecutionException, InterruptedException {
+      AdminClient adminClient = constructAdminClient();
+      Collection<TopicPartition> partitions = new HashSet<>();
       for (PartitionInfo javaPartitionInfo : partitionInfoList) {
-        scalaPartitionInfoSet.add(new TopicPartition(javaPartitionInfo.topic(), javaPartitionInfo.partition()));
+        partitions.add(new TopicPartition(javaPartitionInfo.topic(), javaPartitionInfo.partition()));
       }
-      PreferredReplicaLeaderElectionCommand.writePreferredReplicaElectionData(zkClient, scalaPartitionInfoSet);
+      ElectPreferredLeadersResult electPreferredLeadersResult = adminClient.electPreferredLeaders(partitions);
+
+      LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Broker> brokers, String topic, int partitionCount, int replicationFactor) {

@@ -31,7 +31,7 @@ allprojects {
     compile 'org.slf4j:slf4j-log4j12:1.7.6'
     compile 'org.apache.avro:avro:1.4.0'
     compile 'org.apache.kafka:kafka_2.12:2.0.0'
-    compile 'org.apache.kafka:kafka-clients:2.0.0'
+    compile 'org.apache.kafka:kafka-clients:2.3.1'
     compile 'org.testng:testng:6.8.8'
     compile 'org.eclipse.jetty:jetty-server:8.1.19.v20160209'
     compile 'org.json:json:20140107'
