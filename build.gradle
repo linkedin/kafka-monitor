@@ -56,7 +56,7 @@ allprojects {
   jar {
     doFirst {
       manifest {
-        //embed version information into jar manifests
+        // embed version information into jar manifests
         attributes('Name': "${project.name}",
             'Specification-Title': "${project.name}",
             'Specification-Version': "${project.version}",
@@ -149,7 +149,7 @@ bintray {
     repo = 'maven'
     name = 'kafka-monitor'
     userOrg = 'linkedin'
-    licenses = ['Apache-2.0'] //this is validated by bintray and must be a valid license
+    licenses = ['Apache-2.0'] // this is validated by bintray and must be a valid license
     vcsUrl = 'https://github.com/linkedin/kafka-monitor.git'
     version {
       name = project.version
