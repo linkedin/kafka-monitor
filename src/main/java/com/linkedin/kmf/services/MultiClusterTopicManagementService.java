@@ -49,7 +49,6 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.Time;
@@ -226,8 +225,6 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMsConfig;
     private final List _bootstrapServersConfig;
-    private final String _sslTrustStoreLocationConfig;
-    private final String _sslTrustStorePasswordConfig;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -242,9 +239,6 @@ public class MultiClusterTopicManagementService implements Service {
       _preferredLeaderElectionRequested = false;
       _requestTimeoutMsConfig = adminConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
       _bootstrapServersConfig = adminConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
-      _sslTrustStoreLocationConfig = adminConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-      _sslTrustStorePasswordConfig = adminConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
         for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
@@ -272,8 +266,6 @@ public class MultiClusterTopicManagementService implements Service {
       adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name());
       adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
       adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
-      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTrustStoreLocationConfig);
-      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTrustStorePasswordConfig);
       return AdminClient.create(adminClientProperties);
     }
 
@@ -538,7 +530,5 @@ public class MultiClusterTopicManagementService implements Service {
       bldr.append("]}");
       return bldr.toString();
     }
-
   }
 }
-
