@@ -39,7 +39,6 @@ import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.cluster.Broker;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
-import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
@@ -177,7 +176,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeReassignPartitionAndElectLeader();
-          } catch (IOException | ZkNodeExistsException | AdminOperationException e) {
+          } catch (IOException | AdminOperationException e) {
             LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
@@ -190,8 +189,10 @@ public class MultiClusterTopicManagementService implements Service {
     }
   }
 
-  /* Check if Preferred leader election is requested during Topic Management (TopicManagementRunnable),
-     trigger Preferred leader election when there is no partition reassignment in progress. */
+  /**
+   * Check if Preferred leader election is requested during Topic Management (TopicManagementRunnable),
+   * trigger Preferred leader election when there is no partition reassignment in progress.
+   */
   private class PreferredLeaderElectionRunnable implements Runnable {
     @Override
     public void run() {
@@ -201,7 +202,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeElectLeader();
-          } catch (IOException | ZkNodeExistsException | AdminOperationException e) {
+          } catch (IOException | AdminOperationException e) {
             LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
@@ -347,7 +348,7 @@ public class MultiClusterTopicManagementService implements Service {
           partitionReassigned = true;
         }
 
-        /* Update the properties of the monitor topic if any config is different from the user-specified config */
+        // Update the properties of the monitor topic if any config is different from the user-specified config
         Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
         Properties expectedProperties = new Properties();
         for (Object key: currentProperties.keySet())
