@@ -19,8 +19,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -30,32 +31,31 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import kafka.admin.AdminOperationException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.admin.AdminOperationException;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.admin.PreferredReplicaLeaderElectionCommand;
-import kafka.admin.RackAwareMode;
 import kafka.cluster.Broker;
 import kafka.server.ConfigType;
-import kafka.server.KafkaConfig$;
 import kafka.zk.KafkaZkClient;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.NewPartitions;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.collection.Seq;
 
 /**
@@ -224,12 +224,13 @@ public class MultiClusterTopicManagementService implements Service {
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private final String _requestTimeoutMsConfig;
-    private final String _bootstrapServersConfig;
+    private final int _requestTimeoutMsConfig;
+    private final List _bootstrapServersConfig;
     private final String _sslTrustStoreLocationConfig;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
+      AdminClientConfig adminConfig = new AdminClientConfig(props);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
       _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
@@ -238,9 +239,9 @@ public class MultiClusterTopicManagementService implements Service {
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       _preferredLeaderElectionRequested = false;
-      _requestTimeoutMsConfig = config.getString(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
-      _bootstrapServersConfig = config.getString(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
-      _sslTrustStoreLocationConfig = config.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+      _requestTimeoutMsConfig = adminConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
+      _bootstrapServersConfig = adminConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
+      _sslTrustStoreLocationConfig = adminConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
 
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
@@ -288,9 +289,11 @@ public class MultiClusterTopicManagementService implements Service {
           Set<Integer> blackListedBrokers =
               _topicFactory.getBlackListedBrokers(_zkConnect);
           Set<BrokerMetadata> brokers = new HashSet<>();
-          while (adminClient.describeCluster().nodes().get().iterator().hasNext()) {
+          Iterator<Node> nodesIterator = adminClient.describeCluster().nodes().get().iterator();
+          while (nodesIterator.hasNext()) {
+            KafkaFuture<Collection<Node>> clusterNodes = adminClient.describeCluster().nodes();
             BrokerMetadata brokerMetadata = new BrokerMetadata(
-                adminClient.describeCluster().nodes().get().iterator().next().id(), null
+                clusterNodes.get().iterator().next().id(), null
             );
             brokers.add(brokerMetadata);
           }

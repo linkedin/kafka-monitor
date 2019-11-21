@@ -52,7 +52,7 @@ public class BasicEndToEndTest implements Test {
     _topicManagementService.start();
     _produceService.start();
     _consumeService.start();
-    LOG.info(_name + "/BasicEndToEndTest started");
+    LOG.info("{} /BasicEndToEndTest started.", _name);
   }
 
   @Override
@@ -60,7 +60,7 @@ public class BasicEndToEndTest implements Test {
     _topicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
-    LOG.info(_name + "/BasicEndToEndTest stopped");
+    LOG.info("{} /BasicEndToEndTest stopped.", _name);
   }
 
   @Override
