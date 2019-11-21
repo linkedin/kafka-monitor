@@ -273,7 +273,6 @@ public class MultiClusterTopicManagementService implements Service {
       adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
       adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
       adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTrustStoreLocationConfig);
-//    adminClientProperties.put(METRIC_GROUP_NAME);
       return AdminClient.create(adminClientProperties);
     }
 
