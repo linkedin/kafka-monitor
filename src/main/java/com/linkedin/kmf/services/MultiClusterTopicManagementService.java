@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminOperationException;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
-import kafka.admin.PreferredReplicaLeaderElectionCommand;
 import kafka.cluster.Broker;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
