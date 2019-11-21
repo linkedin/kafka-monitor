@@ -111,7 +111,7 @@ $ ./bin/kafka-monitor-start.sh config/multi-cluster-monitor.properties
 ```
 
 ### Get metric values (e.g. service availability, message loss rate) in real-time as time series graphs
-Open ```localhost:8000/index.html``` in your web browser
+Open ```localhost:8000/index.html``` in your web browser.
 
 You can edit webapp/index.html to easily add new metrics to be displayed.
 
