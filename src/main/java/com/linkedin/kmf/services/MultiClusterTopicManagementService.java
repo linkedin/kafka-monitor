@@ -49,6 +49,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.Time;
@@ -225,11 +226,16 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMsConfig;
     private final List _bootstrapServersConfig;
-    private AdminClient _adminClient;
+    private final AdminClient _adminClient;
+    private final String _clientId;
+    private final String _sslTruststorePassword;
+    private final String _sslTruststoreLocation;
+    private final String _sslKeystorePassword;
+    private final String _sslKeystoreLocation;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
-      AdminClientConfig adminConfig = new AdminClientConfig(props);
+      AdminClientConfig adminClientConfig = new AdminClientConfig(props);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
       _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
@@ -238,18 +244,22 @@ public class MultiClusterTopicManagementService implements Service {
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       _preferredLeaderElectionRequested = false;
-      _requestTimeoutMsConfig = adminConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
-      _bootstrapServersConfig = adminConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
+      _requestTimeoutMsConfig = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
+      _bootstrapServersConfig = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
         for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
           _topicProperties.put(entry.getKey(), entry.getValue().toString());
       }
-
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
       _adminClient = constructAdminClient();
+      _clientId = adminClientConfig.getString(AdminClientConfig.CLIENT_ID_CONFIG);
+      _sslKeystoreLocation = adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
+      _sslKeystorePassword = adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG);
+      _sslTruststoreLocation = adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+      _sslTruststorePassword = adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
     }
 
     void maybeCreateTopic() throws Exception {
@@ -264,10 +274,14 @@ public class MultiClusterTopicManagementService implements Service {
 
     private AdminClient constructAdminClient() {
       Properties adminClientProperties = new Properties();
-      adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT.name());
+      adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
+      adminClientProperties.put(AdminClientConfig.CLIENT_ID_CONFIG, _clientId);
       adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
       adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
-
+      adminClientProperties.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, _sslKeystoreLocation);
+      adminClientProperties.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, _sslKeystorePassword);
+      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTruststoreLocation);
+      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTruststorePassword);
       return AdminClient.create(adminClientProperties);
     }
 
