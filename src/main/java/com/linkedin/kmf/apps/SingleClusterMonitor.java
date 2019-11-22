@@ -234,7 +234,6 @@ public class SingleClusterMonitor implements App {
     Namespace res = parser.parseArgs(args);
 
     Map<String, Object> props = new HashMap<>();
-
     // produce service config
     props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
     props.put(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));

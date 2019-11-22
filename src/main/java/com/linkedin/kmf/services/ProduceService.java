@@ -16,12 +16,14 @@ import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -29,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.MetricName;
@@ -77,7 +81,7 @@ public class ProduceService implements Service {
   private final Map _producerPropsOverride;
   private final String _producerClassName;
   private final int _threadsNum;
-  private final String _zkConnect;
+//  private final String _zkConnect;
   private final boolean _treatZeroThroughputAsUnavailable;
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
@@ -85,7 +89,7 @@ public class ProduceService implements Service {
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+//    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
@@ -130,7 +134,6 @@ public class ProduceService implements Service {
     _sensors = new ProduceMetrics(metrics, tags);
   }
 
-
   private void initializeProducer() throws Exception {
 
     Properties producerProps = new Properties();
@@ -155,10 +158,20 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
-      int partitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-      initializeStateForPartitions(partitionNum);
-      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
-      LOG.info("{}/ProduceService started", _name);
+//      int partitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+      AdminClient adminClient = MultiClusterTopicManagementService.TopicManagementHelper.constructAdminClient();
+      try {
+        Map<String, TopicDescription> topicDescriptions = adminClient.describeTopics(Collections.singleton(_topic)).all().get();
+        System.exit(0);
+        int partitionNum = topicDescriptions.get(_topic).partitions().size();
+        initializeStateForPartitions(partitionNum);
+        _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
+        LOG.info("{}/ProduceService started", _name);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      } catch (ExecutionException e) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -355,10 +368,15 @@ public class ProduceService implements Service {
    */
   private class NewPartitionHandler implements Runnable {
 
+
+
+
     public void run() {
       LOG.debug("{}/ProduceService check partition number for topic {}.", _name, _topic);
-
-      int currentPartitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
+      AdminClient adminClient = MultiClusterTopicManagementService.TopicManagementHelper.constructAdminClient();
+      try {
+        int currentPartitionNum = adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions().size();
+//      int currentPartitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
       if (currentPartitionNum <= 0) {
         LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
         return;
@@ -383,6 +401,11 @@ public class ProduceService implements Service {
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
       initializeStateForPartitions(currentPartitionNum);
       LOG.info("New partitions added to monitoring.");
+      } catch (InterruptedException e) {
+        LOG.error("InterruptedException occurred {}.", e);
+      } catch (ExecutionException e) {
+        LOG.error("ExecutionException occurred {}.", e);
+      }
     }
   }
 

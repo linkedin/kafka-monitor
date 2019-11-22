@@ -224,13 +224,9 @@ public class MultiClusterTopicManagementService implements Service {
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private final int _requestTimeoutMs;
-    private final List _bootstrapServers;
+    private static int _requestTimeoutMs;
+    private static List _bootstrapServers;
     private final AdminClient _adminClient;
-    private final String _sslTruststorePassword;
-    private final String _sslTruststoreLocation;
-    private final String _sslKeystorePassword;
-    private final String _sslKeystoreLocation;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -253,11 +249,7 @@ public class MultiClusterTopicManagementService implements Service {
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
-      _sslKeystoreLocation = (String) props.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
-      _sslKeystorePassword = (String) props.get(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG);
-      _sslTruststoreLocation = (String) props.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-      _sslTruststorePassword = (String) props.get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-      _adminClient = constructAdminClient();
+      _adminClient = constructAdminClient(props);
     }
 
     void maybeCreateTopic() throws Exception {
@@ -270,15 +262,12 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    private AdminClient constructAdminClient() {
+    public static AdminClient constructAdminClient(Map<String, Object> props) {
       Properties adminClientProperties = new Properties();
       adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
       adminClientProperties.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
       adminClientProperties.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
-      adminClientProperties.putIfAbsent(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, _sslKeystoreLocation);
-      adminClientProperties.putIfAbsent(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, _sslKeystorePassword);
-      adminClientProperties.putIfAbsent(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTruststoreLocation);
-      adminClientProperties.putIfAbsent(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTruststorePassword);
+//      adminClientProperties.putIfAbsent(AdminClientConfig.CLIENT_ID_CONFIG, );
       return AdminClient.create(adminClientProperties);
     }
 
