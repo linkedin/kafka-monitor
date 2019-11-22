@@ -224,10 +224,9 @@ public class MultiClusterTopicManagementService implements Service {
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private final int _requestTimeoutMsConfig;
-    private final List _bootstrapServersConfig;
+    private final int _requestTimeoutMs;
+    private final List _bootstrapServers;
     private final AdminClient _adminClient;
-    private final String _clientId;
     private final String _sslTruststorePassword;
     private final String _sslTruststoreLocation;
     private final String _sslKeystorePassword;
@@ -244,8 +243,8 @@ public class MultiClusterTopicManagementService implements Service {
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       _preferredLeaderElectionRequested = false;
-      _requestTimeoutMsConfig = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
-      _bootstrapServersConfig = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
+      _requestTimeoutMs = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
+      _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
         for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
@@ -254,12 +253,11 @@ public class MultiClusterTopicManagementService implements Service {
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
+      _sslKeystoreLocation = (String) props.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
+      _sslKeystorePassword = (String) props.get(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG);
+      _sslTruststoreLocation = (String) props.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+      _sslTruststorePassword = (String) props.get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
       _adminClient = constructAdminClient();
-      _clientId = adminClientConfig.getString(AdminClientConfig.CLIENT_ID_CONFIG);
-      _sslKeystoreLocation = adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
-      _sslKeystorePassword = adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG);
-      _sslTruststoreLocation = adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-      _sslTruststorePassword = adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
     }
 
     void maybeCreateTopic() throws Exception {
@@ -275,13 +273,12 @@ public class MultiClusterTopicManagementService implements Service {
     private AdminClient constructAdminClient() {
       Properties adminClientProperties = new Properties();
       adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-      adminClientProperties.put(AdminClientConfig.CLIENT_ID_CONFIG, _clientId);
-      adminClientProperties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServersConfig);
-      adminClientProperties.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMsConfig);
-      adminClientProperties.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, _sslKeystoreLocation);
-      adminClientProperties.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, _sslKeystorePassword);
-      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTruststoreLocation);
-      adminClientProperties.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTruststorePassword);
+      adminClientProperties.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
+      adminClientProperties.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
+      adminClientProperties.putIfAbsent(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, _sslKeystoreLocation);
+      adminClientProperties.putIfAbsent(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, _sslKeystorePassword);
+      adminClientProperties.putIfAbsent(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, _sslTruststoreLocation);
+      adminClientProperties.putIfAbsent(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, _sslTruststorePassword);
       return AdminClient.create(adminClientProperties);
     }
 
