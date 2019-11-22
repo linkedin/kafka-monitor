@@ -49,9 +49,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.JaasUtils;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -224,8 +222,8 @@ public class MultiClusterTopicManagementService implements Service {
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private static int _requestTimeoutMs;
-    private static List _bootstrapServers;
+    private int _requestTimeoutMs;
+    private List _bootstrapServers;
     private final AdminClient _adminClient;
 
     TopicManagementHelper(Map<String, Object> props) throws Exception {
@@ -262,13 +260,10 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    public static AdminClient constructAdminClient(Map<String, Object> props) {
-      Properties adminClientProperties = new Properties();
-      adminClientProperties.setProperty(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-      adminClientProperties.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
-      adminClientProperties.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
-//      adminClientProperties.putIfAbsent(AdminClientConfig.CLIENT_ID_CONFIG, );
-      return AdminClient.create(adminClientProperties);
+    public AdminClient constructAdminClient(Map<String, Object> props) {
+      props.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
+      props.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
+      return AdminClient.create(props);
     }
 
     int minPartitionNum() {
