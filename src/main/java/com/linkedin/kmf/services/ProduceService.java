@@ -81,15 +81,14 @@ public class ProduceService implements Service {
   private final Map _producerPropsOverride;
   private final String _producerClassName;
   private final int _threadsNum;
-//  private final String _zkConnect;
   private final boolean _treatZeroThroughputAsUnavailable;
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
+  private final AdminClient _adminClient;
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     ProduceServiceConfig config = new ProduceServiceConfig(props);
-//    _zkConnect = config.getString(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
@@ -113,6 +112,7 @@ public class ProduceService implements Service {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
     }
+    _adminClient = AdminClient.create(props);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
       _producerClassName = NewProducer.class.getCanonicalName();
@@ -158,11 +158,8 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
-//      int partitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-      AdminClient adminClient = MultiClusterTopicManagementService.TopicManagementHelper.constructAdminClient();
       try {
-        Map<String, TopicDescription> topicDescriptions = adminClient.describeTopics(Collections.singleton(_topic)).all().get();
-        System.exit(0);
+        Map<String, TopicDescription> topicDescriptions = _adminClient.describeTopics(Collections.singleton(_topic)).all().get();
         int partitionNum = topicDescriptions.get(_topic).partitions().size();
         initializeStateForPartitions(partitionNum);
         _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
@@ -367,40 +364,35 @@ public class ProduceService implements Service {
    * sensors are added for the new partitions.
    */
   private class NewPartitionHandler implements Runnable {
-
-
-
-
     public void run() {
       LOG.debug("{}/ProduceService check partition number for topic {}.", _name, _topic);
-      AdminClient adminClient = MultiClusterTopicManagementService.TopicManagementHelper.constructAdminClient();
       try {
-        int currentPartitionNum = adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions().size();
-//      int currentPartitionNum = Utils.getPartitionNumForTopic(_zkConnect, _topic);
-      if (currentPartitionNum <= 0) {
-        LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
-        return;
-      } else if (currentPartitionNum == _partitionNum.get()) {
-        return;
-      }
-      LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
-      //TODO: Should the ProduceService exit if we can't restart the producer runnables?
-      _produceExecutor.shutdown();
-      try {
-        _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException e) {
-        throw new IllegalStateException(e);
-      }
-      _producer.close();
-      try {
-        initializeProducer();
-      } catch (Exception e) {
-        LOG.error("Failed to restart producer.", e);
-        throw new IllegalStateException(e);
-      }
-      _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
-      initializeStateForPartitions(currentPartitionNum);
-      LOG.info("New partitions added to monitoring.");
+        int currentPartitionNum =
+            _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions().size();
+        if (currentPartitionNum <= 0) {
+          LOG.info("{}/ProduceService topic {} does not exist.", _name, _topic);
+          return;
+        } else if (currentPartitionNum == _partitionNum.get()) {
+          return;
+        }
+        LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
+        //TODO: Should the ProduceService exit if we can't restart the producer runnables?
+        _produceExecutor.shutdown();
+        try {
+          _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
+        }
+        _producer.close();
+        try {
+          initializeProducer();
+        } catch (Exception e) {
+          LOG.error("Failed to restart producer.", e);
+          throw new IllegalStateException(e);
+        }
+        _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
+        initializeStateForPartitions(currentPartitionNum);
+        LOG.info("New partitions added to monitoring.");
       } catch (InterruptedException e) {
         LOG.error("InterruptedException occurred {}.", e);
       } catch (ExecutionException e) {
