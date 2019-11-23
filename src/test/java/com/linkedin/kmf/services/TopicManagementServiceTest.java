@@ -9,15 +9,16 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
 import java.util.ArrayList;
 import java.util.List;
 import kafka.cluster.Broker;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
 
 @Test
 public class TopicManagementServiceTest {
@@ -55,12 +56,11 @@ public class TopicManagementServiceTest {
 
   @Test
   public void detectLowTotalNumberOfPartitions() {
-    List<PartitionInfo> partitions = new ArrayList<>();
+    List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(3);
-    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 1, node[1], new Node[] {node[1], node[0]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 2, node[2], new Node[] {node[2], node[0]}, null));
-
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(), null));
+    partitions.add(new TopicPartitionInfo(1, node[1], new ArrayList<>(), null));
+    partitions.add(new TopicPartitionInfo(2, node[2], new ArrayList<>(), null));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
     Assert.assertEquals(TopicManagementHelper.getReplicationFactor(partitions), 2);
