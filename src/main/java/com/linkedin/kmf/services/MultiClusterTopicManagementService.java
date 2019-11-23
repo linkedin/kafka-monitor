@@ -337,7 +337,7 @@ public class MultiClusterTopicManagementService implements Service {
               _replicationFactor, currentReplicationFactor, _topic, _zkConnect);
         _adminClient.
 
-        if (expectedReplicationFactor > currentReplicationFactor) {//&& !zkClient.reassignPartitionsInProgress()) {
+        if (expectedReplicationFactor > currentReplicationFactor && !zkClient.reassignPartitionsInProgress()) {
           LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
               + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, expectedReplicationFactor);
           reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
@@ -484,14 +484,14 @@ public class MultiClusterTopicManagementService implements Service {
       for (Node broker: brokers)
         brokersNotPreferredLeader.add(broker.id());
       for (TopicPartitionInfo partitionInfo : partitionInfoList)
-        brokersNotPreferredLeader.remove(partitionInfo.replicas()[0].id());
+        brokersNotPreferredLeader.remove(partitionInfo.replicas().get(0).id());
 
       return !brokersNotPreferredLeader.isEmpty();
     }
 
-    static boolean someBrokerNotElectedLeader(List<TopicPartitionInfo> partitionInfoList, Collection<Broker> brokers) {
+    static boolean someBrokerNotElectedLeader(List<TopicPartitionInfo> partitionInfoList, Collection<Node> brokers) {
       Set<Integer> brokersNotElectedLeader = new HashSet<>(brokers.size());
-      for (Broker broker: brokers)
+      for (Node broker: brokers)
         brokersNotElectedLeader.add(broker.id());
       for (TopicPartitionInfo partitionInfo : partitionInfoList) {
         if (partitionInfo.leader() != null)
