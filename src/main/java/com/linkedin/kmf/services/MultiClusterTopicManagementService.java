@@ -34,10 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
-import kafka.cluster.Broker;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
-import org.I0Itec.zkclient.ZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
@@ -47,7 +45,6 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
@@ -55,7 +52,6 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.Option$;
 import scala.collection.Seq;
 
@@ -335,13 +331,11 @@ public class MultiClusterTopicManagementService implements Service {
         if (_replicationFactor < currentReplicationFactor)
           LOG.debug("Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster {}",
               _replicationFactor, currentReplicationFactor, _topic, _zkConnect);
-        _adminClient.
 
         if (expectedReplicationFactor > currentReplicationFactor && !zkClient.reassignPartitionsInProgress()) {
           LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster {}"
               + "from {} to {}", _topic, _zkConnect, currentReplicationFactor, expectedReplicationFactor);
           reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-          _adminClient.createPartitions()
           partitionReassigned = true;
         }
 
