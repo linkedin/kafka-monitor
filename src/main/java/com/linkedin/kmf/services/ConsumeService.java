@@ -95,7 +95,6 @@ public class ConsumeService implements Service {
 
     // Assign config specified for ConsumeService.
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-//    consumerProps.put("zookeeper.connect", zkConnect);
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
