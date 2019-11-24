@@ -298,7 +298,6 @@ public class MultiClusterTopicManagementService implements Service {
         newPartitionsMap.put(_topic, newPartitions);
         _adminClient.createPartitions(newPartitionsMap);
       }
-
     }
 
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
