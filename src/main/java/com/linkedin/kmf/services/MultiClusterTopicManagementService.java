@@ -317,7 +317,6 @@ public class MultiClusterTopicManagementService implements Service {
       KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
           com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener");
       try {
-//        List<PartitionInfo> partitionInfoList = getPartitionInfo(zkClient, _topic);
         List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
         Collection<Node> brokers = getAvailableBrokers();
         boolean partitionReassigned = false;

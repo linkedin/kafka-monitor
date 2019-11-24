@@ -56,9 +56,9 @@ public class TopicManagementServiceTest {
   public void detectLowTotalNumberOfPartitions() {
     List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(3);
-    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(), new ArrayList<>()));
-    partitions.add(new TopicPartitionInfo(1, node[1], new ArrayList<>(), new ArrayList<>()));
-    partitions.add(new TopicPartitionInfo(2, node[2], new ArrayList<>(), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(1, node[1], new ArrayList<>(Arrays.asList(node[1], node[0])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(2, node[2], new ArrayList<>(Arrays.asList(node[2], node[0])), new ArrayList<>()));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
     Assert.assertEquals(TopicManagementHelper.getReplicationFactor(partitions), 2);
