@@ -312,7 +312,7 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
       KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener");
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
 
       try {
         List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -380,7 +380,7 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener");
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
 
       try {
         if (!zkClient.reassignPartitionsInProgress()) {
