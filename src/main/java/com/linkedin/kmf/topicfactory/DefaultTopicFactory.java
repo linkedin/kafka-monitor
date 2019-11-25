@@ -29,7 +29,7 @@ public class DefaultTopicFactory implements TopicFactory {
   }
 
   @Override
-  public Set<Integer> getBlackListedBrokers(String zkUrl) {
+  public Set<Integer> getBlackListedBrokers() {
     return Collections.emptySet();
   }
 }
