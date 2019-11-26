@@ -35,8 +35,10 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -159,12 +161,13 @@ public class ProduceService implements Service {
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       try {
-        Map<String, TopicDescription> topicDescriptions = _adminClient.describeTopics(Collections.singleton(_topic)).all().get();
+        KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
+        Map<String, TopicDescription> topicDescriptions = topicDescriptionsFuture.get();
         int partitionNum = topicDescriptions.get(_topic).partitions().size();
         initializeStateForPartitions(partitionNum);
         _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
         LOG.info("{}/ProduceService started", _name);
-      } catch (InterruptedException e) {
+      } catch (InterruptedException | UnknownTopicOrPartitionException e) {
         e.printStackTrace();
       } catch (ExecutionException e) {
         e.printStackTrace();
