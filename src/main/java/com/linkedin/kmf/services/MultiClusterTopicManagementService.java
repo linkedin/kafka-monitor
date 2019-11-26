@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +36,7 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -109,15 +111,18 @@ public class MultiClusterTopicManagementService implements Service {
   }
 
   @Override
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
+    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
     if (_isRunning.compareAndSet(false, true)) {
-      Runnable tmRunnable = new TopicManagementRunnable();
+      Runnable tmRunnable = new TopicManagementRunnable(completableFuture);
       _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+
       Runnable pleRunnable = new PreferredLeaderElectionRunnable();
       _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs,
           TimeUnit.MILLISECONDS);
       LOG.info("{}/MultiClusterTopicManagementService started.", _serviceName);
     }
+    return completableFuture;
   }
 
   @Override
@@ -144,6 +149,11 @@ public class MultiClusterTopicManagementService implements Service {
   }
 
   private class TopicManagementRunnable implements Runnable {
+    CompletableFuture<Void> _completableFuture;
+    public TopicManagementRunnable(CompletableFuture<Void> completableFuture) {
+      _completableFuture = completableFuture;
+    }
+
     @Override
     public void run() {
       try {
@@ -165,6 +175,7 @@ public class MultiClusterTopicManagementService implements Service {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeAddPartitions(minPartitionNum);
         }
+        _completableFuture.complete(null);
 
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
@@ -254,7 +265,8 @@ public class MultiClusterTopicManagementService implements Service {
         int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
         NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
         newTopic.configs((Map) _topicProperties);
-        _adminClient.createTopics(Collections.singletonList(newTopic));
+        CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singletonList(newTopic));
+        LOG.info("CreateTopicsResult: {}.", createTopicsResult.values());
       }
     }
 
@@ -264,7 +276,7 @@ public class MultiClusterTopicManagementService implements Service {
       return AdminClient.create(props);
     }
 
-    int minPartitionNum() throws ExecutionException, InterruptedException {
+    int minPartitionNum() throws InterruptedException, ExecutionException {
       int brokerCount = _adminClient.describeCluster().nodes().get().size();
       return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }

@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.services;
 
+import java.util.concurrent.CompletableFuture;
 import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
@@ -33,11 +34,12 @@ public class JolokiaService implements Service {
     _isRunning = new AtomicBoolean(false);
   }
 
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
       LOG.info("{}/JolokiaService started at port 8778", _name);
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   public synchronized void stop() {

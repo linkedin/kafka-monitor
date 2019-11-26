@@ -10,6 +10,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
+import java.util.concurrent.CompletableFuture;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
@@ -37,13 +38,14 @@ public class JettyService implements Service {
     _jettyServer.setHandler(resourceHandler);
   }
 
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
     try {
       _jettyServer.start();
       LOG.info("{}/JettyService started at port {}", _name, _port);
     } catch (Exception e) {
       LOG.error(_name + "/JettyService failed to start", e);
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   public synchronized void stop() {

@@ -9,28 +9,28 @@
  */
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.DefaultMetricsReporterService;
+import com.linkedin.kmf.services.JettyService;
+import com.linkedin.kmf.services.JolokiaService;
+import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
-import com.linkedin.kmf.services.ConsumeService;
-import com.linkedin.kmf.services.JettyService;
-import com.linkedin.kmf.services.JolokiaService;
-import com.linkedin.kmf.services.DefaultMetricsReporterService;
-import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
-import net.sourceforge.argparse4j.ArgumentParsers;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.Namespace;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.concurrent.CompletableFuture;
+import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.kafka.common.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
@@ -60,10 +60,15 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void start() {
-    _topicManagementService.start();
-    _produceService.start();
-    _consumeService.start();
-    LOG.info(_name + "/SingleClusterMonitor started");
+    CompletableFuture<Void> completableFuture = _topicManagementService.start();
+    completableFuture.thenRun(() -> {
+      try {
+        _produceService.start();
+        _consumeService.start();
+      } finally {
+        LOG.info(_name + "/SingleClusterMonitor started.");
+      }
+    });
   }
 
   @Override
@@ -71,7 +76,7 @@ public class SingleClusterMonitor implements App {
     _topicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
-    LOG.info(_name + "/SingleClusterMonitor stopped");
+    LOG.info(_name + "/SingleClusterMonitor stopped.");
   }
 
   @Override

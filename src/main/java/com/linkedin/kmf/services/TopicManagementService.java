@@ -14,6 +14,7 @@ import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfi
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 
 /**
@@ -58,8 +59,8 @@ public class TopicManagementService implements Service {
   }
 
   @Override
-  public synchronized void start() {
-    _multiClusterTopicManagementService.start();
+  public synchronized CompletableFuture<Void> start() {
+    return _multiClusterTopicManagementService.start();
   }
 
   @Override

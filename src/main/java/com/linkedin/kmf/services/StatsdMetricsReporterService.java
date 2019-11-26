@@ -14,6 +14,7 @@ import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.StatsdMetricsReporterServiceConfig;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ public class StatsdMetricsReporterService implements Service {
   }
 
   @Override
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
     _executor.scheduleAtFixedRate(
       new Runnable() {
         @Override
@@ -62,6 +63,7 @@ public class StatsdMetricsReporterService implements Service {
       }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
     LOG.info("{}/StatsdMetricsReporterService started", _name);
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

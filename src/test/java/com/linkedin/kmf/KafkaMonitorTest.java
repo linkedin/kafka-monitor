@@ -12,6 +12,7 @@ package com.linkedin.kmf;
 import com.linkedin.kmf.services.Service;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -101,9 +102,10 @@ public class KafkaMonitorTest {
     }
 
     @Override
-    public void start() {
+    public CompletableFuture<Void> start() {
       _isRunning.compareAndSet(false, true);
       startCount.incrementAndGet();
+      return CompletableFuture.completedFuture(null);
     }
 
     @Override

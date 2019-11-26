@@ -13,6 +13,7 @@ import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +38,7 @@ public class DefaultMetricsReporterService implements Service {
   }
 
   @Override
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
     _executor.scheduleAtFixedRate(() -> {
       try {
         reportMetrics();
@@ -46,6 +47,7 @@ public class DefaultMetricsReporterService implements Service {
       }
     }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS);
     LOG.info("{}/DefaultMetricsReporterService started.", _name);
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

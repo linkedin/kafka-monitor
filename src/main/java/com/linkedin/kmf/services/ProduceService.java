@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -137,7 +138,6 @@ public class ProduceService implements Service {
   }
 
   private void initializeProducer() throws Exception {
-
     Properties producerProps = new Properties();
     // Assign default config. This has the lowest priority.
     producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
@@ -158,21 +158,20 @@ public class ProduceService implements Service {
   }
 
   @Override
-  public synchronized void start() {
+  public synchronized CompletableFuture<Void> start() {
     if (_running.compareAndSet(false, true)) {
       try {
         KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
         Map<String, TopicDescription> topicDescriptions = topicDescriptionsFuture.get();
         int partitionNum = topicDescriptions.get(_topic).partitions().size();
         initializeStateForPartitions(partitionNum);
-        _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1000, 30000, TimeUnit.MILLISECONDS);
+        _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
         LOG.info("{}/ProduceService started", _name);
-      } catch (InterruptedException | UnknownTopicOrPartitionException e) {
-        e.printStackTrace();
-      } catch (ExecutionException e) {
-        e.printStackTrace();
+      } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
+        LOG.error("Exception occurred while starting produce service: ", e);
       }
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   private void initializeStateForPartitions(int partitionNum) {

@@ -10,12 +10,12 @@
 package com.linkedin.kmf.tests;
 
 import com.linkedin.kmf.apps.SingleClusterMonitor;
-import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.TopicManagementService;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
 
 
 /*
