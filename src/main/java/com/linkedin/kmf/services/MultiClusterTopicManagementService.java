@@ -15,6 +15,7 @@ import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfi
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -292,6 +293,7 @@ public class MultiClusterTopicManagementService implements Service {
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
         Set<Integer> blackListedBrokers =
             _topicFactory.getBlackListedBrokers();
+        List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
           BrokerMetadata brokerMetadata = new BrokerMetadata(
@@ -304,7 +306,7 @@ public class MultiClusterTopicManagementService implements Service {
           brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
         }
         Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
-        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, null);
+        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, replicaAssignment);
         newPartitionsMap.put(_topic, newPartitions);
         _adminClient.createPartitions(newPartitionsMap);
       }
