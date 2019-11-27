@@ -10,13 +10,11 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 // Jetty server that serves html files.
 public class JettyService implements Service {
@@ -38,14 +36,13 @@ public class JettyService implements Service {
     _jettyServer.setHandler(resourceHandler);
   }
 
-  public synchronized CompletableFuture<Void> start() {
+  public synchronized void start() {
     try {
       _jettyServer.start();
       LOG.info("{}/JettyService started at port {}", _name, _port);
     } catch (Exception e) {
       LOG.error(_name + "/JettyService failed to start", e);
     }
-    return CompletableFuture.completedFuture(null);
   }
 
   public synchronized void stop() {

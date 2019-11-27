@@ -59,9 +59,14 @@ public class TopicManagementService implements Service {
   }
 
   @Override
-  public synchronized CompletableFuture<Void> start() {
-    return _multiClusterTopicManagementService.start();
+  public synchronized void start() {
+    _multiClusterTopicManagementService.start();
   }
+
+  public CompletableFuture<Void> topicManagementReady() {
+    return _multiClusterTopicManagementService.topicManagementReady();
+  }
+
 
   @Override
   public synchronized void stop() {

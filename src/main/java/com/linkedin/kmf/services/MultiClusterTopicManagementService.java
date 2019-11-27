@@ -79,6 +79,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final int _scheduleIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
+  private CompletableFuture<Void> _completableFuture;
 
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
@@ -89,12 +90,17 @@ public class MultiClusterTopicManagementService implements Service {
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
+    _completableFuture = new CompletableFuture<>();
     _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
       @Override
       public Thread newThread(Runnable r) {
         return new Thread(r, _serviceName + "-multi-cluster-topic-management-service");
       }
     });
+  }
+
+  CompletableFuture<Void> topicManagementReady() {
+    return _completableFuture;
   }
 
   private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {
@@ -112,10 +118,9 @@ public class MultiClusterTopicManagementService implements Service {
   }
 
   @Override
-  public synchronized CompletableFuture<Void> start() {
-    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+  public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
-      Runnable tmRunnable = new TopicManagementRunnable(completableFuture);
+      Runnable tmRunnable = new TopicManagementRunnable();
       _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
 
       Runnable pleRunnable = new PreferredLeaderElectionRunnable();
@@ -123,7 +128,6 @@ public class MultiClusterTopicManagementService implements Service {
           TimeUnit.MILLISECONDS);
       LOG.info("{}/MultiClusterTopicManagementService started.", _serviceName);
     }
-    return completableFuture;
   }
 
   @Override
@@ -150,10 +154,6 @@ public class MultiClusterTopicManagementService implements Service {
   }
 
   private class TopicManagementRunnable implements Runnable {
-    CompletableFuture<Void> _completableFuture;
-    public TopicManagementRunnable(CompletableFuture<Void> completableFuture) {
-      _completableFuture = completableFuture;
-    }
 
     @Override
     public void run() {

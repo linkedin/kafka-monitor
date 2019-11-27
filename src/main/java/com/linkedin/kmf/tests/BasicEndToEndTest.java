@@ -14,6 +14,7 @@ import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +51,15 @@ public class BasicEndToEndTest implements Test {
   @Override
   public void start() {
     _topicManagementService.start();
-    _produceService.start();
-    _consumeService.start();
-    LOG.info("{} /BasicEndToEndTest started.", _name);
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
+    completableFuture.thenRun(() -> {
+      try {
+        _produceService.start();
+        _consumeService.start();
+      } finally {
+        LOG.info("{} /BasicEndToEndTest started.", _name);
+      }
+    });
   }
 
   @Override

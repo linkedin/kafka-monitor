@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
@@ -180,12 +179,11 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public synchronized CompletableFuture<Void> start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _thread.start();
       LOG.info("{}/ConsumeService started.", _name);
     }
-    return CompletableFuture.completedFuture(null);
   }
 
   @Override

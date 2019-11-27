@@ -9,14 +9,12 @@
  */
 package com.linkedin.kmf.services;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jolokia server allows user to query jmx metric value with HTTP request
@@ -34,12 +32,11 @@ public class JolokiaService implements Service {
     _isRunning = new AtomicBoolean(false);
   }
 
-  public synchronized CompletableFuture<Void> start() {
+  public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
       LOG.info("{}/JolokiaService started at port 8778", _name);
     }
-    return CompletableFuture.completedFuture(null);
   }
 
   public synchronized void stop() {

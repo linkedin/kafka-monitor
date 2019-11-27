@@ -9,9 +9,6 @@
  */
 package com.linkedin.kmf.services;
 
-import java.util.concurrent.CompletableFuture;
-
-
 /**
  * Services are components of a monitoring application that are expected to be running continuously in order to perform
  * monitoring.
@@ -27,7 +24,7 @@ public interface Service {
    * will only be called once.
    * @return
    */
-  CompletableFuture<Void> start();
+  void start();
 
   /**
    * This may be called multiple times.  This method must be thread safe and must assume that start() may be called

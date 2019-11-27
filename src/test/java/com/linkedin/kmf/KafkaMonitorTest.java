@@ -12,10 +12,8 @@ package com.linkedin.kmf;
 import com.linkedin.kmf.services.Service;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import java.util.concurrent.atomic.AtomicReference;
 import org.testng.annotations.Test;
 
@@ -102,10 +100,9 @@ public class KafkaMonitorTest {
     }
 
     @Override
-    public CompletableFuture<Void> start() {
+    public void start() {
       _isRunning.compareAndSet(false, true);
       startCount.incrementAndGet();
-      return CompletableFuture.completedFuture(null);
     }
 
     @Override

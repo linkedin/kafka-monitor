@@ -60,7 +60,8 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void start() {
-    CompletableFuture<Void> completableFuture = _topicManagementService.start();
+    _topicManagementService.start();
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
     completableFuture.thenRun(() -> {
       try {
         _produceService.start();

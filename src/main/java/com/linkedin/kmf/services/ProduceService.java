@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -158,7 +157,7 @@ public class ProduceService implements Service {
   }
 
   @Override
-  public synchronized CompletableFuture<Void> start() {
+  public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       try {
         KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
@@ -171,7 +170,6 @@ public class ProduceService implements Service {
         LOG.error("Exception occurred while starting produce service: ", e);
       }
     }
-    return CompletableFuture.completedFuture(null);
   }
 
   private void initializeStateForPartitions(int partitionNum) {
