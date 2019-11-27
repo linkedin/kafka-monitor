@@ -36,6 +36,7 @@ public interface TopicFactory {
   int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicProperties);
 
   /**
+   * @param zkUrl zookeeper connection url
    * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
    */
   Set<Integer> getBlackListedBrokers(String zkUrl);
