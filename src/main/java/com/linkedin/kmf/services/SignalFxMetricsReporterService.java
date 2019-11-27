@@ -3,20 +3,6 @@
  */
 package com.linkedin.kmf.services;
 
-import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
-
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.MetricRegistry;
 import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.SignalFxMetricsReporterServiceConfig;
@@ -24,6 +10,16 @@ import com.signalfx.codahale.metrics.SettableDoubleGauge;
 import com.signalfx.codahale.reporter.MetricMetadata;
 import com.signalfx.codahale.reporter.SignalFxReporter;
 import com.signalfx.endpoint.SignalFxEndpoint;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SignalFxMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(SignalFxMetricsReporterService.class);
@@ -129,7 +125,7 @@ public class SignalFxMetricsReporterService implements Service {
       String mbeanExpr = metricName.substring(0, index);
       String attributeExpr = metricName.substring(index + 1);
 
-      List<MbeanAttributeValue> attributeValues = getMBeanAttributeValues(mbeanExpr, attributeExpr);
+      List<MbeanAttributeValue> attributeValues = com.linkedin.kmf.common.Utils.getMBeanAttributeValues(mbeanExpr, attributeExpr);
 
       for (final MbeanAttributeValue attributeValue : attributeValues) {
         String metric = attributeValue.toString();
