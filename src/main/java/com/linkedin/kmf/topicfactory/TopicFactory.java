@@ -38,6 +38,6 @@ public interface TopicFactory {
   /**
    * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
    */
-  Set<Integer> getBlackListedBrokers();
+  Set<Integer> getBlackListedBrokers(String zkUrl);
 
 }

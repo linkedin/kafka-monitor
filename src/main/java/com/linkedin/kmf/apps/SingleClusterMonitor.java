@@ -63,13 +63,10 @@ public class SingleClusterMonitor implements App {
     _topicManagementService.start();
     CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
     completableFuture.thenRun(() -> {
-      try {
-        _produceService.start();
-        _consumeService.start();
-      } finally {
-        LOG.info(_name + "/SingleClusterMonitor started.");
-      }
+      _produceService.start();
+      _consumeService.start();
     });
+    LOG.info(_name + "/SingleClusterMonitor started.");
   }
 
   @Override

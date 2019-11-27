@@ -79,7 +79,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final int _scheduleIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
-  private CompletableFuture<Void> _completableFuture;
+  final private CompletableFuture<Void> _completableFuture;
 
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
@@ -99,7 +99,7 @@ public class MultiClusterTopicManagementService implements Service {
     });
   }
 
-  CompletableFuture<Void> topicManagementReady() {
+  public CompletableFuture<Void> topicManagementReady() {
     return _completableFuture;
   }
 
@@ -292,7 +292,7 @@ public class MultiClusterTopicManagementService implements Service {
         LOG.info("{} will increase partition of the topic {} in the cluster from {}"
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
         Set<Integer> blackListedBrokers =
-            _topicFactory.getBlackListedBrokers();
+            _topicFactory.getBlackListedBrokers(_zkConnect);
         List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
@@ -318,7 +318,7 @@ public class MultiClusterTopicManagementService implements Service {
         brokers.add(node);
       }
       Set<Integer> blackListedBrokers =
-          _topicFactory.getBlackListedBrokers();
+          _topicFactory.getBlackListedBrokers(_zkConnect);
 
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
       return brokers;
