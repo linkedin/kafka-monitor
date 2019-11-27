@@ -66,6 +66,7 @@ public class ConsumeService implements Service {
       ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
+    String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
     _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
@@ -95,6 +96,7 @@ public class ConsumeService implements Service {
 
     // Assign config specified for ConsumeService.
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
+    consumerProps.put("zookeeper.connect", zkConnect);
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
