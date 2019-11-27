@@ -19,3 +19,9 @@ Tips for Getting Your Pull Request Accepted
 
 1. Make sure all new features are tested and the tests pass.
 2. Bug fixes must include a test case demonstrating the error that it fixes.
+
+Reporting Issues
+===============
+Please use the [link](https://github.com/linkedin/kafka-monitor/issues/new) for reporting any issues.
+
+
