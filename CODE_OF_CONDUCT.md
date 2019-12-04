@@ -71,3 +71,9 @@ This Code of Conduct is adapted from the [Contributor Covenant][homepage], versi
 available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
 
 [homepage]: https://www.contributor-covenant.org
+
+## FAQ
+
+For questions or inquries on reporting any code of conduct related issues, please email opensource@linkedin.com.
+
+
