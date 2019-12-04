@@ -74,6 +74,7 @@ available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.ht
 
 ## FAQ
 
-For questions or inquries on reporting any code of conduct related issues, please email opensource@linkedin.com.
+For LinkedIn Code of Conduct (OSS Code of Conduct) issues or inquiries, Global Compliance & Integrity inbox, please email integrity@linkedin.com.
+
 
 
