@@ -11,6 +11,8 @@ package com.linkedin.kmf.topicfactory;
 
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.AdminClient;
 
 
 /**
@@ -33,7 +35,8 @@ public interface TopicFactory {
    * @return The number of partitions for the specified topic.
    */
 
-  int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicProperties);
+  int createTopicIfNotExist(String zkUrl, String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicProperties, AdminClient adminClient)
+      throws ExecutionException, InterruptedException;
 
   /**
    * @param zkUrl zookeeper connection url

@@ -31,6 +31,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.json.JSONObject;
@@ -38,9 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Seq;
 
-
 /**
- * Kafka monitoring utilities.
+ * Kafka Monitoring utilities.
  */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
@@ -81,26 +81,23 @@ public class Utils {
    * @param topicConfig additional parameters for the topic for example min.insync.replicas
    * @return the number of partitions created
    */
-  public static int createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-                                           double partitionToBrokerRatio, int minPartitionNum, Properties topicConfig)
+  public static int createTopicIfNotExists(String zkUrl, String topic, short replicationFactor, double partitionToBrokerRatio,
+      int minPartitionNum, Properties topicConfig, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
-    AdminClient adminClient = null;
-//    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
-      if (adminClient.listTopics().names().get().contains(topic)) {// AdminUtils.topicExists(zkUtils, topic)) {
+      if (adminClient.listTopics().names().get().contains(topic)) {
         return getPartitionNumForTopic(zkUrl, topic);
       }
-    int brokerCount = adminClient.describeCluster().nodes().get().size();
-//      int brokerCount = zkUtils.getAllBrokersInCluster().size();
+      int brokerCount = Utils.getBrokerCount(adminClient);
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
 
       try {
-//        AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
-        List topics = new ArrayList<>();
-        adminClient.createTopics(topics, partitionCount);
+        List topics = new ArrayList<NewTopic>();
+        topics.add(new NewTopic(topic, partitionCount, replicationFactor));
+        adminClient.createTopics(topics);
       } catch (TopicExistsException e) {
-        // There is a race condition with the consumer.
-        LOG.debug("Monitoring topic " + topic + " already exists in cluster " + zkUrl, e);
+        /* There is a race condition with the consumer. */
+        LOG.debug("Monitoring topic " + topic + " already exists in cluster." + zkUrl, e);
         return getPartitionNumForTopic(zkUrl, topic);
       }
       LOG.info("Created monitoring topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
@@ -108,22 +105,15 @@ public class Utils {
 
       return partitionCount;
     } finally {
-//      zkUtils.close();
+      LOG.info("Utils class has completed the topic creation if it doesn't exist.");
     }
   }
 
-
   /**
-   * @param zkUrl zookeeper connection url
    * @return      number of brokers in this cluster
    */
-  public static int getBrokerCount(String zkUrl) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
-    try {
-      return zkUtils.getAllBrokersInCluster().size();
-    } finally {
-      zkUtils.close();
-    }
+  public static int getBrokerCount(AdminClient adminClient) throws ExecutionException, InterruptedException {
+    return adminClient.describeCluster().nodes().get().size();
   }
 
   /**
@@ -146,7 +136,7 @@ public class Utils {
 
   /**
    * @param message kafka message in the string format
-   * @return        GenericRecord that is deserialized from kafka message w.r.t. expected schema
+   * @return        GenericRecord that is de-serialized from kafka message w.r.t. expected schema.
    */
   public static GenericRecord genericRecordFromJson(String message) {
     GenericRecord record = new GenericData.Record(DefaultTopicSchema.MESSAGE_V0);
@@ -159,7 +149,7 @@ public class Utils {
     return record;
   }
 
-  public static String jsonFromGenericRecord(GenericRecord record) {
+  private static String jsonFromGenericRecord(GenericRecord record) {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(DefaultTopicSchema.MESSAGE_V0);
 

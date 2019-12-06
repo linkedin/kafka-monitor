@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -36,14 +37,12 @@ public class KafkaMetricsReporterService implements Service {
   private final List<String> _metricsNames;
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
-
   private KafkaProducer<String, String> _producer;
   private final String _brokerList;
   private final String _topic;
-
   private final ObjectMapper _parser = new ObjectMapper();
 
-  public KafkaMetricsReporterService(Map<String, Object> props, String name) throws Exception {
+  public KafkaMetricsReporterService(Map<String, Object> props, String name, AdminClient adminClient) throws Exception {
     _name = name;
     KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(props);
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
@@ -54,12 +53,15 @@ public class KafkaMetricsReporterService implements Service {
     initializeProducer();
 
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
-                                 _topic,
-                                 config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
-                                 0,
-                                 1, // fixed partition count 1
-                                 new Properties());
+    Utils.createTopicIfNotExists(
+        config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
+        _topic,
+        config.getShort(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
+        0,
+        1, // fixed partition count 1
+        new Properties(),
+        adminClient
+    );
   }
 
   @Override
