@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
-
-import kafka.admin.AdminUtils;
-import kafka.admin.RackAwareMode;
+import java.util.concurrent.ExecutionException;
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanInfo;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
 import org.apache.avro.generic.GenericData;
@@ -28,17 +30,13 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.security.JaasUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Seq;
-
-import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanInfo;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
 
 
 /**
@@ -84,17 +82,22 @@ public class Utils {
    * @return the number of partitions created
    */
   public static int createTopicIfNotExists(String zkUrl, String topic, int replicationFactor,
-                                           double partitionToBrokerRatio, int minPartitionNum, Properties topicConfig) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+                                           double partitionToBrokerRatio, int minPartitionNum, Properties topicConfig)
+      throws ExecutionException, InterruptedException {
+    AdminClient adminClient = null;
+//    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
     try {
-      if (AdminUtils.topicExists(zkUtils, topic)) {
+      if (adminClient.listTopics().names().get().contains(topic)) {// AdminUtils.topicExists(zkUtils, topic)) {
         return getPartitionNumForTopic(zkUrl, topic);
       }
-      int brokerCount = zkUtils.getAllBrokersInCluster().size();
+    int brokerCount = adminClient.describeCluster().nodes().get().size();
+//      int brokerCount = zkUtils.getAllBrokersInCluster().size();
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
 
       try {
-        AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+//        AdminUtils.createTopic(zkUtils, topic, partitionCount, replicationFactor, topicConfig, RackAwareMode.Enforced$.MODULE$);
+        List topics = new ArrayList<>();
+        adminClient.createTopics(topics, partitionCount);
       } catch (TopicExistsException e) {
         // There is a race condition with the consumer.
         LOG.debug("Monitoring topic " + topic + " already exists in cluster " + zkUrl, e);
@@ -105,9 +108,10 @@ public class Utils {
 
       return partitionCount;
     } finally {
-      zkUtils.close();
+//      zkUtils.close();
     }
   }
+
 
   /**
    * @param zkUrl zookeeper connection url
