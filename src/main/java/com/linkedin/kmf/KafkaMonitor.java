@@ -101,13 +101,16 @@ public class KafkaMonitor {
       entry.getValue().start();
     }
 
+    long initialDelaySecond = 5;
+    long periodSecond = 5;
+
     _executor.scheduleAtFixedRate(() -> {
       try {
         checkHealth();
       } catch (Exception e) {
         LOG.error("Failed to check health of tests and services", e);
       }
-    }, 5, 5, TimeUnit.SECONDS
+    }, initialDelaySecond, periodSecond, TimeUnit.SECONDS
     );
   }
 
