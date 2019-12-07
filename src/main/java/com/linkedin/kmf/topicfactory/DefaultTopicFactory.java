@@ -27,7 +27,7 @@ public class DefaultTopicFactory implements TopicFactory {
   @Override
   public int createTopicIfNotExist(String zkUrl, String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicConfig, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
-    return Utils.createTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig, adminClient);
+    return Utils.createTopicIfNotExists(topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig, adminClient);
   }
 
   @Override

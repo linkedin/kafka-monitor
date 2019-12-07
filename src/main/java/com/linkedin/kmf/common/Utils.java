@@ -71,15 +71,17 @@ public class Utils {
    * then this does nothing to update the parameters.
    *
    * TODO: Do we care about rack aware mode?  I would think no because we want to spread the topic over all brokers.
-   * @param zkUrl zookeeper connection url
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
    * @param minPartitionNum partition number to be created at least
    * @param topicConfig additional parameters for the topic for example min.insync.replicas
+   * @param adminClient AdminClient object initialized.
    * @return the number of partitions created
+   * @throws ExecutionException exception thrown then executing the topic creation fails.
+   * @throws InterruptedException exception that's thrown when interrupt occurs.
    */
-  public static int createTopicIfNotExists(String zkUrl, String topic, short replicationFactor, double partitionToBrokerRatio,
+  public static int createTopicIfNotExists(String topic, short replicationFactor, double partitionToBrokerRatio,
       int minPartitionNum, Properties topicConfig, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
     try {
