@@ -271,7 +271,7 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    public AdminClient constructAdminClient(Map<String, Object> props) {
+    AdminClient constructAdminClient(Map<String, Object> props) {
       props.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
       props.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
       return AdminClient.create(props);
