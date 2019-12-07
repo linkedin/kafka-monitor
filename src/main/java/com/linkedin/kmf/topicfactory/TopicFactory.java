@@ -26,7 +26,6 @@ public interface TopicFactory {
 
   /**
    * Creates the specified topic if it does not exist.
-   * @param zkUrl zookeeper connection url
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
@@ -35,7 +34,7 @@ public interface TopicFactory {
    * @return The number of partitions for the specified topic.
    */
 
-  int createTopicIfNotExist(String zkUrl, String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicProperties, AdminClient adminClient)
+  int createTopicIfNotExist(String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException;
 
   /**
