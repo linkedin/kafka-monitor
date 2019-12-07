@@ -107,7 +107,7 @@ public class Utils {
 
       return partitionCount;
     } finally {
-      LOG.info("Utils class has completed the topic creation if it doesn't exist.");
+      LOG.info("Completed the topic creation if it doesn't exist.");
     }
   }
 

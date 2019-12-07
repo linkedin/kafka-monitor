@@ -56,7 +56,7 @@ public class KafkaMetricsReporterService implements Service {
     Utils.createTopicIfNotExists(
         _topic,
         config.getShort(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
-        0,
+        0, // parameter is set to 0 here since no matter the number of nodes, the topic partition number should be set to zero.
         1, // fixed partition count 1
         new Properties(),
         adminClient
