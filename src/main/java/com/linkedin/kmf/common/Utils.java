@@ -13,8 +13,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
@@ -24,7 +24,6 @@ import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import kafka.server.KafkaConfig;
-import kafka.utils.ZkUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -33,11 +32,9 @@ import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.security.JaasUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.Seq;
 
 /**
  * Kafka Monitoring utilities.
@@ -50,20 +47,21 @@ public class Utils {
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
-   * @param zkUrl zookeeper connection url
+   * @param adminClient AdminClient object initialized.
    * @param topic topic name
    *
    * @return the number of partitions of the given topic
    */
-  public static int getPartitionNumForTopic(String zkUrl, String topic) {
-    ZkUtils zkUtils = ZkUtils.apply(zkUrl, ZK_SESSION_TIMEOUT_MS, ZK_CONNECTION_TIMEOUT_MS, JaasUtils.isZkSecurityEnabled());
+  public static int getPartitionNumForTopic(AdminClient adminClient, String topic)
+      throws ExecutionException, InterruptedException {
     try {
-      Seq<String> topics = scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(topic));
-      return zkUtils.getPartitionsForTopics(topics).apply(topic).size();
+      ArrayList<String> topics = new ArrayList<>();
+      topics.add(topic);
+      return adminClient.describeTopics(topics).values().get(topic).get().partitions().size();
     } catch (NoSuchElementException e) {
       return 0;
     } finally {
-      zkUtils.close();
+      LOG.info("Finished getPartitionNumForTopic.");
     }
   }
 
@@ -86,21 +84,23 @@ public class Utils {
       throws ExecutionException, InterruptedException {
     try {
       if (adminClient.listTopics().names().get().contains(topic)) {
-        return getPartitionNumForTopic(zkUrl, topic);
+        return getPartitionNumForTopic(adminClient, topic);
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
 
       try {
+        NewTopic newTopic = new NewTopic(topic, partitionCount, replicationFactor);
+        newTopic.configs((Map) topicConfig);
         List topics = new ArrayList<NewTopic>();
-        topics.add(new NewTopic(topic, partitionCount, replicationFactor));
+        topics.add(newTopic);
         adminClient.createTopics(topics);
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
-        LOG.debug("Monitoring topic " + topic + " already exists in cluster." + zkUrl, e);
-        return getPartitionNumForTopic(zkUrl, topic);
+        LOG.debug("Monitoring topic " + topic + " already exists in the cluster.", e);
+        return getPartitionNumForTopic(adminClient, topic);
       }
-      LOG.info("Created monitoring topic " + topic + " in cluster " + zkUrl + " with " + partitionCount + " partitions, min ISR of "
+      LOG.info("Created monitoring topic " + topic + " in cluster with " + partitionCount + " partitions, min ISR of "
         + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
