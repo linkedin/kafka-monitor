@@ -9,7 +9,7 @@
  */
 package com.linkedin.kmf.partitioner;
 
-import static org.apache.kafka.common.utils.Utils.murmur2;
+    import static org.apache.kafka.common.utils.Utils.murmur2;
 
 public class NewKMPartitioner implements KMPartitioner {
 
