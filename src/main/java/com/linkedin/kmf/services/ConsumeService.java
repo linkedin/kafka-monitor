@@ -252,19 +252,19 @@ public class ConsumeService implements Service {
         new Percentile(new MetricName("records-delay-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of records from producer to consumer", tags), 99.99)));
 
       metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
-          (config, now) -> {
-            double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
-            double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
+        (config, now) -> {
+          double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
+          double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
+          double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
 
-            if (new Double(recordsLostRate).isNaN())
-              recordsLostRate = 0;
-            if (new Double(recordsDelayedRate).isNaN())
-              recordsDelayedRate = 0;
+          if (new Double(recordsLostRate).isNaN())
+            recordsLostRate = 0;
+          if (new Double(recordsDelayedRate).isNaN())
+            recordsDelayedRate = 0;
 
-            return recordsConsumedRate + recordsLostRate > 0
-              ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
-          });
+          return recordsConsumedRate + recordsLostRate > 0
+            ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
+        });
     }
   }
 }
