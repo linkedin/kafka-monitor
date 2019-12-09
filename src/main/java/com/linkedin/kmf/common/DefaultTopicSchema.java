@@ -15,17 +15,17 @@ import org.apache.avro.Schema.Field;
 
 public class DefaultTopicSchema {
 
-  public static final Field TOPIC_FIELD = new Field("topic", Schema.create(Schema.Type.STRING), null, null);
+  static final Field TOPIC_FIELD = new Field("topic", Schema.create(Schema.Type.STRING), null, null);
 
   public static final Field TIME_FIELD = new Field("time", Schema.create(Schema.Type.LONG), null, null);
 
   public static final Field INDEX_FIELD = new Field("index", Schema.create(Schema.Type.LONG), null, null);
 
-  public static final Field PRODUCER_ID_FIELD = new Field("producerId", Schema.create(Schema.Type.STRING), null, null);
+  static final Field PRODUCER_ID_FIELD = new Field("producerId", Schema.create(Schema.Type.STRING), null, null);
 
-  public static final Field CONTENT_FIELD = new Field("content", Schema.create(Schema.Type.STRING), null, null);
+  static final Field CONTENT_FIELD = new Field("content", Schema.create(Schema.Type.STRING), null, null);
 
-  public static final Schema MESSAGE_V0;
+  static final Schema MESSAGE_V0;
 
   static {
     MESSAGE_V0 = Schema.createRecord("KafkaMonitorSchema", null, "kafka.monitor", false);

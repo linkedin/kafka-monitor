@@ -51,17 +51,13 @@ public class GraphiteMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
-    _executor.scheduleAtFixedRate(
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              reportMetrics();
-            } catch (Exception e) {
-              LOG.error(_name + "/GraphiteMetricsReporterService failed to report metrics", e);
-            }
-          }
-        }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        reportMetrics();
+      } catch (Exception e) {
+        LOG.error(_name + "/GraphiteMetricsReporterService failed to report metrics", e);
+      }
+    }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
     LOG.info("{}/GraphiteMetricsReporterService started", _name);
   }
