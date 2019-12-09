@@ -41,18 +41,16 @@ import org.slf4j.LoggerFactory;
  */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
-
   public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
   /**
    * Read number of partitions for the given topic on the specified zookeeper
    * @param adminClient AdminClient object initialized.
-   * @param topic topic name
-   *
+   * @param topic topic name.
    * @return the number of partitions of the given topic
    */
-  public static int getPartitionNumForTopic(AdminClient adminClient, String topic)
+  private static int getPartitionNumForTopic(AdminClient adminClient, String topic)
       throws ExecutionException, InterruptedException {
     try {
       ArrayList<String> topics = new ArrayList<>();
@@ -81,6 +79,7 @@ public class Utils {
    * @throws ExecutionException exception thrown then executing the topic creation fails.
    * @throws InterruptedException exception that's thrown when interrupt occurs.
    */
+  @SuppressWarnings("unchecked")
   public static int createTopicIfNotExists(String topic, short replicationFactor, double partitionToBrokerRatio,
       int minPartitionNum, Properties topicConfig, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
@@ -90,7 +89,6 @@ public class Utils {
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
-
       try {
         NewTopic newTopic = new NewTopic(topic, partitionCount, replicationFactor);
         newTopic.configs((Map) topicConfig);
@@ -112,9 +110,9 @@ public class Utils {
   }
 
   /**
-   * @return      number of brokers in this cluster
+   * @return the number of brokers in this cluster
    */
-  public static int getBrokerCount(AdminClient adminClient) throws ExecutionException, InterruptedException {
+  private static int getBrokerCount(AdminClient adminClient) throws ExecutionException, InterruptedException {
     return adminClient.describeCluster().nodes().get().size();
   }
 
@@ -185,5 +183,4 @@ public class Utils {
     }
     return values;
   }
-
 }

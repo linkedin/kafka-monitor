@@ -28,7 +28,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -47,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String METRIC_GROUP_NAME = "consume-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES =
+  private static final String[] NON_OVERRIDABLE_PROPERTIES =
     new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
       ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
 
@@ -74,7 +73,7 @@ public class ConsumeService implements Service {
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _running = new AtomicBoolean(false);
 
-    for (String property: NONOVERRIDABLE_PROPERTIES) {
+    for (String property: NON_OVERRIDABLE_PROPERTIES) {
       if (consumerPropsOverride.containsKey(property)) {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
@@ -216,7 +215,7 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelay;
     private final Sensor _recordsDelayed;
 
-    public ConsumeMetrics(final Metrics metrics, final Map<String, String> tags) {
+    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags) {
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
 
@@ -253,9 +252,7 @@ public class ConsumeService implements Service {
         new Percentile(new MetricName("records-delay-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of records from producer to consumer", tags), 99.99)));
 
       metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
-        new Measurable() {
-          @Override
-          public double measure(MetricConfig config, long now) {
+          (config, now) -> {
             double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
             double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
             double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
@@ -265,15 +262,9 @@ public class ConsumeService implements Service {
             if (new Double(recordsDelayedRate).isNaN())
               recordsDelayedRate = 0;
 
-            double consumeAvailability = recordsConsumedRate + recordsLostRate > 0
+            return recordsConsumedRate + recordsLostRate > 0
               ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
-
-            return consumeAvailability;
-          }
-        }
-      );
+          });
     }
-
   }
-
 }

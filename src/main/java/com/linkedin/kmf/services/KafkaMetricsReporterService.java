@@ -29,10 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KafkaMetricsReporterService implements Service {
-
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
   private static final String METRICS_PRODUCER_ID = "kafka-metrics-reporter-id";
-
   private final String _name;
   private final List<String> _metricsNames;
   private final int _reportIntervalSec;
@@ -48,10 +46,8 @@ public class KafkaMetricsReporterService implements Service {
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(KafkaMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
-
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     initializeProducer();
-
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
     Utils.createTopicIfNotExists(
         _topic,
@@ -97,7 +93,7 @@ public class KafkaMetricsReporterService implements Service {
     LOG.info("{}/KafkaMetricsReporterService shutdown completed", _name);
   }
 
-  private void initializeProducer() throws Exception {
+  private void initializeProducer() {
     Properties producerProps = new Properties();
     producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
     producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "20000");
@@ -126,7 +122,7 @@ public class KafkaMetricsReporterService implements Service {
     }
     try {
       LOG.debug("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
-      _producer.send(new ProducerRecord<String, String>(_topic, _parser.writeValueAsString(metrics)));
+      _producer.send(new ProducerRecord<>(_topic, _parser.writeValueAsString(metrics)));
     } catch (JsonProcessingException e) {
       LOG.warn("unsupported json format: " + metrics, e);
     }
