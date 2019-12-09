@@ -73,14 +73,11 @@ public class SignalFxMetricsReporterService implements Service {
   @Override
   public synchronized void start() {
     _signalfxReporter.start(_reportIntervalSec, TimeUnit.SECONDS);
-    _executor.scheduleAtFixedRate(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          captureMetrics();
-        } catch (Exception e) {
-          LOG.error(_name + "/SignalFxMetricsReporterService failed to report metrics", e);
-        }
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        captureMetrics();
+      } catch (Exception e) {
+        LOG.error(_name + "/SignalFxMetricsReporterService failed to report metrics", e);
       }
     }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS);
     LOG.info("{}/SignalFxMetricsReporterService started", _name);

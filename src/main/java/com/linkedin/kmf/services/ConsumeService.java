@@ -103,14 +103,11 @@ public class ConsumeService implements Service {
 
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
 
-    _thread = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          consume();
-        } catch (Exception e) {
-          LOG.error(_name + "/ConsumeService failed", e);
-        }
+    _thread = new Thread(() -> {
+      try {
+        consume();
+      } catch (Exception e) {
+        LOG.error(_name + "/ConsumeService failed", e);
       }
     }, _name + " consume-service");
     _thread.setDaemon(true);

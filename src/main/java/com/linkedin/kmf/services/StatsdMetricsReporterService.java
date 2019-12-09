@@ -47,17 +47,13 @@ public class StatsdMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
-    _executor.scheduleAtFixedRate(
-      new Runnable() {
-        @Override
-        public void run() {
-          try {
-            reportMetrics();
-          } catch (Exception e) {
-            LOG.error(_name + "/StatsdMetricsReporterService failed to report metrics", e);
-          }
-        }
-      }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        reportMetrics();
+      } catch (Exception e) {
+        LOG.error(_name + "/StatsdMetricsReporterService failed to report metrics", e);
+      }
+    }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
     LOG.info("{}/StatsdMetricsReporterService started", _name);
   }
