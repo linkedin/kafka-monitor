@@ -49,7 +49,7 @@ public class SingleClusterMonitor implements App {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  private SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     _produceService = new ProduceService(props, name);

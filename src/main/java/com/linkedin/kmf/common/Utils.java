@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -55,9 +56,7 @@ public class Utils {
   private static int getPartitionNumForTopic(AdminClient adminClient, String topic)
       throws ExecutionException, InterruptedException {
     try {
-      ArrayList<String> topics = new ArrayList<>();
-      topics.add(topic);
-      return adminClient.describeTopics(topics).values().get(topic).get().partitions().size();
+      return adminClient.describeTopics(Collections.singleton(topic)).values().get(topic).get().partitions().size();
     } catch (NoSuchElementException e) {
       return 0;
     } finally {

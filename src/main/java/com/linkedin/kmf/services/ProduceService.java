@@ -238,7 +238,7 @@ public class ProduceService implements Service {
     private final ConcurrentMap<Integer, Boolean> _produceErrorInLastSendPerPartition;
     private final Map<String, String> _tags;
 
-    ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
+    public ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
       this.metrics = metrics;
       this._tags = tags;
 
