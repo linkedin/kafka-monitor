@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -28,38 +29,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KafkaMetricsReporterService implements Service {
-
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
   private static final String METRICS_PRODUCER_ID = "kafka-metrics-reporter-id";
-
   private final String _name;
   private final List<String> _metricsNames;
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
-
   private KafkaProducer<String, String> _producer;
   private final String _brokerList;
   private final String _topic;
-
   private final ObjectMapper _parser = new ObjectMapper();
 
-  public KafkaMetricsReporterService(Map<String, Object> props, String name) throws Exception {
+  public KafkaMetricsReporterService(Map<String, Object> props, String name, AdminClient adminClient) throws Exception {
     _name = name;
     KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(props);
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(KafkaMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
-
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     initializeProducer();
-
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createTopicIfNotExists(config.getString(KafkaMetricsReporterServiceConfig.ZOOKEEPER_CONNECT_CONFIG),
-                                 _topic,
-                                 config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
-                                 0,
-                                 1, // fixed partition count 1
-                                 new Properties());
+    Utils.createTopicIfNotExists(
+        _topic,
+        config.getShort(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
+        0, // parameter is set to 0 here since no matter the number of nodes, the topic partition number should be set to zero.
+        1, // fixed partition count 1
+        new Properties(),
+        adminClient
+    );
   }
 
   @Override
@@ -96,7 +93,7 @@ public class KafkaMetricsReporterService implements Service {
     LOG.info("{}/KafkaMetricsReporterService shutdown completed", _name);
   }
 
-  private void initializeProducer() throws Exception {
+  private void initializeProducer() {
     Properties producerProps = new Properties();
     producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
     producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "20000");
@@ -125,7 +122,7 @@ public class KafkaMetricsReporterService implements Service {
     }
     try {
       LOG.debug("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
-      _producer.send(new ProducerRecord<String, String>(_topic, _parser.writeValueAsString(metrics)));
+      _producer.send(new ProducerRecord<>(_topic, _parser.writeValueAsString(metrics)));
     } catch (JsonProcessingException e) {
       LOG.warn("unsupported json format: " + metrics, e);
     }

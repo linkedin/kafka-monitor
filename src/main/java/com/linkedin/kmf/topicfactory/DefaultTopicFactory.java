@@ -10,11 +10,12 @@
 package com.linkedin.kmf.topicfactory;
 
 import com.linkedin.kmf.common.Utils;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.AdminClient;
 
 
 public class DefaultTopicFactory implements TopicFactory {
@@ -24,8 +25,9 @@ public class DefaultTopicFactory implements TopicFactory {
   }
 
   @Override
-  public int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicConfig) {
-    return Utils.createTopicIfNotExists(zkUrl, topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig);
+  public int createTopicIfNotExist(String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicConfig, AdminClient adminClient)
+      throws ExecutionException, InterruptedException {
+    return Utils.createTopicIfNotExists(topic, replicationFactor, partitionToBrokerRatio, 1, topicConfig, adminClient);
   }
 
   @Override
