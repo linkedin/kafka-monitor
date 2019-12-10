@@ -9,30 +9,28 @@
  */
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.DefaultMetricsReporterService;
+import com.linkedin.kmf.services.JettyService;
+import com.linkedin.kmf.services.JolokiaService;
+import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
-import com.linkedin.kmf.services.ConsumeService;
-import com.linkedin.kmf.services.JettyService;
-import com.linkedin.kmf.services.JolokiaService;
-import com.linkedin.kmf.services.DefaultMetricsReporterService;
-import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
-import net.sourceforge.argparse4j.ArgumentParsers;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.Namespace;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.utils.Utils;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-
-import static net.sourceforge.argparse4j.impl.Arguments.store;
+import java.util.concurrent.CompletableFuture;
+import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.kafka.common.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * The SingleClusterMonitor app is intended to monitor the performance and availability of a given Kafka cluster. It creates
@@ -61,9 +59,12 @@ public class SingleClusterMonitor implements App {
   @Override
   public void start() {
     _topicManagementService.start();
-    _produceService.start();
-    _consumeService.start();
-    LOG.info(_name + "/SingleClusterMonitor started");
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
+    completableFuture.thenRun(() -> {
+      _produceService.start();
+      _consumeService.start();
+    });
+    LOG.info(_name + "/SingleClusterMonitor started.");
   }
 
   @Override
@@ -71,7 +72,7 @@ public class SingleClusterMonitor implements App {
     _topicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
-    LOG.info(_name + "/SingleClusterMonitor stopped");
+    LOG.info(_name + "/SingleClusterMonitor stopped.");
   }
 
   @Override
@@ -94,7 +95,7 @@ public class SingleClusterMonitor implements App {
       .description("");
 
     parser.addArgument("--topic")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("TOPIC")
@@ -102,14 +103,14 @@ public class SingleClusterMonitor implements App {
       .help("Produce messages to this topic and consume message from this topic");
 
     parser.addArgument("--producer-id")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .dest("producerId")
       .help("The producerId will be used by producer client and encoded in the messages to the topic");
 
     parser.addArgument("--broker-list")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(true)
       .type(String.class)
       .metavar("HOST1:PORT1[,HOST2:PORT2[...]]")
@@ -117,7 +118,7 @@ public class SingleClusterMonitor implements App {
       .help("Comma-separated list of Kafka brokers in the form HOST1:PORT1,HOST2:PORT2,...");
 
     parser.addArgument("--zookeeper")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(true)
       .type(String.class)
       .metavar("HOST:PORT")
@@ -125,7 +126,7 @@ public class SingleClusterMonitor implements App {
       .help("The connection string for the zookeeper connection in the form host:port");
 
     parser.addArgument("--record-size")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("RECORD_SIZE")
@@ -133,7 +134,7 @@ public class SingleClusterMonitor implements App {
       .help("The size of each record.");
 
     parser.addArgument("--producer-class")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("PRODUCER_CLASS_NAME")
@@ -141,7 +142,7 @@ public class SingleClusterMonitor implements App {
       .help("Specify the class of producer. Available choices include newProducer or class name");
 
     parser.addArgument("--consumer-class")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("CONSUMER_CLASS_NAME")
@@ -149,7 +150,7 @@ public class SingleClusterMonitor implements App {
       .help("Specify the class of consumer. Available choices include oldConsumer, newConsumer, or class name");
 
     parser.addArgument("--producer.config")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("PRODUCER_CONFIG")
@@ -157,7 +158,7 @@ public class SingleClusterMonitor implements App {
       .help("Producer config properties file.");
 
     parser.addArgument("--consumer.config")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("CONSUMER_CONFIG")
@@ -165,7 +166,7 @@ public class SingleClusterMonitor implements App {
       .help("Consumer config properties file.");
 
     parser.addArgument("--report-interval-sec")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("REPORT_INTERVAL_SEC")
@@ -173,7 +174,7 @@ public class SingleClusterMonitor implements App {
       .help("Interval in sec with which to export stats");
 
     parser.addArgument("--record-delay-ms")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("RECORD_DELAY_MS")
@@ -181,7 +182,7 @@ public class SingleClusterMonitor implements App {
       .help("The delay in ms before sending next record to the same partition");
 
     parser.addArgument("--latency-percentile-max-ms")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("LATENCY_PERCENTILE_MAX_MS")
@@ -190,7 +191,7 @@ public class SingleClusterMonitor implements App {
             "The percentile will be reported as Double.POSITIVE_INFINITY if its value exceeds the max value.");
 
     parser.addArgument("--latency-percentile-granularity-ms")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(String.class)
       .metavar("LATENCY_PERCENTILE_GRANULARITY_MS")
@@ -198,7 +199,7 @@ public class SingleClusterMonitor implements App {
       .help("The granularity in ms of latency percentile metric. This is the width of the bucket used in percentile calculation.");
 
     parser.addArgument("--topic-creation-enabled")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(Boolean.class)
       .metavar("AUTO_TOPIC_CREATION_ENABLED")
@@ -206,7 +207,7 @@ public class SingleClusterMonitor implements App {
       .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
     parser.addArgument("--replication-factor")
-        .action(store())
+        .action(net.sourceforge.argparse4j.impl.Arguments.store())
         .required(false)
         .type(Integer.class)
         .metavar("REPLICATION_FACTOR")
@@ -214,7 +215,7 @@ public class SingleClusterMonitor implements App {
         .help(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_DOC);
 
     parser.addArgument("--topic-rebalance-interval-ms")
-      .action(store())
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
       .type(Integer.class)
       .metavar("REBALANCE_MS")
@@ -232,9 +233,7 @@ public class SingleClusterMonitor implements App {
     }
 
     Namespace res = parser.parseArgs(args);
-
     Map<String, Object> props = new HashMap<>();
-
     // produce service config
     props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
     props.put(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
@@ -279,29 +278,32 @@ public class SingleClusterMonitor implements App {
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
+      "kmf.services:type=consume-service,name=*:topic-partitions-count",
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
       "kmf.services:type=consume-service,name=*:consume-availability-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",
+      "kmf.services:type=consume-service,name=*:records-lost-rate",
       "kmf.services:type=consume-service,name=*:records-duplicated-total",
       "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
-      "kmf.services:type=consume-service,name=*:consume-error-rate");
+      "kmf.services:type=consume-service,name=*:consume-error-rate"
+    );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new HashMap<String, Object>(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
+    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
     jettyService.start();
 
     if (!app.isRunning()) {
-      LOG.error("Some services have stopped");
+      LOG.error("Some services have stopped.");
       System.exit(-1);
     }
     app.awaitShutdown();

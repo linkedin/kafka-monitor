@@ -21,4 +21,5 @@ public class NewKMPartitioner implements KMPartitioner {
   private static int toPositive(int number) {
     return number & 0x7fffffff;
   }
+
 }

@@ -10,20 +10,27 @@
 package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.apps.App;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.linkedin.kmf.services.Service;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.Measurable;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.utils.SystemTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -33,12 +40,15 @@ import java.util.concurrent.TimeUnit;
 public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
+  private static final String METRIC_GROUP_NAME = "kafka-monitor";
+  private static final String JMX_PREFIX = "kmf";
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
    */
   private final ConcurrentMap<String, App> _apps;
   private final ConcurrentMap<String, Service> _services;
+  private final ConcurrentMap<String, Object> _offlineRunnables;
   private final ScheduledExecutorService _executor;
   /** When true start has been called on this instance of Kafka monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
@@ -66,6 +76,18 @@ public class KafkaMonitor {
       }
     }
     _executor = Executors.newSingleThreadScheduledExecutor();
+    _offlineRunnables = new ConcurrentHashMap<>();
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(JMX_PREFIX));
+    Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
+    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
+        new Measurable() {
+          @Override
+          public double measure(MetricConfig config, long now) {
+            return _offlineRunnables.size();
+          }
+        }
+    );
   }
 
   public synchronized void start() {
@@ -79,36 +101,37 @@ public class KafkaMonitor {
       entry.getValue().start();
     }
 
-    _executor.scheduleAtFixedRate(
-      new Runnable() {
-        @Override
-        public void run() {
-          try {
-            checkHealth();
-          } catch (Exception e) {
-            LOG.error("Failed to check health of tests and services", e);
-          }
-        }
-      }, 5, 5, TimeUnit.SECONDS
+    long initialDelaySecond = 5;
+    long periodSecond = 5;
+
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        checkHealth();
+      } catch (Exception e) {
+        LOG.error("Failed to check health of tests and services", e);
+      }
+    }, initialDelaySecond, periodSecond, TimeUnit.SECONDS
     );
   }
 
   private void checkHealth() {
-    Iterator<Map.Entry<String, App>> testIt = _apps.entrySet().iterator();
-    while (testIt.hasNext()) {
-      Map.Entry<String, App> entry = testIt.next();
-      if (!entry.getValue().isRunning()) {
-        LOG.error("Test " + entry.getKey() + " has stopped.");
-      }
+    for (Map.Entry<String, App> entry: _apps.entrySet()) {
+      if (!entry.getValue().isRunning())
+        _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
     }
 
-    Iterator<Map.Entry<String, Service>> serviceIt = _services.entrySet().iterator();
-    while (serviceIt.hasNext()) {
-      Map.Entry<String, Service> entry = serviceIt.next();
-      if (!entry.getValue().isRunning()) {
-        LOG.error("Service " + entry.getKey() + " has stopped.");
-      }
+    for (Map.Entry<String, Service> entry: _services.entrySet()) {
+      if (!entry.getValue().isRunning())
+        _offlineRunnables.putIfAbsent(entry.getKey(), entry.getValue());
     }
+
+    for (Map.Entry<String, Object> entry: _offlineRunnables.entrySet()) {
+      if (entry.getValue() instanceof App)
+        LOG.error("App " + entry.getKey() + " is not fully running.");
+      else
+        LOG.error("Service " + entry.getKey() + " is not fully running.");
+    }
+
   }
 
   public synchronized void stop() {
@@ -149,7 +172,7 @@ public class KafkaMonitor {
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
     kafkaMonitor.start();
-    LOG.info("KafkaMonitor started");
+    LOG.info("KafkaMonitor started.");
 
     kafkaMonitor.awaitShutdown();
   }

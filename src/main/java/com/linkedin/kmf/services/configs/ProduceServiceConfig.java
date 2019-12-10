@@ -55,6 +55,20 @@ public class ProduceServiceConfig extends AbstractConfig {
   public static final String PRODUCER_PROPS_CONFIG = "produce.producer.props";
   public static final String PRODUCER_PROPS_DOC = "The properties used to config producer in produce service.";
 
+  public static final String LATENCY_PERCENTILE_MAX_MS_CONFIG = "produce.latency.percentile.max.ms";
+  public static final String LATENCY_PERCENTILE_MAX_MS_DOC = "This is used to derive the bucket number used to configure latency percentile metric. "
+                                                             + "Any latency larger than this max value will be rounded down to the max value.";
+
+  public static final String LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG = "produce.latency.percentile.granularity.ms";
+  public static final String LATENCY_PERCENTILE_GRANULARITY_MS_DOC = "This is used to derive the bucket number used to configure latency percentile metric. "
+                                                                     + "The latency at the specified percentile should be multiple of this value.";
+
+  public static final String PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_CONFIG = "produce.treat.zero.throughput.as.unavailable";
+  public static final String PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_DOC = "If it is set to true, produce availability is set to 0 " +
+      "if no message can be produced, regardless of whether there is exception. If this is set to false, availability will only drop below 1 if there is exception " +
+      "thrown from producer. Depending on the producer configuration, it may take a few minutes for producer to be blocked before it throws exception. Advanced user " +
+      "may want to set this flag to false to exactly measure the availability experienced by users";
+
   static {
     CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
@@ -98,6 +112,21 @@ public class ProduceServiceConfig extends AbstractConfig {
                                     100,
                                     ConfigDef.Importance.LOW,
                                     PRODUCE_RECORD_SIZE_BYTE_DOC)
+                            .define(PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_CONFIG,
+                                    ConfigDef.Type.BOOLEAN,
+                                    true,
+                                    ConfigDef.Importance.MEDIUM,
+                                    PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_DOC)
+                            .define(LATENCY_PERCENTILE_MAX_MS_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    5000,
+                                    ConfigDef.Importance.LOW,
+                                    LATENCY_PERCENTILE_MAX_MS_DOC)
+                            .define(LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG,
+                                    ConfigDef.Type.INT,
+                                    1,
+                                    ConfigDef.Importance.LOW,
+                                    LATENCY_PERCENTILE_GRANULARITY_MS_DOC)
                             .define(PRODUCE_THREAD_NUM_CONFIG,
                                     ConfigDef.Type.INT,
                                     5,

@@ -10,12 +10,13 @@
 package com.linkedin.kmf.tests;
 
 import com.linkedin.kmf.apps.SingleClusterMonitor;
-import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.TopicManagementService;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
 
 
 /*
@@ -50,9 +51,15 @@ public class BasicEndToEndTest implements Test {
   @Override
   public void start() {
     _topicManagementService.start();
-    _produceService.start();
-    _consumeService.start();
-    LOG.info(_name + "/BasicEndToEndTest started");
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
+    completableFuture.thenRun(() -> {
+      try {
+        _produceService.start();
+        _consumeService.start();
+      } finally {
+        LOG.info("{} /BasicEndToEndTest started.", _name);
+      }
+    });
   }
 
   @Override
@@ -60,7 +67,7 @@ public class BasicEndToEndTest implements Test {
     _topicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
-    LOG.info(_name + "/BasicEndToEndTest stopped");
+    LOG.info("{} /BasicEndToEndTest stopped.", _name);
   }
 
   @Override

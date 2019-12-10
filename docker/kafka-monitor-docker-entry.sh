@@ -15,7 +15,13 @@
 
 set -x
 
+# SIGTERM-handler
+trap 'pkill java; exit 130' SIGINT
+trap 'pkill java; exit 143' SIGTERM
+
 #  wait for DNS services to be available
 sleep 10
 
-bin/kafka-monitor-start.sh config/kafka-monitor.properties
+bin/kafka-monitor-start.sh config/kafka-monitor.properties &
+
+wait $!

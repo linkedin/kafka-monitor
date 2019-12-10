@@ -9,24 +9,24 @@
  */
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import kafka.cluster.Broker;
 import org.apache.kafka.common.Node;
-import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import com.linkedin.kmf.services.MultiClusterTopicManagementService.TopicManagementHelper;
 
 @Test
 public class TopicManagementServiceTest {
 
   private static final String TOPIC = "kmf-unit-test-topic";
 
-  private List<Broker> brokers(int brokerCount) {
-    List<Broker> brokers = new ArrayList<>();
+  private List<Node> brokers(int brokerCount) {
+    List<Node> brokers = new ArrayList<>();
     for (int i = 0; i < brokerCount; i++) {
-      brokers.add(new Broker(i, "", -1, null));
+      brokers.add(new Node(i, "", -1));
     }
     return brokers;
   }
@@ -41,12 +41,12 @@ public class TopicManagementServiceTest {
 
   @Test
   public void noDetection() {
-    List<PartitionInfo> partitions = new ArrayList<>();
+    List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(2);
-    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 1, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[1], node[0]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[1], node[0]}, null));
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(1, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(2, node[1], new ArrayList<>(Arrays.asList(node[1], node[0])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(3, node[1], new ArrayList<>(Arrays.asList(node[1], node[0])), new ArrayList<>()));
 
     Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(2)));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(2)));
@@ -54,12 +54,11 @@ public class TopicManagementServiceTest {
 
   @Test
   public void detectLowTotalNumberOfPartitions() {
-    List<PartitionInfo> partitions = new ArrayList<>();
+    List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(3);
-    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 1, node[1], new Node[] {node[1], node[0]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 2, node[2], new Node[] {node[2], node[0]}, null));
-
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(1, node[1], new ArrayList<>(Arrays.asList(node[1], node[0])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(2, node[2], new ArrayList<>(Arrays.asList(node[2], node[0])), new ArrayList<>()));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
     Assert.assertFalse(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
     Assert.assertEquals(TopicManagementHelper.getReplicationFactor(partitions), 2);
@@ -68,13 +67,13 @@ public class TopicManagementServiceTest {
 
   @Test
   public void detectBrokerWithoutLeader() {
-    List<PartitionInfo> partitions = new ArrayList<>();
+    List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(3);
-    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 1, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[1], node[0]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(1, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(2, node[1], new ArrayList<>(Arrays.asList(node[1], node[0])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(3, node[1], new ArrayList<>(Arrays.asList(node[2], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(4, node[1], new ArrayList<>(Arrays.asList(node[2], node[0])), new ArrayList<>()));
 
     Assert.assertFalse(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
     Assert.assertTrue(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));
@@ -82,13 +81,13 @@ public class TopicManagementServiceTest {
 
   @Test
   public void detectBrokerWithoutPreferredLeader() {
-    List<PartitionInfo> partitions = new ArrayList<>();
+    List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(3);
-    partitions.add(new PartitionInfo(TOPIC, 0, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 1, node[0], new Node[] {node[0], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 2, node[1], new Node[] {node[0], node[0]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 3, node[1], new Node[] {node[2], node[1]}, null));
-    partitions.add(new PartitionInfo(TOPIC, 4, node[1], new Node[] {node[2], node[0]}, null));
+    partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(1, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(2, node[1], new ArrayList<>(Arrays.asList(node[0], node[0])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(3, node[1], new ArrayList<>(Arrays.asList(node[2], node[1])), new ArrayList<>()));
+    partitions.add(new TopicPartitionInfo(4, node[1], new ArrayList<>(Arrays.asList(node[2], node[0])), new ArrayList<>()));
 
     Assert.assertTrue(TopicManagementHelper.someBrokerNotPreferredLeader(partitions, brokers(3)));
     Assert.assertTrue(TopicManagementHelper.someBrokerNotElectedLeader(partitions, brokers(3)));

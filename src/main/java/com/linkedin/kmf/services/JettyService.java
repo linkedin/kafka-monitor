@@ -10,12 +10,11 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
+import java.util.Map;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 // Jetty server that serves html files.
 public class JettyService implements Service {

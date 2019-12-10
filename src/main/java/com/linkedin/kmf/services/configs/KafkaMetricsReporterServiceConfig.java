@@ -6,10 +6,6 @@
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- *
- * In order to enable the StatsD metrics export, add the following section to kafka-monitor.properties file
- *
  */
 package com.linkedin.kmf.services.configs;
 
@@ -19,7 +15,10 @@ import org.apache.kafka.common.config.ConfigDef;
 import java.util.Arrays;
 import java.util.Map;
 
-public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
+import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
+
+public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
+
   private static final ConfigDef CONFIG;
 
   public static final String REPORT_METRICS_CONFIG = CommonServiceConfig.REPORT_METRICS_CONFIG;
@@ -28,14 +27,18 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
   public static final String REPORT_INTERVAL_SEC_CONFIG = CommonServiceConfig.REPORT_INTERVAL_SEC_CONFIG;
   public static final String REPORT_INTERVAL_SEC_DOC = CommonServiceConfig.REPORT_INTERVAL_SEC_DOC;
 
-  public static final String REPORT_STATSD_HOST = "report.statsd.host";
-  public static final String REPORT_STATSD_HOST_DOC = "The host of statsd server which StatsdMetricsReporterService will report the metrics values.";
+  public static final String ZOOKEEPER_CONNECT_CONFIG = CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG;
+  public static final String ZOOKEEPER_CONNECT_DOC = CommonServiceConfig.ZOOKEEPER_CONNECT_DOC;
 
-  public static final String REPORT_STATSD_PORT = "report.statsd.port";
-  public static final String REPORT_STATSD_PORT_DOC = "The port of statsd server which StatsdMetricsReporterService will report the metrics values.";
+  public static final String BOOTSTRAP_SERVERS_CONFIG = CommonServiceConfig.BOOTSTRAP_SERVERS_CONFIG;
+  public static final String BOOTSTRAP_SERVERS_DOC = CommonServiceConfig.BOOTSTRAP_SERVERS_DOC;
 
-  public static final String REPORT_STATSD_PREFIX = "report.statsd.prefix";
-  public static final String REPORT_STATSD_PREFIX_DOC = "The prefix of statsd metric name that will be generated with metric name to report to graphite server.";
+  public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
+  public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
+
+  public static final String TOPIC_REPLICATION_FACTOR = "report.kafka.topic.replication.factor";
+  public static final String TOPIC_REPLICATION_FACTOR_DOC = "This replication factor is used to create the metrics reporter topic.";
+
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
@@ -48,25 +51,27 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
                                     1,
                                     ConfigDef.Importance.LOW,
                                     REPORT_INTERVAL_SEC_DOC)
-                            .define(REPORT_STATSD_HOST,
+                            .define(ZOOKEEPER_CONNECT_CONFIG,
                                     ConfigDef.Type.STRING,
-                                    "localhost",
-                                    ConfigDef.Importance.MEDIUM,
-                                    REPORT_STATSD_HOST_DOC)
-                            .define(REPORT_STATSD_PORT,
+                                    ConfigDef.Importance.HIGH,
+                                    ZOOKEEPER_CONNECT_DOC)
+                            .define(BOOTSTRAP_SERVERS_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    ConfigDef.Importance.HIGH,
+                                    BOOTSTRAP_SERVERS_DOC)
+                            .define(TOPIC_CONFIG,
+                                    ConfigDef.Type.STRING,
+                                    ConfigDef.Importance.HIGH,
+                                    TOPIC_DOC)
+                            .define(TOPIC_REPLICATION_FACTOR,
                                     ConfigDef.Type.INT,
-                                    8125,
-                                    ConfigDef.Importance.MEDIUM,
-                                    REPORT_STATSD_PORT_DOC)
-                            .define(REPORT_STATSD_PREFIX,
-                                    ConfigDef.Type.STRING,
-                                    "",
+                                    1,
+                                    atLeast(1),
                                     ConfigDef.Importance.LOW,
-                                    REPORT_STATSD_PREFIX_DOC);
-
+                                    TOPIC_REPLICATION_FACTOR_DOC);
   }
 
-  public StatsdMetricsReporterServiceConfig(Map<?, ?> props) {
+  public KafkaMetricsReporterServiceConfig(Map<?, ?> props) {
     super(CONFIG, props);
   }
 }

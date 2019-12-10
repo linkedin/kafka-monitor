@@ -14,17 +14,15 @@ import com.linkedin.kmf.common.MbeanAttributeValue;
 import com.linkedin.kmf.services.configs.StatsdMetricsReporterServiceConfig;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static com.linkedin.kmf.common.Utils.getMBeanAttributeValues;
 
 public class StatsdMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(StatsdMetricsReporterService.class);
@@ -34,7 +32,6 @@ public class StatsdMetricsReporterService implements Service {
   private final int _reportIntervalSec;
   private final ScheduledExecutorService _executor;
   private final StatsDClient _statsdClient;
-  private final String _metricNamePrefix;
 
   public StatsdMetricsReporterService(Map<String, Object> props, String name) {
     StatsdMetricsReporterServiceConfig config = new StatsdMetricsReporterServiceConfig(props);
@@ -43,25 +40,20 @@ public class StatsdMetricsReporterService implements Service {
     _metricNames = config.getList(StatsdMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(StatsdMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
-    _metricNamePrefix = config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX);
-    _statsdClient = new NonBlockingStatsDClient(_metricNamePrefix,
+    _statsdClient = new NonBlockingStatsDClient(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX),
             config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
             config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
   }
 
   @Override
   public synchronized void start() {
-    _executor.scheduleAtFixedRate(
-      new Runnable() {
-        @Override
-        public void run() {
-          try {
-            reportMetrics();
-          } catch (Exception e) {
-            LOG.error(_name + "/StatsdMetricsReporterService failed to report metrics", e);
-          }
-        }
-      }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
+    _executor.scheduleAtFixedRate(() -> {
+      try {
+        reportMetrics();
+      } catch (Exception e) {
+        LOG.error(_name + "/StatsdMetricsReporterService failed to report metrics", e);
+      }
+    }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS
     );
     LOG.info("{}/StatsdMetricsReporterService started", _name);
   }
@@ -91,17 +83,15 @@ public class StatsdMetricsReporterService implements Service {
     String service = bean.split(":")[1];
     String serviceName = service.split(",")[0].split("=")[1];
     String serviceType = service.split(",")[1].split("=")[1];
-    String[] segs = {_metricNamePrefix, serviceType, serviceName, attribute};
-    String metricName = StringUtils.join(segs, ".");
-
-    return _metricNamePrefix.isEmpty() ? metricName.substring(1) : metricName;
+    String[] segs = {serviceType, serviceName, attribute};
+    return StringUtils.join(segs, ".");
   }
 
   private void reportMetrics() {
     for (String metricName: _metricNames) {
       String mbeanExpr = metricName.substring(0, metricName.lastIndexOf(":"));
       String attributeExpr = metricName.substring(metricName.lastIndexOf(":") + 1);
-      List<MbeanAttributeValue> attributeValues = getMBeanAttributeValues(mbeanExpr, attributeExpr);
+      List<MbeanAttributeValue> attributeValues = com.linkedin.kmf.common.Utils.getMBeanAttributeValues(mbeanExpr, attributeExpr);
 
       for (MbeanAttributeValue attributeValue: attributeValues) {
         final String statsdMetricName = generateStatsdMetricName(attributeValue.mbean(), attributeValue.attribute());

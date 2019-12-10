@@ -10,12 +10,15 @@
 package com.linkedin.kmf.topicfactory;
 
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.AdminClient;
 
 
 /**
- * Constructs the monitor topic if it does not exist.
+ * Constructs the monitor topic if it does not exist, and provide blacklisted brokers info for topic management service
  *
- * Implementations of this class should have a public constructor with the following signature: <br/>
+ * Implementations of this class should have a public constructor with the following signature:
  *   Constructor(Map&lt;String, ?&gt; config) where config are additional configuration parameters passed in from the Kafka
  *   Monitor configuration.
  */
@@ -23,7 +26,6 @@ public interface TopicFactory {
 
   /**
    * Creates the specified topic if it does not exist.
-   * @param zkUrl zookeeper connection url
    * @param topic topic name
    * @param replicationFactor the replication factor for the topic
    * @param partitionToBrokerRatio This is multiplied by the number brokers to compute the number of partitions in the topic.
@@ -32,6 +34,13 @@ public interface TopicFactory {
    * @return The number of partitions for the specified topic.
    */
 
-  int createTopicIfNotExist(String zkUrl, String topic, int replicationFactor, double partitionToBrokerRatio, Properties topicProperties);
+  int createTopicIfNotExist(String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicProperties, AdminClient adminClient)
+      throws ExecutionException, InterruptedException;
+
+  /**
+   * @param zkUrl zookeeper connection url
+   * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
+   */
+  Set<Integer> getBlackListedBrokers(String zkUrl);
 
 }
