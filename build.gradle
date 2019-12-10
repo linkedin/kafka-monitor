@@ -1,4 +1,6 @@
 
+def configDocDir = "${buildDir}/configDocs"
+
 buildscript {
   repositories {
     jcenter()
@@ -7,9 +9,9 @@ buildscript {
     classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
   }
 }
-
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
+
 
 allprojects {
   apply plugin: 'idea'
@@ -126,6 +128,20 @@ allprojects {
     configProperties = ["suppressionFile": new File(rootDir, "checkstyle/suppressions.xml")]
   }
 
+  task createConfigDocs( dependsOn : compileJava, type : JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = 'com.linkedin.kmf.common.ConfigDocumentationGenerator'
+    args = [configDocDir,
+            'com.linkedin.kmf.services.configs.ConsumeServiceConfig',
+            'com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig',
+            'com.linkedin.kmf.services.configs.JettyServiceConfig',
+            'com.linkedin.kmf.services.configs.ProduceServiceConfig',
+            'com.linkedin.kmf.services.configs.TopicManagementServiceConfig',
+            'com.linkedin.kmf.apps.configs.MultiClusterMonitorConfig']
+  }
+
+  build.dependsOn createConfigDocs
+
   test.dependsOn('checkstyleMain', 'checkstyleTest')
 
   test {
@@ -141,9 +157,7 @@ allprojects {
 bintray {
   user = System.getenv('BINTRAY_USER')
   key = System.getenv('BINTRAY_KEY')
-
   publications = ['MyPublication']
-
   pkg {
     repo = 'maven'
     name = 'kafka-monitor'
@@ -156,8 +170,8 @@ bintray {
     publish = true
   }
 }
-
 wrapper {
   gradleVersion = '5.2.1'
   distributionType = Wrapper.DistributionType.ALL
+
 }

@@ -231,10 +231,12 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
+
     private boolean _preferredLeaderElectionRequested;
     private int _requestTimeoutMs;
     private List _bootstrapServers;
     private final AdminClient _adminClient;
+
 
     @SuppressWarnings("unchecked")
     TopicManagementHelper(Map<String, Object> props) throws Exception {
@@ -247,6 +249,7 @@ public class MultiClusterTopicManagementService implements Service {
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
+
       _preferredLeaderElectionRequested = false;
       _requestTimeoutMs = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
       _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
@@ -255,6 +258,7 @@ public class MultiClusterTopicManagementService implements Service {
         for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
           _topicProperties.put(entry.getKey(), entry.getValue().toString());
       }
+
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
