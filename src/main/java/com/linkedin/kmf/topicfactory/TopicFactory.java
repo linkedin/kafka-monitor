@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 
-
 /**
  * Constructs the monitor topic if it does not exist, and provide blacklisted brokers info for topic management service
  *
@@ -23,7 +22,6 @@ import org.apache.kafka.clients.admin.AdminClient;
  *   Monitor configuration.
  */
 public interface TopicFactory {
-
   /**
    * Creates the specified topic if it does not exist.
    * @param topic topic name
@@ -33,14 +31,11 @@ public interface TopicFactory {
    *                        the underlying createTopic() uses Properties and not Map&lt;String, ?&gt;.
    * @return The number of partitions for the specified topic.
    */
-
   int createTopicIfNotExist(String topic, short replicationFactor, double partitionToBrokerRatio, Properties topicProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException;
 
   /**
-   * @param zkUrl zookeeper connection url
    * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
    */
-  Set<Integer> getBlackListedBrokers(String zkUrl);
-
+  Set<Integer> getBlackListedBrokers();
 }
