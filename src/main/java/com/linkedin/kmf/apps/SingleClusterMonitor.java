@@ -49,7 +49,7 @@ public class SingleClusterMonitor implements App {
   private final ConsumeService _consumeService;
   private final String _name;
 
-  public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  private SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     _produceService = new ProduceService(props, name);
@@ -233,7 +233,6 @@ public class SingleClusterMonitor implements App {
     }
 
     Namespace res = parser.parseArgs(args);
-
     Map<String, Object> props = new HashMap<>();
     // produce service config
     props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
@@ -279,6 +278,7 @@ public class SingleClusterMonitor implements App {
     if (res.getString("reportIntervalSec") != null)
       props.put(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG, res.getString("reportIntervalSec"));
     List<String> metrics = Arrays.asList(
+      "kmf.services:type=consume-service,name=*:topic-partitions-count",
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
       "kmf.services:type=consume-service,name=*:consume-availability-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
@@ -289,16 +289,17 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
-      "kmf.services:type=consume-service,name=*:consume-error-rate");
+      "kmf.services:type=consume-service,name=*:consume-error-rate"
+    );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
     metricsReporterService.start();
 
-    JolokiaService jolokiaService = new JolokiaService(new HashMap<String, Object>(), "end-to-end");
+    JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
 
-    JettyService jettyService = new JettyService(new HashMap<String, Object>(), "end-to-end");
+    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
     jettyService.start();
 
     if (!app.isRunning()) {

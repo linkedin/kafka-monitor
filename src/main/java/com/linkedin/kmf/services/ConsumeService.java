@@ -16,15 +16,21 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -58,6 +64,7 @@ public class ConsumeService implements Service {
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
   private final int _latencySlaMs;
+  private final AdminClient _adminClient;
 
   public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -72,7 +79,6 @@ public class ConsumeService implements Service {
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _running = new AtomicBoolean(false);
-
     for (String property: NON_OVERRIDABLE_PROPERTIES) {
       if (consumerPropsOverride.containsKey(property)) {
         throw new ConfigException("Override must not contain " + property + " config.");
@@ -101,7 +107,6 @@ public class ConsumeService implements Service {
     consumerProps.putAll(consumerPropsOverride);
 
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
-
     _thread = new Thread(() -> {
       try {
         consume();
@@ -117,7 +122,8 @@ public class ConsumeService implements Service {
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
-    _sensors = new ConsumeMetrics(metrics, tags);
+    _adminClient = AdminClient.create(props);
+    _sensors = new ConsumeMetrics(metrics, tags, topic);
   }
 
   private void consume() throws Exception {
@@ -215,7 +221,14 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelay;
     private final Sensor _recordsDelayed;
 
-    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags) {
+    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName) throws ExecutionException, InterruptedException {
+      int partitionCount = 0;
+      DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
+      Map<String, KafkaFuture<TopicDescription>> values =  describeTopicsResult.values();
+      partitionCount = values.get(topicName).get().partitions().size();
+      Sensor topicPartitionCount = metrics.sensor("topic-partitions");
+      topicPartitionCount.add(new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags), new Total(partitionCount));
+
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
 

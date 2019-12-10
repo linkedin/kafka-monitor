@@ -293,8 +293,7 @@ public class MultiClusterTopicManagementService implements Service {
       if (partitionNum < minPartitionNum) {
         LOG.info("{} will increase partition of the topic {} in the cluster from {}"
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
-        Set<Integer> blackListedBrokers =
-            _topicFactory.getBlackListedBrokers(_zkConnect);
+        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
         List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
@@ -316,12 +315,8 @@ public class MultiClusterTopicManagementService implements Service {
 
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
       Set<Node> brokers = new HashSet<>();
-      for (Node node : _adminClient.describeCluster().nodes().get()) {
-        brokers.add(node);
-      }
-      Set<Integer> blackListedBrokers =
-          _topicFactory.getBlackListedBrokers(_zkConnect);
-
+      brokers.addAll(_adminClient.describeCluster().nodes().get());
+      Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
       return brokers;
     }
@@ -331,7 +326,7 @@ public class MultiClusterTopicManagementService implements Service {
           com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
 
       List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-      Collection<Node> brokers = getAvailableBrokers();
+      Collection<Node> brokers = this.getAvailableBrokers();
       boolean partitionReassigned = false;
       if (partitionInfoList.size() == 0) {
         throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");

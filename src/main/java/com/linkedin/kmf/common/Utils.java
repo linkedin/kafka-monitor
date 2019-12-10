@@ -45,10 +45,12 @@ public class Utils {
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
   /**
-   * Read number of partitions for the given topic on the specified zookeeper
+   * Read number of partitions for the given topic on the specified ZooKeeper
    * @param adminClient AdminClient object initialized.
    * @param topic topic name.
    * @return the number of partitions of the given topic
+   * @throws ExecutionException thrown when describeTopics(topics) get(topic) execution fails.
+   * @throws InterruptedException thrown when adminClient's describeTopics getTopic is interrupted.
    */
   private static int getPartitionNumForTopic(AdminClient adminClient, String topic)
       throws ExecutionException, InterruptedException {
@@ -64,7 +66,7 @@ public class Utils {
   }
 
   /**
-   * Create the topic.  This method attempts to create a topic so that all
+   * Create the topic. This method attempts to create a topic so that all
    * the brokers in the cluster will have partitionToBrokerRatio partitions.  If the topic exists, but has different parameters
    * then this does nothing to update the parameters.
    *
