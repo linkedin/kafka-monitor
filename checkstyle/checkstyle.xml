@@ -26,7 +26,6 @@
   </module>
 
   <module name="TreeWalker">
-
     <!-- code cleanup -->
     <module name="UnusedImports"/>
     <module name="RedundantImport"/>
@@ -36,6 +35,7 @@
     <module name="OneStatementPerLine"/>
     <module name="UnnecessaryParentheses" />
     <module name="SimplifyBooleanReturn"/>
+    <module name="NoLineWrap"/>
 
     <!-- style -->
     <module name="DefaultComesLast"/>
