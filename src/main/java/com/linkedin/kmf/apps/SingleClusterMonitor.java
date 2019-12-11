@@ -44,9 +44,9 @@ import org.slf4j.LoggerFactory;
 public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
   private final TopicManagementService _topicManagementService;
+  private final ProduceService _produceService;
+  private final ConsumeService _consumeService;
   private final String _name;
-  private ProduceService _produceService;
-  private ConsumeService _consumeService;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
