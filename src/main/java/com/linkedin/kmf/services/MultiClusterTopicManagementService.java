@@ -293,7 +293,7 @@ public class MultiClusterTopicManagementService implements Service {
       if (partitionNum < minPartitionNum) {
         LOG.info("{} will increase partition of the topic {} in the cluster from {}"
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
-        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers();
+        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
         List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
@@ -316,7 +316,7 @@ public class MultiClusterTopicManagementService implements Service {
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
       Set<Node> brokers = new HashSet<>();
       brokers.addAll(_adminClient.describeCluster().nodes().get());
-      Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers();
+      Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
       return brokers;
     }
