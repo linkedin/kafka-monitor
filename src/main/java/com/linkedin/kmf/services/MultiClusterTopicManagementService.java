@@ -78,8 +78,9 @@ public class MultiClusterTopicManagementService implements Service {
   private final int _scheduleIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
-  final private CompletableFuture<Void> _completableFuture;
+  private final CompletableFuture<Void> _completableFuture;
 
+  @SuppressWarnings("unchecked")
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
     MultiClusterTopicManagementServiceConfig config = new MultiClusterTopicManagementServiceConfig(props);
@@ -171,7 +172,7 @@ public class MultiClusterTopicManagementService implements Service {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeAddPartitions(minPartitionNum);
         }
-
+        _completableFuture.complete(null);
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
           TopicManagementHelper helper = entry.getValue();
@@ -187,7 +188,6 @@ public class MultiClusterTopicManagementService implements Service {
         LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
         stop();
       }
-      _completableFuture.complete(null);
     }
   }
 

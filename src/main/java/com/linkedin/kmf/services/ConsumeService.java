@@ -57,14 +57,14 @@ public class ConsumeService implements Service {
       ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
 
   private final String _name;
-  private final ConsumeMetrics _sensors;
+  private ConsumeMetrics _sensors;
   private final KMBaseConsumer _consumer;
-  private final Thread _thread;
+  private Thread _thread;
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
   private final int _latencySlaMs;
-  private final AdminClient _adminClient;
+  private AdminClient _adminClient;
 
   public ConsumeService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -84,7 +84,6 @@ public class ConsumeService implements Service {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
     }
-
     Properties consumerProps = new Properties();
 
     // Assign default config. This has the lowest priority.
@@ -94,7 +93,6 @@ public class ConsumeService implements Service {
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-
     if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName())) {
       consumerClassName = NewConsumer.class.getCanonicalName();
     }
@@ -105,25 +103,26 @@ public class ConsumeService implements Service {
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
-
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
-    _thread = new Thread(() -> {
-      try {
-        consume();
-      } catch (Exception e) {
-        LOG.error(_name + "/ConsumeService failed", e);
-      }
-    }, _name + " consume-service");
-    _thread.setDaemon(true);
+    TopicManagementService.topicPartitionReady().thenRun(() -> {
+      MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+      List<MetricsReporter> reporters = new ArrayList<>();
+      reporters.add(new JmxReporter(JMX_PREFIX));
+      Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+      Map<String, String> tags = new HashMap<>();
+      tags.put("name", _name);
+      _adminClient = AdminClient.create(props);
+      _sensors = new ConsumeMetrics(metrics, tags, topic);
+      _thread = new Thread(() -> {
+        try {
+          consume();
+        } catch (Exception e) {
+          LOG.error(_name + "/ConsumeService failed", e);
+        }
+      }, _name + " consume-service");
+      _thread.setDaemon(true);
+    });
 
-    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
-    List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(JMX_PREFIX));
-    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-    Map<String, String> tags = new HashMap<>();
-    tags.put("name", _name);
-    _adminClient = AdminClient.create(props);
-    _sensors = new ConsumeMetrics(metrics, tags, topic);
   }
 
   private void consume() throws Exception {
@@ -221,13 +220,23 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelay;
     private final Sensor _recordsDelayed;
 
-    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName) throws ExecutionException, InterruptedException {
-      int partitionCount = 0;
-      DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
-      Map<String, KafkaFuture<TopicDescription>> values =  describeTopicsResult.values();
-      partitionCount = values.get(topicName).get().partitions().size();
-      Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-      topicPartitionCount.add(new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags), new Total(partitionCount));
+    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName) {
+      TopicManagementService.topicPartitionReady().thenRun(() -> {
+        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
+        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
+        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
+        TopicDescription topicDescription = null;
+        try {
+          topicDescription = topicDescriptionKafkaFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+          e.printStackTrace();
+        }
+        int partitionCount = topicDescription.partitions().size();
+        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
+        topicPartitionCount.add(
+            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
+            new Total(partitionCount));
+      });
 
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
