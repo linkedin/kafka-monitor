@@ -15,6 +15,7 @@ import com.linkedin.kmf.services.MultiClusterTopicManagementService;
 import com.linkedin.kmf.services.ProduceService;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class MultiClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterMonitor.class);
 
-  private final MultiClusterTopicManagementService _topicManagementService;
+  private final MultiClusterTopicManagementService _multiClusterTopicManagementService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final String _name;
@@ -37,9 +38,10 @@ public class MultiClusterMonitor implements App {
   public MultiClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     MultiClusterMonitorConfig config = new MultiClusterMonitorConfig(props);
-    _topicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(props, config), name);
+    _multiClusterTopicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(props, config), name);
     _produceService = new ProduceService(createProduceServiceProps(props, config), name);
-    _consumeService = new ConsumeService(createConsumeServiceProps(props, config), name);
+    CompletableFuture<Void> topicPartitionReady = _multiClusterTopicManagementService.topicPartitionReady();
+    _consumeService = new ConsumeService(createConsumeServiceProps(props, config), name, topicPartitionReady);
   }
 
   @SuppressWarnings("unchecked")
@@ -70,7 +72,7 @@ public class MultiClusterMonitor implements App {
 
   @Override
   public void start() {
-    _topicManagementService.start();
+    _multiClusterTopicManagementService.start();
     _produceService.start();
     _consumeService.start();
     LOG.info(_name + "/MultiClusterMonitor started");
@@ -78,7 +80,7 @@ public class MultiClusterMonitor implements App {
 
   @Override
   public void stop() {
-    _topicManagementService.stop();
+    _multiClusterTopicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
     LOG.info(_name + "/MultiClusterMonitor stopped");
@@ -86,12 +88,12 @@ public class MultiClusterMonitor implements App {
 
   @Override
   public boolean isRunning() {
-    return _topicManagementService.isRunning() && _produceService.isRunning() && _consumeService.isRunning();
+    return _multiClusterTopicManagementService.isRunning() && _produceService.isRunning() && _consumeService.isRunning();
   }
 
   @Override
   public void awaitShutdown() {
-    _topicManagementService.awaitShutdown();
+    _multiClusterTopicManagementService.awaitShutdown();
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
   }

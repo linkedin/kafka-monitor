@@ -23,16 +23,16 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TopicManagementService implements Service {
   private final MultiClusterTopicManagementService _multiClusterTopicManagementService;
-  private static final CompletableFuture<Void> TOPIC_PARTITION_READY = new CompletableFuture<>();
+  CompletableFuture<Void> _topicPartitionReady = new CompletableFuture<>();
 
   public TopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     Map<String, Object> serviceProps = createMultiClusterTopicManagementServiceProps(props, serviceName);
     _multiClusterTopicManagementService = new MultiClusterTopicManagementService(serviceProps, serviceName);
-    TOPIC_PARTITION_READY.complete(null);
+    _topicPartitionReady.complete(null);
   }
 
-  public static CompletableFuture<Void> topicPartitionReady() {
-    return TOPIC_PARTITION_READY;
+  public CompletableFuture<Void> topicPartitionReady() {
+    return _topicPartitionReady;
   }
 
   /**

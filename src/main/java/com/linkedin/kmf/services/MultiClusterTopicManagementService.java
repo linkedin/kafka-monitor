@@ -72,6 +72,7 @@ import scala.collection.Seq;
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
+  private final CompletableFuture<Void> _topicPartitionReady = new CompletableFuture<>();
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
@@ -93,10 +94,15 @@ public class MultiClusterTopicManagementService implements Service {
     _completableFuture = new CompletableFuture<>();
     _executor = Executors.newSingleThreadScheduledExecutor(
       r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
+    _topicPartitionReady.complete(null);
   }
 
   public CompletableFuture<Void> topicManagementReady() {
     return _completableFuture;
+  }
+
+  public CompletableFuture<Void> topicPartitionReady() {
+    return _topicPartitionReady;
   }
 
   private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,7 +67,7 @@ public class ConsumeService implements Service {
   private final int _latencySlaMs;
   private AdminClient _adminClient;
 
-  public ConsumeService(Map<String, Object> props, String name) throws Exception {
+  public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionReady) throws Exception {
     _name = name;
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
       ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
@@ -104,7 +105,7 @@ public class ConsumeService implements Service {
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
-    TopicManagementService.topicPartitionReady().thenRun(() -> {
+    topicPartitionReady.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
       reporters.add(new JmxReporter(JMX_PREFIX));
@@ -112,7 +113,7 @@ public class ConsumeService implements Service {
       Map<String, String> tags = new HashMap<>();
       tags.put("name", _name);
       _adminClient = AdminClient.create(props);
-      _sensors = new ConsumeMetrics(metrics, tags, topic);
+      _sensors = new ConsumeMetrics(metrics, tags, topic, topicPartitionReady);
       _thread = new Thread(() -> {
         try {
           consume();
@@ -220,8 +221,8 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelay;
     private final Sensor _recordsDelayed;
 
-    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName) {
-      TopicManagementService.topicPartitionReady().thenRun(() -> {
+    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName, CompletableFuture<Void> topicPartitionReady) {
+      topicPartitionReady.thenRun(() -> {
         DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
         Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
         KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);

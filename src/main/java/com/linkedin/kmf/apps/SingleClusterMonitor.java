@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
+
   private final TopicManagementService _topicManagementService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
@@ -51,8 +52,10 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
+    CompletableFuture topicPartitionReady = _topicManagementService.topicPartitionReady();
+
     _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name);
+    _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
 
   @Override
