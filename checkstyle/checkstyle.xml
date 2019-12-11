@@ -81,4 +81,5 @@
     <module name="ParenPad"/>
     <module name="TypecastParenPad"/>
   </module>
+  <module name="NewlineAtEndOfFile"/>
 </module>
