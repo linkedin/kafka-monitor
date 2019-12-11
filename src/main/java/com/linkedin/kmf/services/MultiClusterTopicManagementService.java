@@ -56,7 +56,7 @@ import scala.collection.Seq;
 
 
 /**
- * This service periodically checks and rebalances the monitor topics across a pipeline of Kafka clusters so that
+ * This service periodically checks and re-balances the monitor topics across a pipeline of Kafka clusters so that
  * leadership of the partitions of the monitor topic in each cluster is distributed evenly across brokers in the cluster.
  *
  * More specifically, this service may do some or all of the following tasks depending on the config:
@@ -65,7 +65,7 @@ import scala.collection.Seq;
  * - Increase partition number of the monitor topic if either partitionsToBrokersRatio or minPartitionNum is not satisfied
  * - Increase replication factor of the monitor topic if the user-specified replicationFactor is not satisfied
  * - Reassign partition across brokers to make sure each broker acts as preferred leader of at least one partition of the monitor topic
- * - Trigger preferred leader election to make sure each broker acts as leader of at least one partition of the monitor topic.
+ * - Trigger preferred leader election to make sure each broker acts as the leader of at least one partition of the monitor topic.
  * - Make sure the number of partitions of the monitor topic is same across all monitored clusters.
  *
  */

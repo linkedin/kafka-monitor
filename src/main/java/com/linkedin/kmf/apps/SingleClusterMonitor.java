@@ -53,7 +53,6 @@ public class SingleClusterMonitor implements App {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture topicPartitionReady = _topicManagementService.topicPartitionReady();
-
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
