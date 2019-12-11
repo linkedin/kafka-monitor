@@ -229,7 +229,7 @@ public class ConsumeService implements Service {
         try {
           topicDescription = topicDescriptionKafkaFuture.get();
         } catch (InterruptedException | ExecutionException e) {
-          e.printStackTrace();
+          LOG.error("Exception occurred while retrieving the topic description.", e);
         }
         int partitionCount = topicDescription.partitions().size();
         Sensor topicPartitionCount = metrics.sensor("topic-partitions");
