@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
@@ -91,12 +90,8 @@ public class MultiClusterTopicManagementService implements Service {
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _completableFuture = new CompletableFuture<>();
-    _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-      @Override
-      public Thread newThread(Runnable r) {
-        return new Thread(r, _serviceName + "-multi-cluster-topic-management-service");
-      }
-    });
+    _executor = Executors.newSingleThreadScheduledExecutor(
+      r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
   }
 
   public CompletableFuture<Void> topicManagementReady() {
@@ -176,7 +171,6 @@ public class MultiClusterTopicManagementService implements Service {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeAddPartitions(minPartitionNum);
         }
-        _completableFuture.complete(null);
 
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
@@ -193,6 +187,7 @@ public class MultiClusterTopicManagementService implements Service {
         LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
         stop();
       }
+      _completableFuture.complete(null);
     }
   }
 
@@ -231,7 +226,6 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
-
     private boolean _preferredLeaderElectionRequested;
     private int _requestTimeoutMs;
     private List _bootstrapServers;
@@ -249,7 +243,6 @@ public class MultiClusterTopicManagementService implements Service {
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
-
       _preferredLeaderElectionRequested = false;
       _requestTimeoutMs = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
       _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
