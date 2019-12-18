@@ -150,7 +150,7 @@ public class Utils {
     return record;
   }
 
-  private static String jsonFromGenericRecord(GenericRecord record) {
+  public static String jsonFromGenericRecord(GenericRecord record) {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(DefaultTopicSchema.MESSAGE_V0);
 

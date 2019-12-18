@@ -24,7 +24,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -81,13 +80,7 @@ public class KafkaMonitor {
     reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
     metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
-        new Measurable() {
-          @Override
-          public double measure(MetricConfig config, long now) {
-            return _offlineRunnables.size();
-          }
-        }
-    );
+      (config, now) -> _offlineRunnables.size());
   }
 
   public synchronized void start() {
