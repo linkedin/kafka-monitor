@@ -52,7 +52,7 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-    CompletableFuture topicPartitionReady = _topicManagementService.topicPartitionReady();
+    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionReady();
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
