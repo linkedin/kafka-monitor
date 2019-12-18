@@ -263,7 +263,7 @@ public class MultiClusterTopicManagementService implements Service {
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
       _adminClient = constructAdminClient(props);
-      LOG.info("{} configs: {}", _adminClient.getClass().getSimpleName(), _adminClient);
+      LOG.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
     }
 
     @SuppressWarnings("unchecked")
