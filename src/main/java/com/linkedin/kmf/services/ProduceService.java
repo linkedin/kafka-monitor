@@ -115,7 +115,6 @@ public class ProduceService implements Service {
       }
     }
 
-    Utils.configureSecureSocketLayer(props);
     _adminClient = AdminClient.create(props);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
@@ -124,7 +123,7 @@ public class ProduceService implements Service {
       _producerClassName = producerClass;
     }
 
-    initializeProducer();
+    initializeProducer(props);
 
     _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
     _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
@@ -138,7 +137,7 @@ public class ProduceService implements Service {
     _sensors = new ProduceMetrics(metrics, tags);
   }
 
-  private void initializeProducer() throws Exception {
+  private void initializeProducer(Map<String, Object> props) throws Exception {
     Properties producerProps = new Properties();
     // Assign default config. This has the lowest priority.
     producerProps.put(ProducerConfig.ACKS_CONFIG, "-1");
@@ -154,7 +153,9 @@ public class ProduceService implements Service {
     // Assign config specified for producer. This has the highest priority.
     producerProps.putAll(_producerPropsOverride);
 
-    Utils.configureSecureSocketLayer(producerProps);
+    if (props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)) {
+      props.forEach(producerProps::putIfAbsent);
+    }
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
     LOG.info("{}/ProduceService is initialized.", _name);
@@ -389,7 +390,7 @@ public class ProduceService implements Service {
         }
         _producer.close();
         try {
-          initializeProducer();
+          initializeProducer(new HashMap<>());
         } catch (Exception e) {
           LOG.error("Failed to restart producer.", e);
           throw new IllegalStateException(e);

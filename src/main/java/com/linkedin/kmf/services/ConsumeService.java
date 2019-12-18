@@ -105,7 +105,9 @@ public class ConsumeService implements Service {
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
 
-    Utils.configureSecureSocketLayer(consumerProps);
+    if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) {
+      props.forEach(consumerProps::putIfAbsent);
+    }
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
     topicPartitionReady.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);

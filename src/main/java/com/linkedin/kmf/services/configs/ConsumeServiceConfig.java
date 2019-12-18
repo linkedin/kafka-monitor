@@ -11,13 +11,8 @@ package com.linkedin.kmf.services.configs;
 
 import com.linkedin.kmf.consumer.NewConsumer;
 import java.util.Map;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-
-import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
 
 public class ConsumeServiceConfig extends AbstractConfig {
@@ -84,62 +79,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.INT,
                                     20000,
                                     ConfigDef.Importance.MEDIUM,
-                                    LATENCY_SLA_MS_DOC)
-                            .define(AdminClientConfig.SECURITY_PROTOCOL_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    SecurityProtocol.SSL.name,
-                                    ConfigDef.Importance.LOW,
-                                    AdminClientConfig.SECURITY_PROTOCOL_CONFIG)
-                            .define(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
-                            .define(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG)
-                            .define(SslConfigs.SSL_KEY_PASSWORD_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_KEY_PASSWORD_CONFIG)
-                            .define(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG)
-                            .define(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG)
-                            .define(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG)
-                            .define(SslConfigs.SSL_PROTOCOL_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_PROTOCOL_CONFIG)
-                            .define(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG,
-                                    ConfigDef.Type.INT,
-                                    50000,
-                                    atLeast(1),
-                                    ConfigDef.Importance.LOW,
-                                    AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG)
-                            .define(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_KEYSTORE_TYPE_CONFIG)
-                            .define(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG)
-                            .define(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
-                            .define(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.LOW,
-                                    SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG);
+                                    LATENCY_SLA_MS_DOC);
   }
 
   public ConsumeServiceConfig(Map<?, ?> props) {

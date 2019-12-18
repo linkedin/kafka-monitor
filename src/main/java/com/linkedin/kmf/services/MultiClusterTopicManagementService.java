@@ -10,7 +10,6 @@
 
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
@@ -280,8 +279,7 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     AdminClient constructAdminClient(Map<String, Object> props) {
-      Map<String, Object> adminClientProps = Utils.configureSecureSocketLayer(props);
-      return AdminClient.create(adminClientProps);
+      return AdminClient.create(props);
     }
 
     int minPartitionNum() throws InterruptedException, ExecutionException {

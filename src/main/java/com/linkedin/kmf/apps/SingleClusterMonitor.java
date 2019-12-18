@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,8 +241,6 @@ public class SingleClusterMonitor implements App {
       System.out.println(parser.formatHelp());
       System.exit(-1);
     }
-    Map<String, Object> adminClientProps = com.linkedin.kmf.common.Utils.configureSecureSocketLayer(new HashMap<>());
-    AdminClient.create(adminClientProps);
 
     Namespace res = parser.parseArgs(args);
     Map<String, Object> props = new HashMap<>();

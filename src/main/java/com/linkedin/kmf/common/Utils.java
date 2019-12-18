@@ -9,13 +9,11 @@
  */
 package com.linkedin.kmf.common;
 
-import com.linkedin.kmf.services.configs.KafkaMonitorAdminClientConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -33,11 +31,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,42 +44,6 @@ public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
   public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
-
-  public static Map<String, Object> configureSecureSocketLayer(Map<String, Object> props) {
-    KafkaMonitorAdminClientConfig adminClientConfig = new KafkaMonitorAdminClientConfig(new HashMap<>());
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, adminClientConfig.getString(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG));
-    props.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-    props.put(SslConfigs.SSL_PROTOCOL_CONFIG, adminClientConfig.getString(SslConfigs.SSL_PROTOCOL_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEY_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG));
-    props.put(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG));
-    return props;
-  }
-
-  public static Properties configureSecureSocketLayer(Properties props) {
-    KafkaMonitorAdminClientConfig adminClientConfig = new KafkaMonitorAdminClientConfig(new HashMap<>());
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, adminClientConfig.getString(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG));
-    props.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-    props.put(SslConfigs.SSL_PROTOCOL_CONFIG, adminClientConfig.getString(SslConfigs.SSL_PROTOCOL_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEY_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG));
-    props.put(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG));
-    return props;
-  }
 
   /**
    * Read number of partitions for the given topic on the specified ZooKeeper
