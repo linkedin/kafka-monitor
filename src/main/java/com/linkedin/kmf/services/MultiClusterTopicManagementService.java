@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
@@ -57,7 +56,7 @@ import scala.collection.Seq;
 
 
 /**
- * This service periodically checks and rebalances the monitor topics across a pipeline of Kafka clusters so that
+ * This service periodically checks and re-balances the monitor topics across a pipeline of Kafka clusters so that
  * leadership of the partitions of the monitor topic in each cluster is distributed evenly across brokers in the cluster.
  *
  * More specifically, this service may do some or all of the following tasks depending on the config:
@@ -66,21 +65,23 @@ import scala.collection.Seq;
  * - Increase partition number of the monitor topic if either partitionsToBrokersRatio or minPartitionNum is not satisfied
  * - Increase replication factor of the monitor topic if the user-specified replicationFactor is not satisfied
  * - Reassign partition across brokers to make sure each broker acts as preferred leader of at least one partition of the monitor topic
- * - Trigger preferred leader election to make sure each broker acts as leader of at least one partition of the monitor topic.
+ * - Trigger preferred leader election to make sure each broker acts as the leader of at least one partition of the monitor topic.
  * - Make sure the number of partitions of the monitor topic is same across all monitored clusters.
  *
  */
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
+  private final CompletableFuture<Void> _topicPartitionReady = new CompletableFuture<>();
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
   private final int _scheduleIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
-  final private CompletableFuture<Void> _completableFuture;
+  private final CompletableFuture<Void> _completableFuture;
 
+  @SuppressWarnings("unchecked")
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
     MultiClusterTopicManagementServiceConfig config = new MultiClusterTopicManagementServiceConfig(props);
@@ -91,16 +92,17 @@ public class MultiClusterTopicManagementService implements Service {
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _completableFuture = new CompletableFuture<>();
-    _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-      @Override
-      public Thread newThread(Runnable r) {
-        return new Thread(r, _serviceName + "-multi-cluster-topic-management-service");
-      }
-    });
+    _executor = Executors.newSingleThreadScheduledExecutor(
+      r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
+    _topicPartitionReady.complete(null);
   }
 
   public CompletableFuture<Void> topicManagementReady() {
     return _completableFuture;
+  }
+
+  public CompletableFuture<Void> topicPartitionReady() {
+    return _topicPartitionReady;
   }
 
   private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {
@@ -177,7 +179,6 @@ public class MultiClusterTopicManagementService implements Service {
           helper.maybeAddPartitions(minPartitionNum);
         }
         _completableFuture.complete(null);
-
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
           TopicManagementHelper helper = entry.getValue();
@@ -231,7 +232,6 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _minPartitionNum;
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
-
     private boolean _preferredLeaderElectionRequested;
     private int _requestTimeoutMs;
     private List _bootstrapServers;
@@ -249,7 +249,6 @@ public class MultiClusterTopicManagementService implements Service {
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
-
       _preferredLeaderElectionRequested = false;
       _requestTimeoutMs = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
       _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
