@@ -107,10 +107,6 @@ public class MultiClusterTopicManagementService implements Service {
     return _topicPartitionReady;
   }
 
-  public CompletableFuture<Void> topicPartitionReady() {
-    return _topicPartitionReady;
-  }
-
   private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {
     Map<String, TopicManagementHelper> topicManagementByCluster = new HashMap<>();
     for (Map.Entry<String, Map> entry: propsByCluster.entrySet()) {
