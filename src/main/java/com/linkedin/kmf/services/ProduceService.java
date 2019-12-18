@@ -14,7 +14,6 @@ import com.linkedin.kmf.partitioner.KMPartitioner;
 import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
-import com.linkedin.kmf.services.configs.KafkaMonitorAdminClientConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,14 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.Measurable;
@@ -54,7 +51,6 @@ import org.apache.kafka.common.metrics.stats.Percentile;
 import org.apache.kafka.common.metrics.stats.Percentiles;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,19 +114,8 @@ public class ProduceService implements Service {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
     }
-    KafkaMonitorAdminClientConfig adminClientConfig = new KafkaMonitorAdminClientConfig(new HashMap<>());
-    props.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-    props.put(SslConfigs.SSL_PROTOCOL_CONFIG, adminClientConfig.getString(SslConfigs.SSL_PROTOCOL_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEY_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG));
-    props.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG));
-    props.put(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
-    props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG));
+
+    Utils.configureSecureSocketLayer(props);
     _adminClient = AdminClient.create(props);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
@@ -169,19 +154,7 @@ public class ProduceService implements Service {
     // Assign config specified for producer. This has the highest priority.
     producerProps.putAll(_producerPropsOverride);
 
-    KafkaMonitorAdminClientConfig adminClientConfig = new KafkaMonitorAdminClientConfig(new HashMap<>());
-    producerProps.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-    producerProps.put(SslConfigs.SSL_PROTOCOL_CONFIG, adminClientConfig.getString(SslConfigs.SSL_PROTOCOL_CONFIG));
-    producerProps.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
-    producerProps.put(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-    producerProps.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG));
-    producerProps.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEY_PASSWORD_CONFIG));
-    producerProps.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
-    producerProps.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG));
-    producerProps.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG));
-    producerProps.put(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG));
-    producerProps.put(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
-    producerProps.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG));
+    Utils.configureSecureSocketLayer(producerProps);
 
     _producer = (KMBaseProducer) Class.forName(_producerClassName).getConstructor(Properties.class).newInstance(producerProps);
     LOG.info("{}/ProduceService is initialized.", _name);
