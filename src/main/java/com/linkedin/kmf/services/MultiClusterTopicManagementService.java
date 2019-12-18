@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
@@ -261,7 +262,9 @@ public class MultiClusterTopicManagementService implements Service {
       Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
           (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
+
       _adminClient = constructAdminClient(props);
+      LOG.info("{} configs: {}", _adminClient.getClass().getSimpleName(), _adminClient);
     }
 
     @SuppressWarnings("unchecked")
@@ -277,9 +280,8 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     AdminClient constructAdminClient(Map<String, Object> props) {
-      props.putIfAbsent(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _bootstrapServers);
-      props.putIfAbsent(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, _requestTimeoutMs);
-      return AdminClient.create(props);
+      Map<String, Object> adminClientProps = Utils.configureSecureSocketLayer(props);
+      return AdminClient.create(adminClientProps);
     }
 
     int minPartitionNum() throws InterruptedException, ExecutionException {

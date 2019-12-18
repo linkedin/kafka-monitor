@@ -15,25 +15,23 @@ import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
+import com.linkedin.kmf.services.configs.KafkaMonitorAdminClientConfig;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
-import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -45,6 +43,7 @@ import org.apache.kafka.common.metrics.stats.Percentile;
 import org.apache.kafka.common.metrics.stats.Percentiles;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
@@ -104,6 +103,20 @@ public class ConsumeService implements Service {
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
+
+    KafkaMonitorAdminClientConfig adminClientConfig = new KafkaMonitorAdminClientConfig(new HashMap<>());
+    consumerProps.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
+    consumerProps.put(SslConfigs.SSL_PROTOCOL_CONFIG, adminClientConfig.getString(SslConfigs.SSL_PROTOCOL_CONFIG));
+    consumerProps.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
+    consumerProps.put(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG));
+    consumerProps.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG));
+    consumerProps.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEY_PASSWORD_CONFIG));
+    consumerProps.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
+    consumerProps.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG));
+    consumerProps.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG));
+    consumerProps.put(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, adminClientConfig.getString(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG));
+    consumerProps.put(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
+    consumerProps.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, adminClientConfig.getString(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG));
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
     topicPartitionReady.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -123,7 +136,6 @@ public class ConsumeService implements Service {
       }, _name + " consume-service");
       _thread.setDaemon(true);
     });
-
   }
 
   private void consume() throws Exception {
@@ -222,22 +234,22 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelayed;
 
     ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName, CompletableFuture<Void> topicPartitionReady) {
-      topicPartitionReady.thenRun(() -> {
-        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
-        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
-        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
-        TopicDescription topicDescription = null;
-        try {
-          topicDescription = topicDescriptionKafkaFuture.get();
-        } catch (InterruptedException | ExecutionException e) {
-          LOG.error("Exception occurred while retrieving the topic description.", e);
-        }
-        int partitionCount = topicDescription.partitions().size();
-        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-        topicPartitionCount.add(
-            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-            new Total(partitionCount));
-      });
+//      topicPartitionReady.thenRun(() -> {
+//        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
+//        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
+//        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
+//        TopicDescription topicDescription = null;
+//        try {
+//          topicDescription = topicDescriptionKafkaFuture.get();
+//        } catch (InterruptedException | ExecutionException e) {
+//          LOG.error("Exception occurred while retrieving the topic description.", e);
+//        }
+//        int partitionCount = topicDescription.partitions().size();
+//        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
+//        topicPartitionCount.add(
+//            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
+//            new Total(partitionCount));
+//      });
 
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
