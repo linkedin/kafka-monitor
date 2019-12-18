@@ -11,6 +11,7 @@ buildscript {
 }
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
+apply plugin: 'distribution'
 
 
 allprojects {
@@ -97,6 +98,8 @@ allprojects {
         artifact sourceJar
         artifact javadocJar
         artifact testJar
+        artifact distZip
+        artifact distTar
 
         pom {
           name = 'kafka-monitor'
@@ -129,6 +132,7 @@ allprojects {
   }
 
   task createConfigDocs( dependsOn : compileJava, type : JavaExec) {
+    outputs.dir configDocDir
     classpath sourceSets.main.runtimeClasspath
     main = 'com.linkedin.kmf.common.ConfigDocumentationGenerator'
     args = [configDocDir,
@@ -152,6 +156,39 @@ allprojects {
       exceptionFormat = 'full'
     }
   }
+
+  distributions {
+    main {
+      contents {
+        into('bin') {
+          from 'bin'
+        }
+        into('build/libs') {
+          from jar
+        }
+        into('build/dependant-libs') {
+          from copyDependantLibs
+        }
+        into('config') {
+          from 'config'
+        }
+        into('build/configDocs') {
+          from createConfigDocs
+        }
+        into('webapp') {
+          from 'webapp'
+        }
+        from('.') {
+          include 'README.md'
+        }
+      }
+    }
+  }
+  tasks.withType(Tar){
+    compression = Compression.GZIP
+    extension = 'tar.gz'
+  }
+
 }
 
 bintray {

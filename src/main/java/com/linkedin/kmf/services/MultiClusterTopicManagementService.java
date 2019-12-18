@@ -79,7 +79,9 @@ public class MultiClusterTopicManagementService implements Service {
   private final int _scheduleIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
+
   private final CompletableFuture<Void> _topicManagementReady;
+
 
   @SuppressWarnings("unchecked")
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
@@ -99,6 +101,10 @@ public class MultiClusterTopicManagementService implements Service {
 
   public CompletableFuture<Void> topicManagementReady() {
     return _topicManagementReady;
+  }
+
+  public CompletableFuture<Void> topicPartitionReady() {
+    return _topicPartitionReady;
   }
 
   public CompletableFuture<Void> topicPartitionReady() {
