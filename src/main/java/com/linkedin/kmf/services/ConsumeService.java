@@ -16,17 +16,22 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -218,22 +223,22 @@ public class ConsumeService implements Service {
     private final Sensor _recordsDelayed;
 
     ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName, CompletableFuture<Void> topicPartitionReady) {
-//      topicPartitionReady.thenRun(() -> {
-//        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
-//        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
-//        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
-//        TopicDescription topicDescription = null;
-//        try {
-//          topicDescription = topicDescriptionKafkaFuture.get();
-//        } catch (InterruptedException | ExecutionException e) {
-//          LOG.error("Exception occurred while retrieving the topic description.", e);
-//        }
-//        int partitionCount = topicDescription.partitions().size();
-//        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-//        topicPartitionCount.add(
-//            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-//            new Total(partitionCount));
-//      });
+      topicPartitionReady.thenRun(() -> {
+        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
+        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
+        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
+        TopicDescription topicDescription = null;
+        try {
+          topicDescription = topicDescriptionKafkaFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+          LOG.error("Exception occurred while retrieving the topic description.", e);
+        }
+        int partitionCount = topicDescription.partitions().size();
+        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
+        topicPartitionCount.add(
+            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
+            new Total(partitionCount));
+      });
 
       _bytesConsumed = metrics.sensor("bytes-consumed");
       _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
