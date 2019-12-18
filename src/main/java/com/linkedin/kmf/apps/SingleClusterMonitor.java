@@ -78,16 +78,21 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public boolean isRunning() {
+    boolean isRunning = true;
+
     if (!_topicManagementService.isRunning()) {
+      isRunning = false;
       LOG.info("_topicManagementService not running.");
     }
     if (!_produceService.isRunning()) {
+      isRunning = false;
       LOG.info("_produceService not running.");
     }
     if (!_consumeService.isRunning()) {
+      isRunning = false;
       LOG.info("_consumeService not Running.");
     }
-    return _topicManagementService.isRunning() && _produceService.isRunning() && _consumeService.isRunning();
+    return isRunning;
   }
 
   @Override
