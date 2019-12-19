@@ -14,6 +14,7 @@ import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
+
 public class ConsumeServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
@@ -79,7 +80,6 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                     20000,
                                     ConfigDef.Importance.MEDIUM,
                                     LATENCY_SLA_MS_DOC);
-
   }
 
   public ConsumeServiceConfig(Map<?, ?> props) {

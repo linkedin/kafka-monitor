@@ -60,7 +60,7 @@ public class ConsumeService implements Service {
   private final String _name;
   private ConsumeMetrics _sensors;
   private final KMBaseConsumer _consumer;
-  private Thread _thread;
+  private Thread _consumeThread;
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
@@ -104,6 +104,10 @@ public class ConsumeService implements Service {
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
+
+    if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) {
+      props.forEach(consumerProps::putIfAbsent);
+    }
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
     topicPartitionReady.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -114,16 +118,15 @@ public class ConsumeService implements Service {
       tags.put("name", _name);
       _adminClient = AdminClient.create(props);
       _sensors = new ConsumeMetrics(metrics, tags, topic, topicPartitionReady);
-      _thread = new Thread(() -> {
+      _consumeThread = new Thread(() -> {
         try {
           consume();
         } catch (Exception e) {
           LOG.error(_name + "/ConsumeService failed", e);
         }
       }, _name + " consume-service");
-      _thread.setDaemon(true);
+      _consumeThread.setDaemon(true);
     });
-
   }
 
   private void consume() throws Exception {
@@ -185,7 +188,7 @@ public class ConsumeService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
-      _thread.start();
+      _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
     }
   }
@@ -209,7 +212,7 @@ public class ConsumeService implements Service {
 
   @Override
   public boolean isRunning() {
-    return _running.get() && _thread.isAlive();
+    return _running.get() && _consumeThread.isAlive();
   }
 
   private class ConsumeMetrics {

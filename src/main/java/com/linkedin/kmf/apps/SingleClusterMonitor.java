@@ -52,7 +52,9 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
+
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionReady();
+
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
@@ -78,16 +80,21 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public boolean isRunning() {
+    boolean isRunning = true;
+
     if (!_topicManagementService.isRunning()) {
+      isRunning = false;
       LOG.info("_topicManagementService not running.");
     }
     if (!_produceService.isRunning()) {
+      isRunning = false;
       LOG.info("_produceService not running.");
     }
     if (!_consumeService.isRunning()) {
+      isRunning = false;
       LOG.info("_consumeService not Running.");
     }
-    return _topicManagementService.isRunning() && _produceService.isRunning() && _consumeService.isRunning();
+    return isRunning;
   }
 
   @Override
@@ -279,7 +286,6 @@ public class SingleClusterMonitor implements App {
       props.put(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG, res.getInt("replicationFactor"));
     if (res.getInt("rebalanceMs") != null)
       props.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
-
     SingleClusterMonitor app = new SingleClusterMonitor(props, "single-cluster-monitor");
     app.start();
 
