@@ -53,8 +53,7 @@ public class SingleClusterMonitor implements App {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
 
-    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionReady();
-
+    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
@@ -62,7 +61,7 @@ public class SingleClusterMonitor implements App {
   @Override
   public void start() {
     _topicManagementService.start();
-    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
     completableFuture.thenRun(() -> {
       _produceService.start();
       _consumeService.start();

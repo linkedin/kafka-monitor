@@ -14,6 +14,7 @@ import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
+import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,10 +54,10 @@ import org.slf4j.LoggerFactory;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String METRIC_GROUP_NAME = "consume-service";
+  private static final String TAGS_NAME = "name";
+  private static final String FALSE = "false";
   private static final String[] NON_OVERRIDABLE_PROPERTIES =
-    new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-      ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
-
+    new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
   private final String _name;
   private ConsumeMetrics _sensors;
   private final KMBaseConsumer _consumer;
@@ -67,7 +68,7 @@ public class ConsumeService implements Service {
   private final int _latencySlaMs;
   private AdminClient _adminClient;
 
-  public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionReady) throws Exception {
+  public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionResult) throws Exception {
     _name = name;
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
       ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
@@ -88,7 +89,7 @@ public class ConsumeService implements Service {
     Properties consumerProps = new Properties();
 
     // Assign default config. This has the lowest priority.
-    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, FALSE);
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
     consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
@@ -100,7 +101,7 @@ public class ConsumeService implements Service {
 
     // Assign config specified for ConsumeService.
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-    consumerProps.put("zookeeper.connect", zkConnect);
+    consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
 
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
@@ -109,15 +110,15 @@ public class ConsumeService implements Service {
       props.forEach(consumerProps::putIfAbsent);
     }
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
-    topicPartitionReady.thenRun(() -> {
+    topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
       reporters.add(new JmxReporter(JMX_PREFIX));
       Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
       Map<String, String> tags = new HashMap<>();
-      tags.put("name", _name);
+      tags.put(TAGS_NAME, _name);
       _adminClient = AdminClient.create(props);
-      _sensors = new ConsumeMetrics(metrics, tags, topic, topicPartitionReady);
+      _sensors = new ConsumeMetrics(metrics, tags, topic, topicPartitionResult);
       _consumeThread = new Thread(() -> {
         try {
           consume();

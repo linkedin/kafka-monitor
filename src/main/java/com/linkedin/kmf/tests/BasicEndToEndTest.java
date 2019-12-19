@@ -44,7 +44,7 @@ public class BasicEndToEndTest implements Test {
   public BasicEndToEndTest(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionReady();
+    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
   }
@@ -52,7 +52,7 @@ public class BasicEndToEndTest implements Test {
   @Override
   public void start() {
     _topicManagementService.start();
-    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementReady();
+    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
     completableFuture.thenRun(() -> {
       try {
         _produceService.start();

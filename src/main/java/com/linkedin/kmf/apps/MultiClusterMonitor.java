@@ -39,7 +39,7 @@ public class MultiClusterMonitor implements App {
     _name = name;
     MultiClusterMonitorConfig config = new MultiClusterMonitorConfig(props);
     _multiClusterTopicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(props, config), name);
-    CompletableFuture<Void> topicPartitionReady = _multiClusterTopicManagementService.topicPartitionReady();
+    CompletableFuture<Void> topicPartitionReady = _multiClusterTopicManagementService.topicPartitionResult();
     _produceService = new ProduceService(createProduceServiceProps(props, config), name);
     _consumeService = new ConsumeService(createConsumeServiceProps(props, config), name, topicPartitionReady);
   }
@@ -73,7 +73,7 @@ public class MultiClusterMonitor implements App {
   @Override
   public void start() {
     _multiClusterTopicManagementService.start();
-    CompletableFuture<Void> topicManagementReady = _multiClusterTopicManagementService.topicManagementReady();
+    CompletableFuture<Void> topicManagementReady = _multiClusterTopicManagementService.topicManagementResult();
     topicManagementReady.thenRun(() -> {
       _produceService.start();
       _consumeService.start();

@@ -72,7 +72,7 @@ import scala.collection.Seq;
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
-  private final CompletableFuture<Void> _topicPartitionReady = new CompletableFuture<>();
+  private final CompletableFuture<Void> _topicPartitionResult = new CompletableFuture<>();
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
@@ -80,7 +80,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
 
-  private final CompletableFuture<Void> _topicManagementReady;
+  private final CompletableFuture<Void> _topicManagementResult;
 
 
   @SuppressWarnings("unchecked")
@@ -93,18 +93,18 @@ public class MultiClusterTopicManagementService implements Service {
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
-    _topicManagementReady = new CompletableFuture<>();
+    _topicManagementResult = new CompletableFuture<>();
     _executor = Executors.newSingleThreadScheduledExecutor(
       r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
-    _topicPartitionReady.complete(null);
+    _topicPartitionResult.complete(null);
   }
 
-  public CompletableFuture<Void> topicManagementReady() {
-    return _topicManagementReady;
+  public CompletableFuture<Void> topicManagementResult() {
+    return _topicManagementResult;
   }
 
-  public CompletableFuture<Void> topicPartitionReady() {
-    return _topicPartitionReady;
+  public CompletableFuture<Void> topicPartitionResult() {
+    return _topicPartitionResult;
   }
 
   private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {
@@ -180,7 +180,7 @@ public class MultiClusterTopicManagementService implements Service {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeAddPartitions(minPartitionNum);
         }
-        _topicManagementReady.complete(null);
+        _topicManagementResult.complete(null);
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
           TopicManagementHelper helper = entry.getValue();
