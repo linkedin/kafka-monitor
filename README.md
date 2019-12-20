@@ -40,33 +40,44 @@ Kafka Monitor supports Apache Kafka 0.8 to 2.0:
 
 ### Configuration Tips
 
-- We advise advanced users to run Kafka Monitor with
-`./bin/kafka-monitor-start.sh config/kafka-monitor.properties`. The default
+<ol>
+<li> We advise advanced users to run Kafka Monitor with
+<code>./bin/kafka-monitor-start.sh config/kafka-monitor.properties</code>. The default
 kafka-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
-`zookeeper.connect` and `bootstrap.servers` to point to your cluster.
-
-- The full list of configs and their documentation can be found in the code of
+<code>zookeeper.connect</code> and <code>bootstrap.servers</code> to point to your cluster.
+  </li>
+  <br />
+<li> The full list of configs and their documentation can be found in the code of
 Config class for respective service, e.g. ProduceServiceConfig.java and
-ConsumeServiceConfig.java.
-
-- You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
+ConsumeServiceConfig.java.</li>
+<br />
+<li> You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
 monitor multiple Kafka clusters in one Kafka Monitor process. As another
-advanced use-case, you can point ProduceService and ConsumeService to two
-different Kafka clusters that are connected by MirrorMaker to monitor their
-end-to-end latency.
-
-- Kafka Monitor by default will automatically create the monitor topic based on
-the e.g.  `topic-management.replicationFactor` and `topic-management.partitionsToBrokersRatio`
+advanced use-case, you can point ProduceService and ConsumeService to two different Kafka clusters that are connected by MirrorMaker to monitor their end-to-end latency.</li>
+<br />  
+<li> Kafka Monitor by default will automatically create the monitor topic based on
+the e.g.  <code>topic-management.replicationFactor</code> and <code>topic-management.partitionsToBrokersRatio</code>
 specified in the config. replicationFactor is 1 by default and you probably
 want to change it to the same replication factor as used for your existing
-topics. You can disable auto topic creation by setting `produce.topic.topicCreationEnabled` to false.
-
-- Kafka Monitor can automatically increase partition count of the monitor topic
+topics. You can disable auto topic creation by setting <code>produce.topic.topicCreationEnabled</code> to false.
+</li>
+<br />
+<li> Kafka Monitor can automatically increase partition count of the monitor topic
 to ensure partition# >= broker#. It can also reassign partition and trigger
 preferred leader election to ensure that each broker acts as leader of at least
 one partition of the monitor topic. To use this feature, use either
-EndToEndTest or TopicManagementService in the properties file.
+EndToEndTest or TopicManagementService in the properties file. </li>
+<br />
+  <li> When using <code>Secure Sockets Layer</code> (SSL) or any non-plaintext security protocol for AdminClient, please configure the following entries in the <code>single-cluster-monitor</code> props, <code>produce.producer.props</code>, as well as <code>consume.consumer.props</code>. https://docs.confluent.io/current/installation/configuration/admin-configs.html 
+<ol>
+  <li> ssl.key.password	</li>
+  <li> ssl.keystore.location</li>
+  <li> ssl.keystore.password </li>
+  <li> ssl.truststore.location</li>
+  <li> ssl.truststore.password</li>
+</ol>
+</ol>
 
 
 ### Build Kafka Monitor
@@ -145,6 +156,3 @@ attribute-name of the JMX metric in the query above.
 - [Design Overview](https://github.com/linkedin/kafka-monitor/wiki/Design-Overview)
 - [Service and App Overview](https://github.com/linkedin/kafka-monitor/wiki)
 - [Future Work](https://github.com/linkedin/kafka-monitor/wiki/Future-Work)
-
-
-
