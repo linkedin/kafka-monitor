@@ -1,6 +1,6 @@
-# Kafka Monitor
-<img src="/docs/images/xinfra_monitor.png" alt="drawing" width="400"/>
+<img src="/docs/images/xinfra_monitor.png" alt="drawing" width="500"/>
 
+# Kafka Monitor
 [![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
 
 Kafka Monitor is a framework to implement and execute long-running kafka
