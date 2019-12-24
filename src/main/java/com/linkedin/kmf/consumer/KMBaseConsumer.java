@@ -19,6 +19,8 @@ public interface KMBaseConsumer {
 
   BaseConsumerRecord receive() throws Exception;
 
+  void commitAsync();
+
   void close();
 
 }

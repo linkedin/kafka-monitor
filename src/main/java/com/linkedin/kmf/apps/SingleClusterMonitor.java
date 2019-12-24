@@ -9,6 +9,7 @@
  */
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.CommitAvailabilityService;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
@@ -45,6 +46,7 @@ public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
 
   private final TopicManagementService _topicManagementService;
+  private final CommitAvailabilityService _commitAvailabilityService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final String _name;
@@ -52,6 +54,7 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
+    _commitAvailabilityService = new CommitAvailabilityService(props);
 
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
@@ -61,6 +64,7 @@ public class SingleClusterMonitor implements App {
   @Override
   public void start() {
     _topicManagementService.start();
+    _commitAvailabilityService.start();
     CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
     completableFuture.thenRun(() -> {
       _produceService.start();
@@ -72,6 +76,7 @@ public class SingleClusterMonitor implements App {
   @Override
   public void stop() {
     _topicManagementService.stop();
+    _commitAvailabilityService.stop();
     _produceService.stop();
     _consumeService.stop();
     LOG.info(_name + "/SingleClusterMonitor stopped.");
@@ -84,6 +89,10 @@ public class SingleClusterMonitor implements App {
     if (!_topicManagementService.isRunning()) {
       isRunning = false;
       LOG.info("_topicManagementService not running.");
+    }
+    if (!_commitAvailabilityService.isRunning()) {
+      isRunning = false;
+      LOG.info("_commitAvailabilityService not running.");
     }
     if (!_produceService.isRunning()) {
       isRunning = false;
@@ -99,6 +108,7 @@ public class SingleClusterMonitor implements App {
   @Override
   public void awaitShutdown() {
     _topicManagementService.awaitShutdown();
+    _commitAvailabilityService.awaitShutdown();
     _produceService.awaitShutdown();
     _consumeService.awaitShutdown();
   }
@@ -304,7 +314,9 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
-      "kmf.services:type=consume-service,name=*:consume-error-rate"
+      "kmf.services:type=consume-service,name=*:consume-error-rate",
+      "kmf.services:type=consume-service,name=*:commit-latency-avg",
+      "kmf.services:type=consume-service,name=*:commit-availability-avg"
     );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
