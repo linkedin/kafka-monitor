@@ -233,7 +233,7 @@ public class ProduceService implements Service {
   }
 
   private class ProduceMetrics {
-    public final Metrics metrics;
+    public final Metrics _metrics;
     private final Sensor _recordsProduced;
     private final Sensor _produceError;
     private final Sensor _produceDelay;
@@ -243,8 +243,8 @@ public class ProduceService implements Service {
     private final Map<String, String> _tags;
 
     public ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
-      this.metrics = metrics;
-      this._tags = tags;
+      _metrics = metrics;
+      _tags = tags;
 
       _recordsProducedPerPartition = new ConcurrentHashMap<>();
       _produceErrorPerPartition = new ConcurrentHashMap<>();
@@ -307,12 +307,12 @@ public class ProduceService implements Service {
     }
 
     void addPartitionSensors(int partition) {
-      Sensor recordsProducedSensor = metrics.sensor("records-produced-partition-" + partition);
+      Sensor recordsProducedSensor = _metrics.sensor("records-produced-partition-" + partition);
       recordsProducedSensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME,
           "The average number of records per second that are produced to this partition", _tags), new Rate());
       _recordsProducedPerPartition.put(partition, recordsProducedSensor);
 
-      Sensor errorsSensor = metrics.sensor("produce-error-partition-" + partition);
+      Sensor errorsSensor = _metrics.sensor("produce-error-partition-" + partition);
       errorsSensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME,
           "The average number of errors per second when producing to this partition", _tags), new Rate());
       _produceErrorPerPartition.put(partition, errorsSensor);
