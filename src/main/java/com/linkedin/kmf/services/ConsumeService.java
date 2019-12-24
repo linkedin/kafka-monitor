@@ -67,6 +67,7 @@ public class ConsumeService implements Service {
   private final AtomicBoolean _running;
   private final int _latencySlaMs;
   private AdminClient _adminClient;
+  private static final long CONSUME_THREAD_SLEEP_MS = 100;
 
   public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionResult) throws Exception {
     _name = name;
@@ -144,7 +145,7 @@ public class ConsumeService implements Service {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         // Avoid busy while loop
-        Thread.sleep(100);
+        Thread.sleep(CONSUME_THREAD_SLEEP_MS);
         continue;
       }
 
