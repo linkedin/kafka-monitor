@@ -61,7 +61,6 @@ public class ProduceService implements Service {
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
   };
-
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
@@ -86,6 +85,7 @@ public class ProduceService implements Service {
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AdminClient _adminClient;
+  private static final String KEY_SERIALIZER_CLASS = "org.apache.kafka.common.serialization.StringSerializer";
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -144,8 +144,8 @@ public class ProduceService implements Service {
     producerProps.put(ProducerConfig.RETRIES_CONFIG, "3");
     producerProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, Long.MAX_VALUE);
     producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
-    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KEY_SERIALIZER_CLASS);
+    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KEY_SERIALIZER_CLASS);
     // Assign config specified for ProduceService.
     producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
     producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, _brokerList);
