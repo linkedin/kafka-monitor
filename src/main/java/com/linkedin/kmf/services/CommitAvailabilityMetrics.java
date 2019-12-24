@@ -1,0 +1,44 @@
+/**
+ * Copyright 2016 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package com.linkedin.kmf.services;
+
+import java.util.Map;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Rate;
+import org.apache.kafka.common.metrics.stats.Total;
+
+class CommitAvailabilityMetrics {
+
+  private static final String METRIC_GROUP_NAME = "commit-availability-service";
+  public final Sensor _offsetsCommitted;
+  public final Sensor _failedCommitOffsets;
+
+  CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
+    _offsetsCommitted = metrics.sensor("offsets-committed");
+    _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,
+        "The total number of offsets per second that are committed.", tags), new Total());
+
+    _failedCommitOffsets = metrics.sensor("failed-commit-offsets");
+    _failedCommitOffsets.add(new MetricName("failed-commit-offsets-avg", METRIC_GROUP_NAME,
+        "The avg number of offsets per second that have failed.", tags), new Rate());
+    _failedCommitOffsets.add(new MetricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
+        "The total number of offsets per second that have failed.", tags), new Total());
+
+    metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
+      (config, now) -> {
+        double offsetsCommittedCount = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).value();
+        double offsetsCommittedErrorCount = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).value();
+        return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
+      });
+  }
+}

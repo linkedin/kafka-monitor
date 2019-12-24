@@ -42,7 +42,7 @@ public class NewConsumer implements KMBaseConsumer {
   }
 
   public void commitAsync() {
-//    LOG.info("commiting asynchronously.");
+    _consumer.commitAsync();
   }
 
   @Override

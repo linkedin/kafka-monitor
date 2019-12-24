@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricsReporterService.class);
-  private static final String LOG_DIVIDER = "==============================================================";
+  private static final String LOG_DIVIDER = "===============================================================";
 
   private final String _name;
   private final List<String> _metricNames;

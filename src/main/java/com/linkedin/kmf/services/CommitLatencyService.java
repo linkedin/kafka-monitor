@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class CommitLatencyService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
-  private static final String METRIC_GROUP_NAME = "commit-service";
+  private static final String METRIC_GROUP_NAME = "commit-availability-service";
   public CommitLatencyService(Map<String, Object> props, String name) throws Exception {
 
   }

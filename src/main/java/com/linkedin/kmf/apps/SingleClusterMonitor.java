@@ -54,7 +54,7 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-    _commitAvailabilityService = new CommitAvailabilityService(props);
+    _commitAvailabilityService = new CommitAvailabilityService(props, name);
 
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
