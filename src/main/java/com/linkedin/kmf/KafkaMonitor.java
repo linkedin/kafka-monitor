@@ -15,6 +15,7 @@ import com.linkedin.kmf.services.Service;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,7 +41,7 @@ public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
   private static final String METRIC_GROUP_NAME = "kafka-monitor";
-  private static final String JMX_PREFIX = "kmf";
+  private static final String JMX_PREFIX = "kmf.services";
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
@@ -79,8 +80,11 @@ public class KafkaMonitor {
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
-    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
-      (config, now) -> _offlineRunnables.size());
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", "kafka-monitor");
+    metrics.addMetric(metrics.metricName(
+        "offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running.", tags
+        ), (config, now) -> _offlineRunnables.size());
   }
 
   public synchronized void start() {
