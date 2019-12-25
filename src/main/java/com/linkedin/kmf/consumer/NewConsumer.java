@@ -9,11 +9,17 @@
  */
 package com.linkedin.kmf.consumer;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,31 +29,51 @@ import org.slf4j.LoggerFactory;
  */
 public class NewConsumer implements KMBaseConsumer {
 
-  private final KafkaConsumer<String, String> _consumer;
+  private final KafkaConsumer<String, String> _kafkaConsumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;
   private static final Logger LOG = LoggerFactory.getLogger(NewConsumer.class);
 
   public NewConsumer(String topic, Properties consumerProperties) {
-    _consumer = new KafkaConsumer<>(consumerProperties);
-    _consumer.subscribe(Collections.singletonList(topic));
+    _kafkaConsumer = new KafkaConsumer<>(consumerProperties);
+    _kafkaConsumer.subscribe(Collections.singletonList(topic));
   }
 
   @Override
   public BaseConsumerRecord receive() {
     if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
+      _recordIter = _kafkaConsumer.poll(Long.MAX_VALUE).iterator();
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
   }
 
+  @Override
   public void commitAsync() {
-    _consumer.commitAsync();
+    _kafkaConsumer.commitAsync();
+  }
+
+  @Override
+  public void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback) {
+    _kafkaConsumer.commitAsync(offsets, callback);
+  }
+
+  @Override
+  public void commitAsync(OffsetCommitCallback callback) {
+    _kafkaConsumer.commitAsync(callback);
+  }
+
+  public ConsumerRecords<String, String> poll(final Duration timeout) {
+    return _kafkaConsumer.poll(timeout);
+  }
+
+  @Override
+  public OffsetAndMetadata committed(TopicPartition tp) {
+    return _kafkaConsumer.committed(tp);
   }
 
   @Override
   public void close() {
-    _consumer.close();
+    _kafkaConsumer.close();
   }
 
 }

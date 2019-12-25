@@ -9,6 +9,14 @@
  */
 package com.linkedin.kmf.consumer;
 
+import java.time.Duration;
+import java.util.Map;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.TopicPartition;
+
+
 /**
  * A base consumer used to abstract different consumer classes.
  *
@@ -20,6 +28,14 @@ public interface KMBaseConsumer {
   BaseConsumerRecord receive() throws Exception;
 
   void commitAsync();
+
+  void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback);
+
+  void commitAsync(OffsetCommitCallback callback);
+
+ ConsumerRecords<String, String> poll(final Duration timeout);
+
+  OffsetAndMetadata committed(TopicPartition tp);
 
   void close();
 

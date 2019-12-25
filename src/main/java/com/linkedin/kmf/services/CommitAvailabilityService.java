@@ -17,6 +17,7 @@ import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,9 +26,11 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -38,6 +41,9 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+
+import static org.testng.Assert.*;
 
 
 public class CommitAvailabilityService implements Service {
@@ -47,16 +53,16 @@ public class CommitAvailabilityService implements Service {
   private static final long TIME_WINDOW_MS = 10000;
   private static final int NUM_SAMPLES = 60;
   private static final long THREAD_SLEEP_MS = 1000;
+  private static final String KMF_CONSUMER = "kmf-consumer";
+  private static final String KMF_CONSUMER_GROUP_PREFIX = "kmf-consumer-group-";
   private final String _name;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
-  private final KMBaseConsumer _consumer;
+  private final KMBaseConsumer _kmBaseConsumer;
   private final Map<Integer, Long> _nextIndexes;
   private final AtomicBoolean _running;
   private final Thread _commitThread;
   private final CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private final String _topic;
-  private static final String KMF_CONSUMER = "kmf-consumer";
-  private static final String KMF_CONSUMER_GROUP_PREFIX = "kmf-consumer-group-";
 
   /**
    * CommitAvailabilityService measures the availability of consume offset commits to the Kafka broker.
@@ -92,7 +98,7 @@ public class CommitAvailabilityService implements Service {
     // Assign config specified for consumer. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
     if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) props.forEach(consumerProps::putIfAbsent);
-    _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    _kmBaseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     MetricConfig metricConfig = new MetricConfig().samples(NUM_SAMPLES).timeWindow(TIME_WINDOW_MS, TimeUnit.MILLISECONDS);
@@ -102,7 +108,7 @@ public class CommitAvailabilityService implements Service {
     _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
     _commitThread = new Thread(() -> {
       try {
-        this.commit();
+        initiateCommit();
       } catch (Exception e) {
         LOG.error(_name + "/CommitAvailabilityService commit() failed", e);
       }
@@ -110,50 +116,93 @@ public class CommitAvailabilityService implements Service {
     _commitThread.setDaemon(true);
   }
 
-  private void commit() {
-    LOG.info("Commit starting in {}.", this.getClass().getSimpleName());
+  private void initiateCommit() throws Exception {
+    LOG.info("Commit starting in {}.", getClass().getSimpleName());
     try {
       Thread.sleep(THREAD_SLEEP_MS);
-    } catch (InterruptedException e) {
-      LOG.error("Error occurred while sleeping the thread ", e);
+    } catch (InterruptedException exception) {
+      LOG.error("Error occurred while sleeping the thread ", exception);
     }
 
     while (_running.get()) {
-      BaseConsumerRecord record;
+      BaseConsumerRecord baseConsumerRecord;
       try {
-        record = _consumer.receive();
-      } catch (Exception e) {
-        LOG.warn(_name + "/ConsumeService failed to receive record", e);
+        baseConsumerRecord = _kmBaseConsumer.receive();
+      } catch (Exception exception) {
+        LOG.warn(_name + "/ConsumeService failed to receive record.", exception);
         // Avoid busy while loop
         try {
-          Thread.sleep(100);
+          long threadSleepMs = 100;
+          Thread.sleep(threadSleepMs);
         } catch (InterruptedException ex) {
-          LOG.error("Interrupted Exception occured while trying to sleep the thread.", ex);
+          LOG.error("Interrupted Exception occurred while trying to sleep the thread.", ex);
         }
         continue;
       }
-      if (record == null) continue;
-      GenericRecord avroRecord = Utils.genericRecordFromJson(record.value());
-      if (avroRecord == null) {
+      if (baseConsumerRecord == null) continue;
+      GenericRecord genericAvroRecord = Utils.genericRecordFromJson(baseConsumerRecord.value());
+      if (genericAvroRecord == null) continue;
+      int partition = baseConsumerRecord.partition();
+      long index = (Long) genericAvroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
+      long prevMs = (Long) genericAvroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
+      if (index == -1L || !_nextIndexes.containsKey(partition)) {
+        _nextIndexes.put(partition, -1L);
         continue;
       }
-      int partition = record.partition();
-      long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
-      long currMs = System.currentTimeMillis();
-      long prevMs = (Long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
-      if (currMs - prevMs > LATENCY_SLA_MS)
-        if (index == -1L || !_nextIndexes.containsKey(partition)) {
-          _nextIndexes.put(partition, -1L);
-          continue;
-        }
+
+      /*
+       * KCA consumes everything, which we don't want KMF to do.
+       * commit offsets in a loop & set max.poll to 1 (or very low) and call commitAsync() after every record, measuring how long it takes.
+       * in a way that we have a consumer for every broker (that leads a partition of __ConsumerOffsets) in the cluster.
+       * (need to go read the Kafka consumer code which finds the group-coordinator broker for a consumer group)
+       * Then, figure out how to name the consumer groups so they land on specific brokers.
+       */
       try {
-        _consumer.commitAsync();
+        TopicPartition topicPartition = new TopicPartition(_topic, partition);
+        commitAndRetrieveOffsets(topicPartition, _offsetsToCommit);
         _commitAvailabilityMetrics._offsetsCommitted.record();
-      } catch (KafkaException ke) {
-        LOG.error("Exception while trying to to async commit.", ke);
+      } catch (KafkaException kafkaException) {
+        LOG.error("Exception while trying to to async commit.", kafkaException);
         _commitAvailabilityMetrics._failedCommitOffsets.record();
       }
     }
+  }
+
+  private OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition tp, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
+    final AtomicBoolean callbackFired = new AtomicBoolean(false);
+    final AtomicReference<Exception> offsetCommitIssue = new AtomicReference<>(null);
+    OffsetAndMetadata committed = null;
+    long now = System.currentTimeMillis();
+    long deadline = now + TimeUnit.MINUTES.toMillis(1);
+    while (System.currentTimeMillis() < deadline) {
+      //call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183)
+      OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
+        @Override
+        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception e) {
+          if (e != null) {
+            offsetCommitIssue.set(e);
+          }
+          callbackFired.set(true);
+        }
+      };
+      if (offsetMap != null) {
+        _kmBaseConsumer.commitAsync(offsetMap, commitCallback);
+      } else {
+        _kmBaseConsumer.commitAsync(commitCallback);
+      }
+      while (!callbackFired.get()) {
+        final Duration timeout = Duration.ofSeconds(20);
+        _kmBaseConsumer.poll(timeout);
+      }
+      Assert.assertNull(offsetCommitIssue.get(), "offset commit failed");
+      committed = _kmBaseConsumer.committed(tp);
+      if (committed != null) {
+        break;
+      }
+      Thread.sleep(100);
+    }
+    assertNotNull(committed, "unable to retrieve committed offsets within timeout");
+    return committed;
   }
 
   @Override
@@ -175,7 +224,7 @@ public class CommitAvailabilityService implements Service {
 
   @Override
   public boolean isRunning() {
-    return true;
+    return _running.get() && _commitThread.isAlive();
   }
 }
 

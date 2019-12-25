@@ -23,6 +23,11 @@ class CommitAvailabilityMetrics {
   public final Sensor _offsetsCommitted;
   public final Sensor _failedCommitOffsets;
 
+  /**
+   * Metrics for Calculating the offset commit availability of a consumer.
+   * @param metrics the commit offset metrics
+   * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
+   */
   CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
     _offsetsCommitted = metrics.sensor("offsets-committed");
     _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,
