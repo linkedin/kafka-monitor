@@ -33,7 +33,7 @@ public interface KMBaseConsumer {
 
   void commitAsync(OffsetCommitCallback callback);
 
- ConsumerRecords<String, String> poll(final Duration timeout);
+  ConsumerRecords<String, String> poll(final Duration timeout);
 
   OffsetAndMetadata committed(TopicPartition tp);
 
