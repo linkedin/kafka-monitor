@@ -48,7 +48,6 @@ import static org.testng.Assert.assertNotNull;
 
 public class CommitAvailabilityService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(CommitAvailabilityService.class);
-  private static final int LATENCY_SLA_MS = 1000;
   private static final String TAGS_NAME = "name";
   private static final long TIME_WINDOW_MS = 10000;
   private static final int NUM_SAMPLES = 60;
@@ -66,7 +65,6 @@ public class CommitAvailabilityService implements Service {
 
   /**
    * CommitAvailabilityService measures the availability of consume offset commits to the Kafka broker.
-   * @param props properties file for configuration.
    */
   public CommitAvailabilityService(Map<String, Object> props, String name)
       throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
@@ -90,12 +88,12 @@ public class CommitAvailabilityService implements Service {
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName()))
       consumerClassName = NewConsumer.class.getCanonicalName();
-    // Assign config specified for ConsumeService.
+    // Assign config specified for this Service.
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
         ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
-    // Assign config specified for consumer. This has the highest priority.
+    // Assign config specified for this. This has the highest priority.
     consumerProps.putAll(consumerPropsOverride);
     if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) props.forEach(consumerProps::putIfAbsent);
     _kmBaseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
@@ -108,7 +106,7 @@ public class CommitAvailabilityService implements Service {
     _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
     _commitThread = new Thread(() -> {
       try {
-        initiateCommit();
+        this.initiateCommit();
       } catch (Exception e) {
         LOG.error(_name + "/CommitAvailabilityService commit() failed", e);
       }
@@ -144,15 +142,14 @@ public class CommitAvailabilityService implements Service {
       if (genericAvroRecord == null) continue;
       int partition = baseConsumerRecord.partition();
       long index = (Long) genericAvroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
-      long prevMs = (Long) genericAvroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
       if (index == -1L || !_nextIndexes.containsKey(partition)) {
         _nextIndexes.put(partition, -1L);
         continue;
       }
 
       /*
-       * KCA consumes everything, which we don't want KMF to do.
-       * commit offsets in a loop & set max.poll to 1 (or very low) and call commitAsync() after every record, measuring how long it takes.
+       * KCA consumes everything, which we do not desire Kafka Monitor to do.
+       * Commit offsets in a loop & set max.poll to 1 (or very low) and call commitAsync() after every record, measuring how long it takes.
        * in a way that we have a consumer for every broker (that leads a partition of __ConsumerOffsets) in the cluster.
        * (need to go read the Kafka consumer code which finds the group-coordinator broker for a consumer group)
        * Then, figure out how to name the consumer groups so they land on specific brokers.
@@ -160,7 +157,7 @@ public class CommitAvailabilityService implements Service {
       try {
         TopicPartition topicPartition = new TopicPartition(_topic, partition);
         commitAndRetrieveOffsets(topicPartition, _offsetsToCommit);
-        _commitAvailabilityMetrics._offsetsCommitted.record();
+
       } catch (KafkaException kafkaException) {
         LOG.error("Exception while trying to to async commit.", kafkaException);
         _commitAvailabilityMetrics._failedCommitOffsets.record();
@@ -168,19 +165,19 @@ public class CommitAvailabilityService implements Service {
     }
   }
 
-  private OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition tp, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
+  private OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition topicPartition, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
     final AtomicBoolean callbackFired = new AtomicBoolean(false);
     final AtomicReference<Exception> offsetCommitIssue = new AtomicReference<>(null);
     OffsetAndMetadata committed = null;
     long now = System.currentTimeMillis();
     long deadline = now + TimeUnit.MINUTES.toMillis(1);
     while (System.currentTimeMillis() < deadline) {
-      //call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183)
+      // Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183)
       OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
         @Override
-        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception e) {
-          if (e != null) {
-            offsetCommitIssue.set(e);
+        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception exception) {
+          if (exception != null) {
+            offsetCommitIssue.set(exception);
           }
           callbackFired.set(true);
         }
@@ -190,12 +187,14 @@ public class CommitAvailabilityService implements Service {
       } else {
         _kmBaseConsumer.commitAsync(commitCallback);
       }
+      _commitAvailabilityMetrics._offsetsCommitted.record();
       while (!callbackFired.get()) {
-        final Duration timeout = Duration.ofSeconds(20);
+        long timeoutSeconds = 20;
+        final Duration timeout = Duration.ofSeconds(timeoutSeconds);
         _kmBaseConsumer.poll(timeout);
       }
       Assert.assertNull(offsetCommitIssue.get(), "offset commit failed");
-      committed = _kmBaseConsumer.committed(tp);
+      committed = _kmBaseConsumer.committed(topicPartition);
       if (committed != null) {
         break;
       }
@@ -220,6 +219,7 @@ public class CommitAvailabilityService implements Service {
 
   @Override
   public void awaitShutdown() {
+    LOG.info("{} awaiting shut down.", this.getClass().getSimpleName());
   }
 
   @Override

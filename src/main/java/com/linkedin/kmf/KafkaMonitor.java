@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -69,8 +70,17 @@ public class KafkaMonitor {
         App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, test);
       } else if (Service.class.isAssignableFrom(cls)) {
-        Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-        _services.put(name, service);
+        if (className.equals("com.linkedin.kmf.services.ConsumeService")) {
+          CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+          completableFuture.complete(null);
+
+          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class,
+              CompletableFuture.class).newInstance(props, name, completableFuture);
+          _services.put(name, service);
+        } else {
+          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
+          _services.put(name, service);
+        }
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
@@ -154,7 +164,6 @@ public class KafkaMonitor {
       LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.properties");
       return;
     }
-
 
     StringBuilder buffer = new StringBuilder();
     try (BufferedReader br = new BufferedReader(new FileReader(args[0].trim()))) {

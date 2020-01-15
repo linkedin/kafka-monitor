@@ -22,20 +22,19 @@ public class CommitLatencyService implements Service {
 
   }
 
-
   @Override
   public synchronized void start() {
-
+    // TO BE IMPLEMENTED
   }
 
   @Override
   public synchronized void stop() {
-
+    // TO BE IMPLEMENTED
   }
 
   @Override
   public void awaitShutdown() {
-
+    // TO BE IMPLEMENTED
   }
 
   @Override

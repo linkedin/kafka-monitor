@@ -16,12 +16,16 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.Total;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 class CommitAvailabilityMetrics {
 
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
   public final Sensor _offsetsCommitted;
   public final Sensor _failedCommitOffsets;
+  private static final Logger LOG = LoggerFactory.getLogger(CommitAvailabilityMetrics.class);
 
   /**
    * Metrics for Calculating the offset commit availability of a consumer.
@@ -35,14 +39,16 @@ class CommitAvailabilityMetrics {
 
     _failedCommitOffsets = metrics.sensor("failed-commit-offsets");
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-avg", METRIC_GROUP_NAME,
-        "The avg number of offsets per second that have failed.", tags), new Rate());
+        "The average number of offsets per second that have failed.", tags), new Rate());
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
         "The total number of offsets per second that have failed.", tags), new Total());
 
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
       (config, now) -> {
         double offsetsCommittedCount = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).value();
+        LOG.info(String.valueOf(offsetsCommittedCount));
         double offsetsCommittedErrorCount = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).value();
+        LOG.info(String.valueOf(offsetsCommittedErrorCount));
         return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
       });
   }
