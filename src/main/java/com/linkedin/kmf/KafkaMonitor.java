@@ -90,7 +90,7 @@ public class KafkaMonitor {
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
-    Map<String, String> tags = new HashMap<>();
+    Map<String, String> tags = new HashMap<>(1);
     tags.put("name", "kafka-monitor");
     metrics.addMetric(metrics.metricName(
         "offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running.", tags
