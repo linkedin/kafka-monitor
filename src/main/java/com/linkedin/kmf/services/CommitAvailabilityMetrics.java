@@ -33,6 +33,7 @@ class CommitAvailabilityMetrics {
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
   CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
+    LOG.info("{} called.", this.getClass().getSimpleName());
     _offsetsCommitted = metrics.sensor("offsets-committed");
     _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,
         "The total number of offsets per second that are committed.", tags), new Total());
@@ -46,9 +47,7 @@ class CommitAvailabilityMetrics {
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
       (config, now) -> {
         double offsetsCommittedCount = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).value();
-        LOG.info(String.valueOf(offsetsCommittedCount));
         double offsetsCommittedErrorCount = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).value();
-        LOG.info(String.valueOf(offsetsCommittedErrorCount));
         return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
       });
   }
