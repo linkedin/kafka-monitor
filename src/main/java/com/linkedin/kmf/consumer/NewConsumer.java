@@ -9,11 +9,12 @@
  */
 package com.linkedin.kmf.consumer;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import java.util.Arrays;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Properties;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 /*
  * Wrap around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
@@ -25,13 +26,13 @@ public class NewConsumer implements KMBaseConsumer {
 
   public NewConsumer(String topic, Properties consumerProperties) {
     _consumer = new KafkaConsumer<>(consumerProperties);
-    _consumer.subscribe(Arrays.asList(topic));
+    _consumer.subscribe(Collections.singletonList(topic));
   }
 
   @Override
   public BaseConsumerRecord receive() {
     if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _consumer.poll(Long.MAX_VALUE).iterator();
+      _recordIter = _consumer.poll(Duration.ofMillis(Long.MAX_VALUE)).iterator();
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
