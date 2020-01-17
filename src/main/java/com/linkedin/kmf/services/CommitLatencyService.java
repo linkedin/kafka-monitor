@@ -38,6 +38,11 @@ public class CommitLatencyService implements Service {
   }
 
   @Override
+  public String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
+
+  @Override
   public boolean isRunning() {
     return true;
   }

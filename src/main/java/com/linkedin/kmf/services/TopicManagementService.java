@@ -88,5 +88,10 @@ public class TopicManagementService implements Service {
   public void awaitShutdown() {
     _multiClusterTopicManagementService.awaitShutdown();
   }
+
+  @Override
+  public String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
 }
 

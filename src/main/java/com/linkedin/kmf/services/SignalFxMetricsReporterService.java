@@ -105,6 +105,11 @@ public class SignalFxMetricsReporterService implements Service {
     LOG.info("{}/SignalFxMetricsReporterService shutdown completed", _name);
   }
 
+  @Override
+  public String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
+
   private SignalFxEndpoint getSignalFxEndpoint(String urlStr) throws Exception {
     URL url = new URL(urlStr);
     return new SignalFxEndpoint(url.getProtocol(), url.getHost(), url.getPort());

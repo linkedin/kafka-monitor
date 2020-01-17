@@ -130,5 +130,10 @@ public class KafkaMonitorTest {
         throw new IllegalStateException(e);
       }
     }
+
+    @Override
+    public String getServiceName() {
+      return this.getClass().getSimpleName();
+    }
   }
 }

@@ -44,4 +44,6 @@ public interface Service {
    * Implementations of this method must be thread safe and must be blocking.
    */
   void awaitShutdown();
+
+  String getServiceName();
 }

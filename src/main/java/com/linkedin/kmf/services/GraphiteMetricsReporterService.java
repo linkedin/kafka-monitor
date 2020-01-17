@@ -83,6 +83,11 @@ public class GraphiteMetricsReporterService implements Service {
     LOG.info("{}/GraphiteMetricsReporterService shutdown completed", _name);
   }
 
+  @Override
+  public String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
+
   private String generateGraphiteMetricName(String bean, String attribute) {
     String service = bean.split(":")[1];
     String serviceName = service.split(",")[0].split("=")[1];

@@ -15,12 +15,14 @@ import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -50,15 +52,21 @@ public class SingleClusterMonitor implements App {
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final String _name;
+  private final List<Service> _allServices;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     _commitAvailabilityService = new CommitAvailabilityService(props, name);
-
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
+    int servicesInitialCapacity = 4;
+    _allServices = new ArrayList<>(servicesInitialCapacity);
+    _allServices.add(_topicManagementService);
+    _allServices.add(_commitAvailabilityService);
+    _allServices.add(_produceService);
+    _allServices.add(_consumeService);
   }
 
   @Override
@@ -75,10 +83,9 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void stop() {
-    _topicManagementService.stop();
-    _commitAvailabilityService.stop();
-    _produceService.stop();
-    _consumeService.stop();
+    for (Service service : _allServices) {
+      service.stop();
+    }
     LOG.info(_name + "/SingleClusterMonitor stopped.");
   }
 
