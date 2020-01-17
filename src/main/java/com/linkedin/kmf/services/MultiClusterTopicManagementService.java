@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
@@ -36,6 +37,8 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
@@ -47,6 +50,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
@@ -347,7 +351,7 @@ public class MultiClusterTopicManagementService implements Service {
       if (expectedReplicationFactor > currentReplicationFactor && !zkClient.reassignPartitionsInProgress()) {
         LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
             + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
-        reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+        this.reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
         partitionReassigned = true;
       }
 
@@ -413,6 +417,69 @@ public class MultiClusterTopicManagementService implements Service {
       ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
       LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
+    }
+
+
+    public static Map<ConfigResource, Config> describeAllConfigs(AdminClient adminClient, Set<Integer> brokerIds)
+        throws InterruptedException, ExecutionException {
+
+      // Create resources for (1) the cluster and (2) each broker.
+      Set<ConfigResource> resources = new HashSet<>();
+      resources.add(CLUSTER_CONFIG);
+      brokerIds.stream()
+          .map(brokerId -> new ConfigResource(ConfigResource.Type.BROKER, brokerId.toString()))
+          .forEach(resources::add);
+
+      Map<ConfigResource, Config> allConfigs = null;
+      try {
+        allConfigs = adminClient.describeConfigs(resources).all().get(DESCRIBE_CONFIGS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      } catch (TimeoutException e) {
+        LOG.error("Describing all configs has timed out -- potentially due to dead brokers in {}.", brokerIds, e);
+      }
+      return allConfigs;
+    }
+
+    /**
+     * Gather the maintenance and preferred controller status of brokers. Set the maintenance and preferred controller
+     * status of each broker to {@code null} if there is a timeout in describing all configs. Set the preferred controller
+     * status to {@code null} if corresponding broker is dead.
+     *
+     * @param adminClient The adminClient to send describeConfigs request.
+     * @param allBrokerIds Broker ids for which the maintenance mode status will be populated.
+     * @param aliveBrokerIds Alive broker ids for which the preferred controller status will be populated.
+     * @param isInMaintenanceByBrokerId Maintenance status by broker id (not populated).
+     * @param isPreferredControllerByBrokerId Preferred controller status by alive broker id (not populated).
+     * @return True if there is a timeout in describing all configs, false otherwise.
+     */
+    public static boolean populateConfigRelatedBrokerState(AdminClient adminClient,
+        Set<Integer> allBrokerIds,
+        Set<Integer> aliveBrokerIds,
+        Map<Integer, Boolean> isInMaintenanceByBrokerId,
+        Map<Integer, Boolean> isPreferredControllerByBrokerId)
+        throws InterruptedException, ExecutionException {
+      allBrokerIds.forEach(brokerId -> isInMaintenanceByBrokerId.put(brokerId, false));
+      aliveBrokerIds.forEach(brokerId -> isPreferredControllerByBrokerId.put(brokerId, false));
+      Map<ConfigResource, Config> allConfigs = describeAllConfigs(adminClient, aliveBrokerIds);
+      if (allConfigs == null) {
+        allBrokerIds.forEach(brokerId -> isInMaintenanceByBrokerId.put(brokerId, null));
+        allBrokerIds.forEach(brokerId -> isPreferredControllerByBrokerId.put(brokerId, null));
+        return true;
+      } else {
+        // Populate isInMaintenanceByBrokerId
+        ConfigEntry maintenanceConfig = allConfigs.get(CLUSTER_CONFIG).get(MAINTENANCE_BROKER_LIST_CONFIG);
+        if (maintenanceConfig != null && !maintenanceConfig.value().isEmpty()) {
+          for (String brokerId : maintenanceConfig.value().split(",")) {
+            isInMaintenanceByBrokerId.put(Integer.parseInt(brokerId), true);
+          }
+        }
+        // Populate isPreferredControllerByBrokerId
+        for (Integer brokerId : aliveBrokerIds) {
+          ConfigEntry brokerConfig = allConfigs.get(new ConfigResource(ConfigResource.Type.BROKER, brokerId.toString()))
+              .get(PREFERRED_CONTROLLER_CONFIG);
+          isPreferredControllerByBrokerId.put(brokerId, brokerConfig != null && Boolean.parseBoolean(brokerConfig.value()));
+        }
+      }
+      return false;
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Node> brokers, String topic, int partitionCount, int replicationFactor) {
