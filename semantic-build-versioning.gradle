@@ -1,0 +1,6 @@
+
+/*
+ This file needs to be in place in order for plugin which versions jars to work correctly.
+ This gradle is needed for that plugin to function correctly.
+ The plugin name can be found in settings.gradle file.
+*/
