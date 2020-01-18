@@ -5,7 +5,7 @@
 # Kafka Monitor
 [![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
 
-Kafka Monitor is a framework to implement and execute long-running kafka
+Kafka Monitor (KMF) is a framework to implement and execute long-running kafka
 system tests in a real cluster. It complements Kafka’s existing system
 tests by capturing potential bugs or regressions that are only likely to occur
 after prolonged period of time or with low probability. Moreover, it allows you to monitor Kafka
@@ -158,3 +158,4 @@ attribute-name of the JMX metric in the query above.
 - [Design Overview](https://github.com/linkedin/kafka-monitor/wiki/Design-Overview)
 - [Service and App Overview](https://github.com/linkedin/kafka-monitor/wiki)
 - [Future Work](https://github.com/linkedin/kafka-monitor/wiki/Future-Work)
+- [Application Configuration](https://github.com/linkedin/kafka-monitor/wiki/App-Configuration)
