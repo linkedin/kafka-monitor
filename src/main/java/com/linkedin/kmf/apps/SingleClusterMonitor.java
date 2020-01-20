@@ -114,10 +114,9 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void awaitShutdown() {
-    _topicManagementService.awaitShutdown();
-    _commitAvailabilityService.awaitShutdown();
-    _produceService.awaitShutdown();
-    _consumeService.awaitShutdown();
+    for (Service service : _allServices) {
+      service.awaitShutdown();
+    }
   }
 
   /** Get the command-line argument parser. */

@@ -58,23 +58,20 @@ public class CommitAvailabilityService implements Service {
   private static final String KMF_CONSUMER_GROUP_PREFIX = "kmf-consumer-group-";
   private final String _name;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
-  private final KMBaseConsumer _kmBaseConsumer;
   private final Map<Integer, Long> _nextIndexes;
   private final AtomicBoolean _running;
   private final Thread _commitThread;
   private final CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private final String _topic;
+  private KMBaseConsumer _kmBaseConsumer;
 
   /*
-   * KCA consumes everything, which we do not desire Kafka Monitor to do.
    * Commit offsets in a loop and set max.poll to 1 (or very low) and call commitAsync() after every record, measuring how long it takes.
    * in a way that we have a consumer for every broker (that leads a partition of __ConsumerOffsets) in the cluster.
    * (Kafka consumer code which finds the group-coordinator broker for a consumer group)
    * Then, figure out how to name the consumer groups so they land on specific brokers.
    */
-  public CommitAvailabilityService(Map<String, Object> props, String name)
-      throws ClassNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException,
-             IllegalAccessException {
+  public CommitAvailabilityService(Map<String, Object> props, String name) throws InvocationTargetException, InstantiationException {
     _name = name;
     _nextIndexes = new HashMap<>();
     _offsetsToCommit = new HashMap<>();
@@ -86,7 +83,11 @@ public class CommitAvailabilityService implements Service {
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     setupConsumerProps(consumerProps, brokerList, zkConnect, consumerClassName, props);
-    _kmBaseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    try {
+      _kmBaseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    } catch (IllegalAccessException | ClassNotFoundException | NoSuchMethodException exception) {
+      LOG.error("Exception occurred while constructing CommitAvailabilityService.", exception);
+    }
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
     MetricConfig metricConfig = new MetricConfig().samples(NUM_SAMPLES).timeWindow(TIME_WINDOW_MS, TimeUnit.MILLISECONDS);
@@ -141,7 +142,7 @@ public class CommitAvailabilityService implements Service {
       try {
         baseConsumerRecord = _kmBaseConsumer.receive();
       } catch (Exception exception) {
-        LOG.warn(_name + "/ConsumeService failed to receive record.", exception);
+        LOG.warn(_name + "/CommitAvailabilityService failed to receive record.", exception);
         /* Avoid busy while loop */
         try {
           long threadSleepMs = 100;
@@ -211,7 +212,7 @@ public class CommitAvailabilityService implements Service {
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _commitThread.start();
-      LOG.info("{}/ConsumeService started.", _name);
+      LOG.info("{}/CommitAvailabilityService started.", _name);
     }
   }
 
