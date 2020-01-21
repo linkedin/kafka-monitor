@@ -175,11 +175,9 @@ public class CommitAvailabilityService implements Service {
   private OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition topicPartition, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
     final AtomicBoolean callbackFired = new AtomicBoolean(false);
     final AtomicReference<Exception> offsetCommitIssue = new AtomicReference<>(null);
-    OffsetAndMetadata committed = null;
-    long now = System.currentTimeMillis();
-    long deadline = now + TimeUnit.MINUTES.toMillis(1);
-    while (System.currentTimeMillis() < deadline) {
-      // Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183)
+    OffsetAndMetadata committed;
+    while (true) {
+      /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
       OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
         if (exception != null) {
           offsetCommitIssue.set(exception);
@@ -202,7 +200,8 @@ public class CommitAvailabilityService implements Service {
       if (committed != null) {
         break;
       }
-      Thread.sleep(100);
+      long threadSleepMillis = 100;
+      Thread.sleep(threadSleepMillis);
     }
     assertNotNull(committed, "Unable to retrieve committed offsets within timeout");
     return committed;
