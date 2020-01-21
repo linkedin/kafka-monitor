@@ -172,11 +172,11 @@ public class CommitAvailabilityService implements Service {
     }
   }
 
-  private OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition topicPartition, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
+  OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition topicPartition, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
     final AtomicBoolean callbackFired = new AtomicBoolean(false);
     final AtomicReference<Exception> offsetCommitIssue = new AtomicReference<>(null);
-    OffsetAndMetadata committed;
-    while (true) {
+    OffsetAndMetadata offsetAndMetadata = null;
+    while (isRunning()) {
       /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
       OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
         if (exception != null) {
@@ -196,15 +196,15 @@ public class CommitAvailabilityService implements Service {
         _kmBaseConsumer.poll(timeout);
       }
       Assert.assertNull(offsetCommitIssue.get(), "Offset commit failed");
-      committed = _kmBaseConsumer.committed(topicPartition);
-      if (committed != null) {
+      offsetAndMetadata = _kmBaseConsumer.committed(topicPartition);
+      if (offsetAndMetadata != null) {
         break;
       }
       long threadSleepMillis = 100;
       Thread.sleep(threadSleepMillis);
     }
-    assertNotNull(committed, "Unable to retrieve committed offsets within timeout");
-    return committed;
+    assertNotNull(offsetAndMetadata, "Unable to retrieve committed offsets within timeout");
+    return offsetAndMetadata;
   }
 
   @Override
