@@ -16,15 +16,18 @@ import java.io.Writer;
 import java.lang.reflect.Field;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * Generates the table of configuration parameters, their documentation strings and default values.
  */
 public class ConfigDocumentationGenerator {
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigDocumentationGenerator.class);
 
   private static void printHelp() {
-    System.out.println("ConfigDocumentationGenerator outputDirectory configClassNames...");
+    LOG.info("ConfigDocumentationGenerator outputDirectory configClassNames...");
   }
 
   private static void printHtmlHeader(Writer out, String docClass) throws IOException {

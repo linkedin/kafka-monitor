@@ -45,6 +45,7 @@ import org.testng.Assert;
 
 import static org.testng.Assert.assertNotNull;
 
+
 /**
  * CommitAvailabilityService measures the availability of consume offset commits to the Kafka broker.
  */
@@ -174,13 +175,13 @@ public class CommitAvailabilityService implements Service {
 
   OffsetAndMetadata commitAndRetrieveOffsets(TopicPartition topicPartition, Map<TopicPartition, OffsetAndMetadata> offsetMap) throws Exception {
     final AtomicBoolean callbackFired = new AtomicBoolean(false);
-    final AtomicReference<Exception> offsetCommitIssue = new AtomicReference<>(null);
+    final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
     OffsetAndMetadata offsetAndMetadata = null;
     while (isRunning()) {
       /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
       OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
         if (exception != null) {
-          offsetCommitIssue.set(exception);
+          offsetCommitIssues.set(exception);
         }
         callbackFired.set(true);
       };
@@ -195,8 +196,9 @@ public class CommitAvailabilityService implements Service {
         final Duration timeout = Duration.ofSeconds(timeoutSeconds);
         _kmBaseConsumer.poll(timeout);
       }
-      Assert.assertNull(offsetCommitIssue.get(), "Offset commit failed");
+      Assert.assertNull(offsetCommitIssues.get(), "Offset commit failed.");
       offsetAndMetadata = _kmBaseConsumer.committed(topicPartition);
+      LOG.info("offsetAndMetadata: {}", offsetAndMetadata);
       if (offsetAndMetadata != null) {
         break;
       }

@@ -55,6 +55,7 @@ public class NewConsumer implements KMBaseConsumer {
   @Override
   public void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback) {
     _kafkaConsumer.commitAsync(offsets, callback);
+    System.out.println(Thread.getAllStackTraces().keySet());
   }
 
   @Override
