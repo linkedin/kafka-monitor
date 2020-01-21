@@ -203,7 +203,7 @@ public class CommitAvailabilityService implements Service {
       long threadSleepMillis = 100;
       Thread.sleep(threadSleepMillis);
     }
-    assertNotNull(offsetAndMetadata, "Unable to retrieve committed offsets within timeout");
+    assertNotNull(offsetAndMetadata, "Unable to retrieve committed offsets within timeout.");
     return offsetAndMetadata;
   }
 
