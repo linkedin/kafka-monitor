@@ -48,8 +48,6 @@ import org.slf4j.LoggerFactory;
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
-  private static final long THREAD_SLEEP_MS = 1000;
-  private static final String METRIC_GROUP_NAME = "consume-service";
   private static final String TAGS_NAME = "name";
   private static final String FALSE = "false";
   private static final String[] NON_OVERRIDABLE_PROPERTIES =
@@ -65,8 +63,6 @@ public class ConsumeService implements Service {
   private final int _latencySlaMs;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
-  private static final int NUM_SAMPLES = 60;
-  private static final long TIME_WINDOW_MS = 10000;
   private final Map<Integer, Long> _nextIndexes;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
   private static final long CONSUME_THREAD_SLEEP_MS = 100;
