@@ -17,7 +17,6 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -63,7 +62,6 @@ public class ConsumeService implements Service {
   private final int _latencySlaMs;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
-  private final Map<Integer, Long> _nextIndexes;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
   private static final long CONSUME_THREAD_SLEEP_MS = 100;
 
@@ -109,7 +107,6 @@ public class ConsumeService implements Service {
       props.forEach(consumerProps::putIfAbsent);
     }
     _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
-    _nextIndexes = new HashMap<>();
     _offsetsToCommit = new HashMap<>();
     topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -158,6 +155,44 @@ public class ConsumeService implements Service {
         continue;
       }
       int partition = record.partition();
+
+      /* Commit availability and commit latency service */
+      try {
+        TopicPartition topicPartition = new TopicPartition(_topic, partition);
+        final AtomicBoolean callbackFired = new AtomicBoolean(false);
+        final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
+        OffsetAndMetadata offsetAndMetadata;
+        /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
+        OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
+          @Override
+          public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception exception) {
+            if (exception != null) {
+              offsetCommitIssues.set(exception);
+            }
+            callbackFired.set(true);
+          }
+        };
+
+        if (_offsetsToCommit != null) {
+          _consumer.commitAsync(_offsetsToCommit, commitCallback);
+        } else {
+          _consumer.commitAsync(commitCallback);
+        }
+        _commitAvailabilityMetrics._offsetsCommitted.record();
+
+        org.testng.Assert.assertNull(offsetCommitIssues.get(), "Offset commit failed.");
+        offsetAndMetadata = _consumer.committed(topicPartition);
+        if (offsetAndMetadata != null) {
+          break;
+        }
+
+      } catch (KafkaException kafkaException) {
+        LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+        _commitAvailabilityMetrics._failedCommitOffsets.record();
+      }
+      /* Finished consumer offset commit service. */
+
+
       long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
       long prevMs = (Long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
@@ -177,44 +212,6 @@ public class ConsumeService implements Service {
 
       if (nextIndex == -1 || index == nextIndex) {
         nextIndexes.put(partition, index + 1);
-
-        /* Commit availability and commit latency service */
-        try {
-          TopicPartition topicPartition = new TopicPartition(_topic, partition);
-          final AtomicBoolean callbackFired = new AtomicBoolean(false);
-          final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
-          OffsetAndMetadata offsetAndMetadata = null;
-          /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-          OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
-            if (exception != null) {
-              offsetCommitIssues.set(exception);
-            }
-            callbackFired.set(true);
-          };
-
-          if (_offsetsToCommit != null) {
-            _consumer.commitAsync(_offsetsToCommit, commitCallback);
-          } else {
-            _consumer.commitAsync(commitCallback);
-          }
-          _commitAvailabilityMetrics._offsetsCommitted.record();
-          while (!callbackFired.get()) {
-            long timeoutSeconds = 20;
-            final Duration timeout = Duration.ofSeconds(timeoutSeconds);
-            _consumer.poll(timeout);
-          }
-          org.testng.Assert.assertNull(offsetCommitIssues.get(), "Offset commit failed.");
-          offsetAndMetadata = _consumer.committed(topicPartition);
-          if (offsetAndMetadata != null) {
-            break;
-          }
-          long threadSleepMillis = 100;
-          Thread.sleep(threadSleepMillis);
-
-        } catch (KafkaException kafkaException) {
-          LOG.error("Exception while trying to perform a asynchronous commit.", kafkaException);
-          _commitAvailabilityMetrics._failedCommitOffsets.record();
-        }
 
       } else if (index < nextIndex) {
         _sensors._recordsDuplicated.record();
