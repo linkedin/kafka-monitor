@@ -180,7 +180,6 @@ public class ConsumeService implements Service {
         }
         _commitAvailabilityMetrics._offsetsCommitted.record();
 
-        org.testng.Assert.assertNull(offsetCommitIssues.get(), "Offset commit failed.");
         offsetAndMetadata = _consumer.committed(topicPartition);
         if (offsetAndMetadata != null) {
           break;

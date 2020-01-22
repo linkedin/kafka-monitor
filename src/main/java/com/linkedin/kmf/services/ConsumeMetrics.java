@@ -59,7 +59,7 @@ public class ConsumeMetrics {
       } catch (InterruptedException | ExecutionException e) {
         LOG.error("Exception occurred while retrieving the topic description.", e);
       }
-      assert topicDescription != null;
+
       int partitionCount = topicDescription.partitions().size();
       Sensor topicPartitionCount = metrics.sensor("topic-partitions");
       topicPartitionCount.add(

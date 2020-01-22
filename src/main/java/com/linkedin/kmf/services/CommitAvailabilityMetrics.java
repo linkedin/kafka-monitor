@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory;
 class CommitAvailabilityMetrics {
 
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
+  private static final Logger LOG = LoggerFactory.getLogger(CommitAvailabilityMetrics.class);
   public final Sensor _offsetsCommitted;
   public final Sensor _failedCommitOffsets;
-  private static final Logger LOG = LoggerFactory.getLogger(CommitAvailabilityMetrics.class);
 
   /**
    * Metrics for Calculating the offset commit availability of a consumer.
