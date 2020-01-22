@@ -7,6 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
+
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.common.DefaultTopicSchema;
@@ -16,43 +17,38 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.NewConsumer;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
-import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.KafkaFuture;
-import org.apache.kafka.common.MetricName;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.apache.kafka.common.metrics.Sensor;
-import org.apache.kafka.common.metrics.stats.Avg;
-import org.apache.kafka.common.metrics.stats.Max;
-import org.apache.kafka.common.metrics.stats.Percentile;
-import org.apache.kafka.common.metrics.stats.Percentiles;
-import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
+  private static final long THREAD_SLEEP_MS = 1000;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static final String TAGS_NAME = "name";
   private static final String FALSE = "false";
@@ -65,15 +61,21 @@ public class ConsumeService implements Service {
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AtomicBoolean _running;
+  private final String _topic;
   private final int _latencySlaMs;
   private AdminClient _adminClient;
+  private CommitAvailabilityMetrics _commitAvailabilityMetrics;
+  private static final int NUM_SAMPLES = 60;
+  private static final long TIME_WINDOW_MS = 10000;
+  private final Map<Integer, Long> _nextIndexes;
+  private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
 
   public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionResult) throws Exception {
     _name = name;
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
       ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
-    String topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
+    _topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
@@ -109,7 +111,9 @@ public class ConsumeService implements Service {
     if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) {
       props.forEach(consumerProps::putIfAbsent);
     }
-    _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(topic, consumerProps);
+    _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    _nextIndexes = new HashMap<>();
+    _offsetsToCommit = new HashMap<>();
     topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
@@ -118,7 +122,8 @@ public class ConsumeService implements Service {
       Map<String, String> tags = new HashMap<>();
       tags.put(TAGS_NAME, _name);
       _adminClient = AdminClient.create(props);
-      _sensors = new ConsumeMetrics(metrics, tags, topic, topicPartitionResult);
+      _sensors = new ConsumeMetrics(metrics, tags, _topic, topicPartitionResult, _adminClient, _latencyPercentileMaxMs, _latencyPercentileGranularityMs);
+      _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
           consume();
@@ -148,8 +153,7 @@ public class ConsumeService implements Service {
         continue;
       }
 
-      if (record == null)
-        continue;
+      if (record == null) continue;
 
       GenericRecord avroRecord = Utils.genericRecordFromJson(record.value());
       if (avroRecord == null) {
@@ -173,8 +177,48 @@ public class ConsumeService implements Service {
       }
 
       long nextIndex = nextIndexes.get(partition);
+
       if (nextIndex == -1 || index == nextIndex) {
         nextIndexes.put(partition, index + 1);
+
+        /* Commit availability and commit latency service */
+        try {
+          TopicPartition topicPartition = new TopicPartition(_topic, partition);
+          final AtomicBoolean callbackFired = new AtomicBoolean(false);
+          final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
+          OffsetAndMetadata offsetAndMetadata = null;
+          /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
+          OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
+            if (exception != null) {
+              offsetCommitIssues.set(exception);
+            }
+            callbackFired.set(true);
+          };
+
+          if (_offsetsToCommit != null) {
+            _consumer.commitAsync(_offsetsToCommit, commitCallback);
+          } else {
+            _consumer.commitAsync(commitCallback);
+          }
+          _commitAvailabilityMetrics._offsetsCommitted.record();
+          while (!callbackFired.get()) {
+            long timeoutSeconds = 20;
+            final Duration timeout = Duration.ofSeconds(timeoutSeconds);
+            _consumer.poll(timeout);
+          }
+          org.testng.Assert.assertNull(offsetCommitIssues.get(), "Offset commit failed.");
+          offsetAndMetadata = _consumer.committed(topicPartition);
+          if (offsetAndMetadata != null) {
+            break;
+          }
+          long threadSleepMillis = 100;
+          Thread.sleep(threadSleepMillis);
+
+        } catch (KafkaException kafkaException) {
+          LOG.error("Exception while trying to perform a asynchronous commit.", kafkaException);
+          _commitAvailabilityMetrics._failedCommitOffsets.record();
+        }
+
       } else if (index < nextIndex) {
         _sensors._recordsDuplicated.record();
       } else if (index > nextIndex) {
@@ -184,6 +228,7 @@ public class ConsumeService implements Service {
         LOG.info("_recordsLost recorded: Avro record current index: {} at {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
       }
     }
+    // end of consume() while loop
   }
 
   @Override
@@ -221,82 +266,4 @@ public class ConsumeService implements Service {
     return _running.get() && _consumeThread.isAlive();
   }
 
-  private class ConsumeMetrics {
-    private final Sensor _bytesConsumed;
-    private final Sensor _consumeError;
-    private final Sensor _recordsConsumed;
-    private final Sensor _recordsDuplicated;
-    private final Sensor _recordsLost;
-    private final Sensor _recordsDelay;
-    private final Sensor _recordsDelayed;
-
-    ConsumeMetrics(final Metrics metrics, final Map<String, String> tags, String topicName, CompletableFuture<Void> topicPartitionReady) {
-      topicPartitionReady.thenRun(() -> {
-        DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(topicName));
-        Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
-        KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
-        TopicDescription topicDescription = null;
-        try {
-          topicDescription = topicDescriptionKafkaFuture.get();
-        } catch (InterruptedException | ExecutionException e) {
-          LOG.error("Exception occurred while retrieving the topic description.", e);
-        }
-        int partitionCount = topicDescription.partitions().size();
-        Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-        topicPartitionCount.add(
-            new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-            new Total(partitionCount));
-      });
-
-      _bytesConsumed = metrics.sensor("bytes-consumed");
-      _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());
-
-      _consumeError = metrics.sensor("consume-error");
-      _consumeError.add(new MetricName("consume-error-rate", METRIC_GROUP_NAME, "The average number of errors per second", tags), new Rate());
-      _consumeError.add(new MetricName("consume-error-total", METRIC_GROUP_NAME, "The total number of errors", tags), new Total());
-
-      _recordsConsumed = metrics.sensor("records-consumed");
-      _recordsConsumed.add(new MetricName("records-consumed-rate", METRIC_GROUP_NAME, "The average number of records per second that are consumed", tags), new Rate());
-      _recordsConsumed.add(new MetricName("records-consumed-total", METRIC_GROUP_NAME, "The total number of records that are consumed", tags), new Total());
-
-      _recordsDuplicated = metrics.sensor("records-duplicated");
-      _recordsDuplicated.add(new MetricName("records-duplicated-rate", METRIC_GROUP_NAME, "The average number of records per second that are duplicated", tags), new Rate());
-      _recordsDuplicated.add(new MetricName("records-duplicated-total", METRIC_GROUP_NAME, "The total number of records that are duplicated", tags), new Total());
-
-      _recordsLost = metrics.sensor("records-lost");
-      _recordsLost.add(new MetricName("records-lost-rate", METRIC_GROUP_NAME, "The average number of records per second that are lost", tags), new Rate());
-      _recordsLost.add(new MetricName("records-lost-total", METRIC_GROUP_NAME, "The total number of records that are lost", tags), new Total());
-
-      _recordsDelayed = metrics.sensor("records-delayed");
-      _recordsDelayed.add(new MetricName("records-delayed-rate", METRIC_GROUP_NAME, "The average number of records per second that are either lost or arrive after maximum allowed latency under SLA", tags), new Rate());
-      _recordsDelayed.add(new MetricName("records-delayed-total", METRIC_GROUP_NAME, "The total number of records that are either lost or arrive after maximum allowed latency under SLA", tags), new Total());
-
-      _recordsDelay = metrics.sensor("records-delay");
-      _recordsDelay.add(new MetricName("records-delay-ms-avg", METRIC_GROUP_NAME, "The average latency of records from producer to consumer", tags), new Avg());
-      _recordsDelay.add(new MetricName("records-delay-ms-max", METRIC_GROUP_NAME, "The maximum latency of records from producer to consumer", tags), new Max());
-
-      // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
-      int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
-      int sizeInBytes = 4 * bucketNum;
-      _recordsDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
-        new Percentile(new MetricName("records-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile latency of records from producer to consumer", tags), 99.0),
-        new Percentile(new MetricName("records-delay-ms-999th", METRIC_GROUP_NAME, "The 99.9th percentile latency of records from producer to consumer", tags), 99.9),
-        new Percentile(new MetricName("records-delay-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of records from producer to consumer", tags), 99.99)));
-
-      metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
-        (config, now) -> {
-          double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
-          double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
-          double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
-
-          if (new Double(recordsLostRate).isNaN())
-            recordsLostRate = 0;
-          if (new Double(recordsDelayedRate).isNaN())
-            recordsDelayedRate = 0;
-
-          return recordsConsumedRate + recordsLostRate > 0
-            ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
-        });
-    }
-  }
 }

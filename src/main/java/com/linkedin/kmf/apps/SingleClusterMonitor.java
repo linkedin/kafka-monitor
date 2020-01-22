@@ -9,7 +9,6 @@
  */
 package com.linkedin.kmf.apps;
 
-import com.linkedin.kmf.services.CommitAvailabilityService;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
@@ -48,7 +47,6 @@ public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
 
   private final TopicManagementService _topicManagementService;
-  private final CommitAvailabilityService _commitAvailabilityService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final String _name;
@@ -57,14 +55,12 @@ public class SingleClusterMonitor implements App {
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-    _commitAvailabilityService = new CommitAvailabilityService(props, name);
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(props, name, topicPartitionReady);
     int servicesInitialCapacity = 4;
     _allServices = new ArrayList<>(servicesInitialCapacity);
     _allServices.add(_topicManagementService);
-    _allServices.add(_commitAvailabilityService);
     _allServices.add(_produceService);
     _allServices.add(_consumeService);
   }
@@ -72,7 +68,6 @@ public class SingleClusterMonitor implements App {
   @Override
   public void start() {
     _topicManagementService.start();
-    _commitAvailabilityService.start();
     CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
     completableFuture.thenRun(() -> {
       _produceService.start();
@@ -96,10 +91,6 @@ public class SingleClusterMonitor implements App {
     if (!_topicManagementService.isRunning()) {
       isRunning = false;
       LOG.info("_topicManagementService not running.");
-    }
-    if (!_commitAvailabilityService.isRunning()) {
-      isRunning = false;
-      LOG.info("_commitAvailabilityService not running.");
     }
     if (!_produceService.isRunning()) {
       isRunning = false;
