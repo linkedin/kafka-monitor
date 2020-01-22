@@ -23,7 +23,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /*
  * Wrap around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
  */
