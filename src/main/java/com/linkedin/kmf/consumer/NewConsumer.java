@@ -41,7 +41,7 @@ public class NewConsumer implements KMBaseConsumer {
   @Override
   public BaseConsumerRecord receive() {
     if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _kafkaConsumer.poll(Long.MAX_VALUE).iterator();
+      _recordIter = _kafkaConsumer.poll(Duration.ofMillis(Long.MAX_VALUE)).iterator();
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
