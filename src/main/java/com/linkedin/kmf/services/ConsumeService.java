@@ -69,6 +69,7 @@ public class ConsumeService implements Service {
   private static final long TIME_WINDOW_MS = 10000;
   private final Map<Integer, Long> _nextIndexes;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
+  private static final long CONSUME_THREAD_SLEEP_MS = 100;
 
   public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionResult) throws Exception {
     _name = name;
@@ -149,7 +150,7 @@ public class ConsumeService implements Service {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         // Avoid busy while loop
-        Thread.sleep(100);
+        Thread.sleep(CONSUME_THREAD_SLEEP_MS);
         continue;
       }
 

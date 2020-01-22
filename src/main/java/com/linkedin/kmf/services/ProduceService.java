@@ -61,7 +61,6 @@ public class ProduceService implements Service {
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
   };
-
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
@@ -86,6 +85,7 @@ public class ProduceService implements Service {
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private final AdminClient _adminClient;
+  private static final String KEY_SERIALIZER_CLASS = "org.apache.kafka.common.serialization.StringSerializer";
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
     _name = name;
@@ -144,8 +144,8 @@ public class ProduceService implements Service {
     producerProps.put(ProducerConfig.RETRIES_CONFIG, "3");
     producerProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, Long.MAX_VALUE);
     producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
-    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KEY_SERIALIZER_CLASS);
+    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KEY_SERIALIZER_CLASS);
     // Assign config specified for ProduceService.
     producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, _producerId);
     producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, _brokerList);
@@ -238,7 +238,7 @@ public class ProduceService implements Service {
   }
 
   private class ProduceMetrics {
-    public final Metrics metrics;
+    public final Metrics _metrics;
     private final Sensor _recordsProduced;
     private final Sensor _produceError;
     private final Sensor _produceDelay;
@@ -248,8 +248,8 @@ public class ProduceService implements Service {
     private final Map<String, String> _tags;
 
     public ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
-      this.metrics = metrics;
-      this._tags = tags;
+      _metrics = metrics;
+      _tags = tags;
 
       _recordsProducedPerPartition = new ConcurrentHashMap<>();
       _produceErrorPerPartition = new ConcurrentHashMap<>();
@@ -312,12 +312,12 @@ public class ProduceService implements Service {
     }
 
     void addPartitionSensors(int partition) {
-      Sensor recordsProducedSensor = metrics.sensor("records-produced-partition-" + partition);
+      Sensor recordsProducedSensor = _metrics.sensor("records-produced-partition-" + partition);
       recordsProducedSensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME,
           "The average number of records per second that are produced to this partition", _tags), new Rate());
       _recordsProducedPerPartition.put(partition, recordsProducedSensor);
 
-      Sensor errorsSensor = metrics.sensor("produce-error-partition-" + partition);
+      Sensor errorsSensor = _metrics.sensor("produce-error-partition-" + partition);
       errorsSensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME,
           "The average number of errors per second when producing to this partition", _tags), new Rate());
       _produceErrorPerPartition.put(partition, errorsSensor);

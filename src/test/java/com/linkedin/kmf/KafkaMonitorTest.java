@@ -109,7 +109,7 @@ public class KafkaMonitorTest {
     public synchronized void stop() {
       _isRunning.compareAndSet(true, false);
       stopCount.incrementAndGet();
-      this.notifyAll();
+      notifyAll();
     }
 
     @Override
