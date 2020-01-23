@@ -20,7 +20,7 @@ ADD build/ build/
 ADD bin/kafka-monitor-start.sh bin/kafka-monitor-start.sh
 ADD bin/kmf-run-class.sh bin/kmf-run-class.sh
 ADD config/kafka-monitor.properties config/kafka-monitor.properties
-ADD config/log4j.properties config/log4j.properties
+ADD config/log4j2.properties config/log4j2.properties
 ADD docker/kafka-monitor-docker-entry.sh kafka-monitor-docker-entry.sh
 ADD webapp/ webapp/
 
