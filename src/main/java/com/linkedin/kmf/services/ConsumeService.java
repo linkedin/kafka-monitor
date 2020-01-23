@@ -14,32 +14,24 @@ import com.linkedin.kmf.common.DefaultTopicSchema;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
-import com.linkedin.kmf.consumer.NewConsumer;
-import com.linkedin.kmf.services.configs.CommonServiceConfig;
-import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,65 +40,24 @@ import org.slf4j.LoggerFactory;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String TAGS_NAME = "name";
-  private static final String FALSE = "false";
-  private static final String[] NON_OVERRIDABLE_PROPERTIES =
-    new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
-  private final String _name;
   private ConsumeMetrics _sensors;
-  private final KMBaseConsumer _consumer;
   private Thread _consumeThread;
-  private final int _latencyPercentileMaxMs;
-  private final int _latencyPercentileGranularityMs;
-  private final AtomicBoolean _running;
-  private final String _topic;
-  private final int _latencySlaMs;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
   private static final long CONSUME_THREAD_SLEEP_MS = 100;
+  private final AtomicBoolean _running;
+  private String _topic;
+  private String _name;
+  private final KMBaseConsumer _baseConsumer;
+  private int _latencySlaMs;
 
-  public ConsumeService(Map<String, Object> props, String name, CompletableFuture<Void> topicPartitionResult) throws Exception {
+  public ConsumeService(String name, CompletableFuture<Void> topicPartitionResult, ConsumerFactory consumerFactory) {
+    _baseConsumer = consumerFactory.baseConsumer();
+    _latencySlaMs = consumerFactory.latencySlaMs();
     _name = name;
-    Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
-      ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
-    ConsumeServiceConfig config = new ConsumeServiceConfig(props);
-    _topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
-    String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
-    String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
-    _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
-    _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
-    _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
+    _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
-    for (String property: NON_OVERRIDABLE_PROPERTIES) {
-      if (consumerPropsOverride.containsKey(property)) {
-        throw new ConfigException("Override must not contain " + property + " config.");
-      }
-    }
-    Properties consumerProps = new Properties();
-
-    // Assign default config. This has the lowest priority.
-    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, FALSE);
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-    consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "kmf-consumer");
-    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
-    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName())) {
-      consumerClassName = NewConsumer.class.getCanonicalName();
-    }
-
-    // Assign config specified for ConsumeService.
-    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-    consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
-
-    // Assign config specified for consumer. This has the highest priority.
-    consumerProps.putAll(consumerPropsOverride);
-
-    if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) {
-      props.forEach(consumerProps::putIfAbsent);
-    }
-    _consumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
     _offsetsToCommit = new HashMap<>();
     topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -114,17 +65,17 @@ public class ConsumeService implements Service {
       reporters.add(new JmxReporter(JMX_PREFIX));
       Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
       Map<String, String> tags = new HashMap<>();
-      tags.put(TAGS_NAME, _name);
-      _adminClient = AdminClient.create(props);
-      _sensors = new ConsumeMetrics(metrics, tags, _topic, topicPartitionResult, _adminClient, _latencyPercentileMaxMs, _latencyPercentileGranularityMs);
+      tags.put(TAGS_NAME, name);
+      _topic = consumerFactory.topic();
+      _sensors = new ConsumeMetrics(metrics, tags, _topic, topicPartitionResult, _adminClient, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
           consume();
         } catch (Exception e) {
-          LOG.error(_name + "/ConsumeService failed", e);
+          LOG.error(name + "/ConsumeService failed", e);
         }
-      }, _name + " consume-service");
+      }, name + " consume-service");
       _consumeThread.setDaemon(true);
     });
   }
@@ -138,7 +89,7 @@ public class ConsumeService implements Service {
     while (_running.get()) {
       BaseConsumerRecord record;
       try {
-        record = _consumer.receive();
+        record = _baseConsumer.receive();
       } catch (Exception e) {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
@@ -174,13 +125,13 @@ public class ConsumeService implements Service {
         };
 
         if (_offsetsToCommit != null) {
-          _consumer.commitAsync(_offsetsToCommit, commitCallback);
+          _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
         } else {
-          _consumer.commitAsync(commitCallback);
+          _baseConsumer.commitAsync(commitCallback);
         }
         _commitAvailabilityMetrics._offsetsCommitted.record();
 
-        offsetAndMetadata = _consumer.committed(topicPartition);
+        offsetAndMetadata = _baseConsumer.committed(topicPartition);
         if (offsetAndMetadata != null) {
           break;
         }
@@ -190,7 +141,6 @@ public class ConsumeService implements Service {
         _commitAvailabilityMetrics._failedCommitOffsets.record();
       }
       /* Finished consumer offset commit service. */
-
 
       long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
@@ -236,7 +186,7 @@ public class ConsumeService implements Service {
   public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       try {
-        _consumer.close();
+        _baseConsumer.close();
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }

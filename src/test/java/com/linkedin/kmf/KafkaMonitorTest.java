@@ -77,8 +77,8 @@ public class KafkaMonitorTest {
     FakeService.clearCounters();
     Map<String, Map> config = new HashMap<>();
     Map<String, Object> fakeServiceConfig = new HashMap<>();
-    config.put("fake-service", fakeServiceConfig);
     fakeServiceConfig.put(KafkaMonitor.CLASS_NAME_CONFIG, FakeService.class.getName());
+    config.put("fake-service", fakeServiceConfig);
     return new KafkaMonitor(config);
   }
 

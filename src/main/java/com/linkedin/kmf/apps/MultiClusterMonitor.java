@@ -11,6 +11,7 @@ package com.linkedin.kmf.apps;
 
 import com.linkedin.kmf.apps.configs.MultiClusterMonitorConfig;
 import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.MultiClusterTopicManagementService;
 import com.linkedin.kmf.services.ProduceService;
 import java.util.HashMap;
@@ -41,7 +42,8 @@ public class MultiClusterMonitor implements App {
     _multiClusterTopicManagementService = new MultiClusterTopicManagementService(createMultiClusterTopicManagementServiceProps(props, config), name);
     CompletableFuture<Void> topicPartitionReady = _multiClusterTopicManagementService.topicPartitionResult();
     _produceService = new ProduceService(createProduceServiceProps(props, config), name);
-    _consumeService = new ConsumeService(createConsumeServiceProps(props, config), name, topicPartitionReady);
+    ConsumerFactory consumerFactory = new ConsumerFactory(createConsumeServiceProps(props, config));
+    _consumeService = new ConsumeService(name, topicPartitionReady, consumerFactory);
   }
 
   @SuppressWarnings("unchecked")

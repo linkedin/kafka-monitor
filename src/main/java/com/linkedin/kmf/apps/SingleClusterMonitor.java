@@ -10,6 +10,7 @@
 package com.linkedin.kmf.apps;
 
 import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
@@ -57,7 +58,8 @@ public class SingleClusterMonitor implements App {
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name, topicPartitionReady);
+    ConsumerFactory consumerFactory = new ConsumerFactory(props);
+    _consumeService = new ConsumeService(name, topicPartitionReady, consumerFactory);
     int servicesInitialCapacity = 4;
     _allServices = new ArrayList<>(servicesInitialCapacity);
     _allServices.add(_topicManagementService);
