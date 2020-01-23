@@ -15,17 +15,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
 
-
+/**
+ * Unit Testing for the Consume Service Class.
+ */
 public class ConsumeServiceTest {
   private static final String BROKER_LIST = "localhost:9092";
   private static final String ZK_CONNECT = "localhost:2181";
@@ -39,38 +36,41 @@ public class ConsumeServiceTest {
     ConsumeService consumeService = consumeService();
 
     /* Nothing should be started */
-    assertEquals(FakeConsumerFactory.startCount.get(), 0);
-    assertEquals(FakeConsumerFactory.stopCount.get(), 0);
+    org.testng.Assert.assertFalse(consumeService.isRunning());
+    org.testng.Assert.assertNotNull(consumeService.getServiceName());
 
     /* Should accept but ignore start because start has not been called */
     consumeService.stop();
-    assertEquals(FakeConsumerFactory.stopCount.get(), 0);
+    org.testng.Assert.assertFalse(consumeService.isRunning());
 
     /* Should start */
     consumeService.start();
-    assertTrue(consumeService.isRunning());
+    org.testng.Assert.assertTrue(consumeService.isRunning());
 
     /* Should allow start to be called more than once */
     consumeService.stop();
     consumeService.stop();
-    assertFalse(consumeService.isRunning());
+    org.testng.Assert.assertFalse(consumeService.isRunning());
 
     /* Should be allowed to shutdown more than once. */
     consumeService.awaitShutdown();
     consumeService.awaitShutdown();
-    assertFalse(consumeService.isRunning());
+    org.testng.Assert.assertFalse(consumeService.isRunning());
+
   }
 
 
   private ConsumeService consumeService()
       throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException,
              IllegalAccessException {
-    ConsumeServiceTest.FakeConsumerFactory.clearCounters();
+    /* Sample ConsumeService instance for unit testing */
 
     Map<String, Object> fakeProps = new HashMap<>();
+
     fakeProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_LIST);
     fakeProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, ZK_CONNECT);
     fakeProps.put(CommonServiceConfig.TOPIC_CONFIG, TOPIC);
+
     ConsumerFactory consumerFactory = new ConsumerFactory(fakeProps);
     CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
     topicPartitionResult.complete(null);
@@ -96,25 +96,13 @@ public class ConsumeServiceTest {
     thread.start();
     consumeService.start();
     Thread.sleep(100);
+
     consumeService.stop();
     thread.join(500);
+
     org.testng.Assert.assertFalse(thread.isAlive());
-    assertEquals(error.get(), null);
-  }
+    org.testng.Assert.assertEquals(error.get(), null);
 
-  static final class FakeConsumerFactory {
-    private static AtomicInteger startCount = new AtomicInteger();
-    private static AtomicInteger stopCount = new AtomicInteger();
-    private final AtomicBoolean _isRunning = new AtomicBoolean();
-
-    /** required */
-    public FakeConsumerFactory(Map<String, Map> config, String serviceInstanceName) {
-    }
-
-    private static void clearCounters() {
-      startCount.set(0);
-      stopCount.set(0);
-    }
   }
 
 }
