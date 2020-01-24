@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2018 SignalFx, Inc. Licensed under the Apache 2 License.
  */
+
 package com.linkedin.kmf.services.configs;
 
 import java.util.Arrays;
