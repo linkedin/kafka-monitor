@@ -10,7 +10,8 @@ system tests in a real cluster. It complements Kafka’s existing system
 tests by capturing potential bugs or regressions that are only likely to occur
 after prolonged period of time or with low probability. Moreover, it allows you to monitor Kafka
 cluster using end-to-end pipelines to obtain a number of derived vital stats
-such as end-to-end latency, service availability and message loss rate. You can easily
+such as end-to-end latency, service availability, consumer offset commit availability,
+as well as message loss rate. You can easily
 deploy Kafka Monitor to test and monitor your Kafka cluster without requiring
 any change to your application.
 
