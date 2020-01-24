@@ -81,7 +81,7 @@ public class ConsumeService implements Service {
   }
 
   private void consume() throws Exception {
-    // Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService
+    /* Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService */
     Thread.sleep(1000);
 
     Map<Integer, Long> nextIndexes = new HashMap<>();
@@ -93,7 +93,7 @@ public class ConsumeService implements Service {
       } catch (Exception e) {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
-        // Avoid busy while loop
+        /* Avoid busy while loop */
         Thread.sleep(CONSUME_THREAD_SLEEP_MS);
         continue;
       }
@@ -110,30 +110,32 @@ public class ConsumeService implements Service {
       /* Commit availability and commit latency service */
       try {
         TopicPartition topicPartition = new TopicPartition(_topic, partition);
-        final AtomicBoolean callbackFired = new AtomicBoolean(false);
         final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
         OffsetAndMetadata offsetAndMetadata;
         /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-        OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
-          @Override
-          public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception exception) {
-            if (exception != null) {
-              offsetCommitIssues.set(exception);
-            }
-            callbackFired.set(true);
+        OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
+          if (exception != null) {
+            offsetCommitIssues.set(exception);
           }
+          _commitAvailabilityMetrics._offsetsCommitted.record();
         };
 
-        if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
-          _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
-        } else {
-          _baseConsumer.commitAsync(commitCallback);
+        long currTimeMillis = System.currentTimeMillis();
+        /* 5 seconds consumer offset commit interval. */
+        long timeDiffMillis = 5000;
+        if (_baseConsumer.lastCommitted() - currTimeMillis > timeDiffMillis) {
+          if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
+            _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
+          } else {
+            _baseConsumer.commitAsync(commitCallback);
+          }
+          /* Record the current time for the committed consumer offset */
+          _baseConsumer.updateLastCommit();
         }
-        _commitAvailabilityMetrics._offsetsCommitted.record();
 
         offsetAndMetadata = _baseConsumer.committed(topicPartition);
         if (offsetAndMetadata != null) {
-          _offsetsToCommit.putIfAbsent(topicPartition, offsetAndMetadata);
+          _offsetsToCommit.put(topicPartition, offsetAndMetadata);
         }
 
       } catch (KafkaException kafkaException) {
@@ -171,7 +173,7 @@ public class ConsumeService implements Service {
         LOG.info("_recordsLost recorded: Avro record current index: {} at {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
       }
     }
-    // end of consume() while loop
+    /* end of consume() while loop */
   }
 
   @Override

@@ -39,4 +39,8 @@ public interface KMBaseConsumer {
 
   void close();
 
+  long lastCommitted();
+
+  void updateLastCommit();
+
 }

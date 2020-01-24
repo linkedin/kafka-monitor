@@ -11,9 +11,11 @@ package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.apps.App;
+import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.Service;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +34,6 @@ import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
@@ -65,17 +66,19 @@ public class KafkaMonitor {
         throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
       String className = (String) props.get(CLASS_NAME_CONFIG);
 
-      Class<?> cls = Class.forName(className);
-      if (App.class.isAssignableFrom(cls)) {
+      Class<?> aClass = Class.forName(className);
+      if (App.class.isAssignableFrom(aClass)) {
         App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, test);
-      } else if (Service.class.isAssignableFrom(cls)) {
-        if (className.equals("com.linkedin.kmf.services.ConsumeService")) {
+      } else if (Service.class.isAssignableFrom(aClass)) {
+        Constructor<?>[] constructors = Class.forName(className).getConstructors();
+        if (constructorContainsFuture(constructors)) {
           CompletableFuture<Void> completableFuture = new CompletableFuture<>();
           completableFuture.complete(null);
-
-          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class,
-              CompletableFuture.class).newInstance(props, name, completableFuture);
+          ConsumerFactory consumerFactory = new ConsumerFactory(props);
+          Service service = (Service) Class.forName(className)
+              .getConstructor(String.class, CompletableFuture.class, ConsumerFactory.class)
+              .newInstance(name, completableFuture, consumerFactory);
           _services.put(name, service);
         } else {
           Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
@@ -95,6 +98,15 @@ public class KafkaMonitor {
     metrics.addMetric(metrics.metricName(
         "offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running.", tags
         ), (config, now) -> _offlineRunnables.size());
+  }
+
+  boolean constructorContainsFuture(Constructor<?>[] constructors) {
+    for (int n = 0; n < constructors[0].getParameterTypes().length; ++n) {
+      if (constructors[0].getParameterTypes()[n].equals(CompletableFuture.class)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public synchronized void start() {

@@ -31,6 +31,7 @@ public class NewConsumer implements KMBaseConsumer {
   private final KafkaConsumer<String, String> _kafkaConsumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;
   private static final Logger LOG = LoggerFactory.getLogger(NewConsumer.class);
+  private static long lastCommitted;
 
   public NewConsumer(String topic, Properties consumerProperties) {
     _kafkaConsumer = new KafkaConsumer<>(consumerProperties);
@@ -73,6 +74,16 @@ public class NewConsumer implements KMBaseConsumer {
   @Override
   public void close() {
     _kafkaConsumer.close();
+  }
+
+  @Override
+  public long lastCommitted() {
+    return lastCommitted;
+  }
+
+  @Override
+  public void updateLastCommit() {
+    lastCommitted = System.currentTimeMillis();
   }
 
 }
