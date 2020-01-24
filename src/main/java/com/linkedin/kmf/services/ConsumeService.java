@@ -124,7 +124,7 @@ public class ConsumeService implements Service {
           }
         };
 
-        if (_offsetsToCommit != null) {
+        if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
           _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
         } else {
           _baseConsumer.commitAsync(commitCallback);
@@ -133,7 +133,7 @@ public class ConsumeService implements Service {
 
         offsetAndMetadata = _baseConsumer.committed(topicPartition);
         if (offsetAndMetadata != null) {
-          break;
+          _offsetsToCommit.putIfAbsent(topicPartition, offsetAndMetadata);
         }
 
       } catch (KafkaException kafkaException) {
