@@ -18,7 +18,7 @@
 
   <!-- header -->
   <module name="RegexpHeader">
-    <property name="header" value="/\*\*\nCopyright 2016 LinkedIn Corp. Licensed under the Apache License.*"/>
+    <property name="header" value="/\*\*\nCopyright 2020 LinkedIn Corp. Licensed under the Apache License.*"/>
   </module>
 
   <module name="SuppressionFilter">
