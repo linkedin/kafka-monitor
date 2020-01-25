@@ -202,11 +202,6 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
-
-  @Override
   public boolean isRunning() {
     return _running.get() && _consumeThread.isAlive();
   }

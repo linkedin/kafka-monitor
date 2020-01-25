@@ -28,7 +28,7 @@ public class ConfigDocumentationGenerator {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigDocumentationGenerator.class);
 
   private static void printHelp() {
-    LOG.info("ConfigDocumentationGenerator outputDirectory configClassNames...");
+    System.out.println("ConfigDocumentationGenerator outputDirectory configClassNames...");
   }
 
   private static void printHtmlHeader(Writer out, String docClass) throws IOException {

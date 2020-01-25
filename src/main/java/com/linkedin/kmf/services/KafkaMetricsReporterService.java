@@ -93,10 +93,6 @@ public class KafkaMetricsReporterService implements Service {
     LOG.info("{}/KafkaMetricsReporterService shutdown completed", _name);
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
 
   private void initializeProducer() {
     Properties producerProps = new Properties();

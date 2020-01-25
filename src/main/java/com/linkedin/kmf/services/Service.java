@@ -46,5 +46,8 @@ public interface Service {
    */
   void awaitShutdown();
 
-  String getServiceName();
+  default String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
+
 }

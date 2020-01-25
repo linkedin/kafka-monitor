@@ -55,8 +55,4 @@ public class JolokiaService implements Service {
 
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
 }

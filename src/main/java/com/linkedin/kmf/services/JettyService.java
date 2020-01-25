@@ -63,8 +63,4 @@ public class JettyService implements Service {
 
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
 }

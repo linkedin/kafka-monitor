@@ -79,10 +79,6 @@ public class StatsdMetricsReporterService implements Service {
     LOG.info("{}/StatsdMetricsReporterService shutdown completed", _name);
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
 
   private String generateStatsdMetricName(String bean, String attribute) {
     String service = bean.split(":")[1];

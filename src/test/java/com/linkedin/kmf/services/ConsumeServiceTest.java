@@ -19,6 +19,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
+
 
 /**
  * Unit Testing for the Consume Service Class.
@@ -29,33 +34,31 @@ public class ConsumeServiceTest {
   private static final String TOPIC = "kafka-monitor-topic-test";
 
   @Test
-  public void lifecycleTest()
-      throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException,
-             InvocationTargetException {
+  public void lifecycleTest() throws Exception {
 
     ConsumeService consumeService = consumeService();
 
     /* Nothing should be started */
-    org.testng.Assert.assertFalse(consumeService.isRunning());
-    org.testng.Assert.assertNotNull(consumeService.getServiceName());
+    assertFalse(consumeService.isRunning());
+    assertNotNull(consumeService.getServiceName());
 
     /* Should accept but ignore start because start has not been called */
     consumeService.stop();
-    org.testng.Assert.assertFalse(consumeService.isRunning());
+    assertFalse(consumeService.isRunning());
 
     /* Should start */
     consumeService.start();
-    org.testng.Assert.assertTrue(consumeService.isRunning());
+    assertTrue(consumeService.isRunning());
 
     /* Should allow start to be called more than once */
     consumeService.stop();
     consumeService.stop();
-    org.testng.Assert.assertFalse(consumeService.isRunning());
+    assertFalse(consumeService.isRunning());
 
     /* Should be allowed to shutdown more than once. */
     consumeService.awaitShutdown();
     consumeService.awaitShutdown();
-    org.testng.Assert.assertFalse(consumeService.isRunning());
+    assertFalse(consumeService.isRunning());
 
   }
 
@@ -100,8 +103,8 @@ public class ConsumeServiceTest {
     consumeService.stop();
     thread.join(500);
 
-    org.testng.Assert.assertFalse(thread.isAlive());
-    org.testng.Assert.assertEquals(error.get(), null);
+    assertFalse(thread.isAlive());
+    assertEquals(error.get(), null);
 
   }
 

@@ -227,10 +227,6 @@ public class ProduceService implements Service {
     LOG.info("{}/ProduceService shutdown completed.", _name);
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
 
   @Override
   public boolean isRunning() {

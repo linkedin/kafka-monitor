@@ -70,10 +70,7 @@ public class DefaultMetricsReporterService implements Service {
     LOG.info("{}/DefaultMetricsReporterService shutdown completed.", _name);
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
+
 
   private void reportMetrics() {
     StringBuilder builder = new StringBuilder();

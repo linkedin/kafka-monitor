@@ -29,20 +29,20 @@ import org.slf4j.LoggerFactory;
  */
 public class NewConsumer implements KMBaseConsumer {
 
-  private final KafkaConsumer<String, String> _kafkaConsumer;
+  private final KafkaConsumer<String, String> _consumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;
   private static final Logger LOG = LoggerFactory.getLogger(NewConsumer.class);
   private static long lastCommitted;
 
   public NewConsumer(String topic, Properties consumerProperties) {
-    _kafkaConsumer = new KafkaConsumer<>(consumerProperties);
-    _kafkaConsumer.subscribe(Collections.singletonList(topic));
+    _consumer = new KafkaConsumer<>(consumerProperties);
+    _consumer.subscribe(Collections.singletonList(topic));
   }
 
   @Override
   public BaseConsumerRecord receive() {
     if (_recordIter == null || !_recordIter.hasNext())
-      _recordIter = _kafkaConsumer.poll(Duration.ofMillis(Long.MAX_VALUE)).iterator();
+      _recordIter = _consumer.poll(Duration.ofMillis(Long.MAX_VALUE)).iterator();
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());
@@ -50,31 +50,31 @@ public class NewConsumer implements KMBaseConsumer {
 
   @Override
   public void commitAsync() {
-    _kafkaConsumer.commitAsync();
+    _consumer.commitAsync();
   }
 
   @Override
   public void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback) {
-    _kafkaConsumer.commitAsync(offsets, callback);
+    _consumer.commitAsync(offsets, callback);
   }
 
   @Override
   public void commitAsync(OffsetCommitCallback callback) {
-    _kafkaConsumer.commitAsync(callback);
+    _consumer.commitAsync(callback);
   }
 
   public ConsumerRecords<String, String> poll(final Duration timeout) {
-    return _kafkaConsumer.poll(timeout);
+    return _consumer.poll(timeout);
   }
 
   @Override
   public OffsetAndMetadata committed(TopicPartition tp) {
-    return _kafkaConsumer.committed(tp);
+    return _consumer.committed(tp);
   }
 
   @Override
   public void close() {
-    _kafkaConsumer.close();
+    _consumer.close();
   }
 
   @Override

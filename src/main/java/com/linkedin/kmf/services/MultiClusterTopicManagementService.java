@@ -157,10 +157,7 @@ public class MultiClusterTopicManagementService implements Service {
     LOG.info("{}/MultiClusterTopicManagementService shutdown completed", _serviceName);
   }
 
-  @Override
-  public String getServiceName() {
-    return this.getClass().getSimpleName();
-  }
+
 
   private class TopicManagementRunnable implements Runnable {
 
