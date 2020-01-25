@@ -123,7 +123,7 @@ public class ConsumeService implements Service {
         long currTimeMillis = System.currentTimeMillis();
         /* 5 seconds consumer offset commit interval. */
         long timeDiffMillis = 5000;
-        if (_baseConsumer.lastCommitted() - currTimeMillis > timeDiffMillis) {
+        if (currTimeMillis - _baseConsumer.lastCommitted() > timeDiffMillis) {
           if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
             _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
           } else {
