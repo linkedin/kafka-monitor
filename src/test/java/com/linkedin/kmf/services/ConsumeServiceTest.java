@@ -12,13 +12,25 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.utils.SystemTime;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -31,12 +43,46 @@ import org.testng.annotations.Test;
 public class ConsumeServiceTest {
   private static final String BROKER_LIST = "localhost:9092";
   private static final String ZK_CONNECT = "localhost:2181";
-  private static final String TOPIC = "kafka-monitor-topic-test";
-  private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
+  private static final String TOPIC = "kafka-monitor-topic-testing";
+  private static final Logger LOG = LoggerFactory.getLogger(ConsumeServiceTest.class);
+  private CommitAvailabilityMetrics _commitAvailabilityMetrics;
+  private static final String TAGS_NAME = "name";
+  private static final String METRIC_GROUP_NAME = "commit-availability-service";
 
   @Test
-  public void commitAvailabilityTest() {
-    // TO DO
+  public void commitAvailabilityTest() throws ExecutionException, InterruptedException {
+    ConsumeService consumeService = consumeService();
+
+    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(Service.JMX_PREFIX));
+    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+    Map<String, String> tags = new HashMap<>();
+    String name = "tagName";
+    tags.put(TAGS_NAME, name);
+    _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
+    Assert.assertNotNull(_commitAvailabilityMetrics._offsetsCommitted.name());
+    Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
+    Assert.assertEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
+
+    /* Should start */
+    consumeService.start();
+    Assert.assertTrue(consumeService.isRunning());
+
+    ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+    ScheduledFuture<?> scheduledFuture = executorService.schedule(new Runnable() {
+      @Override
+      public void run() {
+        Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
+        Assert.assertNotEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
+      }
+    }, 4, TimeUnit.SECONDS);
+
+    /* Should allow start to be called more than once */
+    consumeService.stop();
+
+    /* Should be allowed to shutdown more than once. */
+    consumeService.awaitShutdown();
   }
 
   @Test
@@ -70,6 +116,7 @@ public class ConsumeServiceTest {
   private ConsumeService consumeService() throws ExecutionException, InterruptedException {
     /* Sample ConsumeService instance for unit testing */
 
+    LOG.info("Creating an instance of Consume Service for testing..");
     Map<String, Object> fakeProps = new HashMap<>();
 
     fakeProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_LIST);
@@ -131,7 +178,7 @@ public class ConsumeServiceTest {
 
     @Override
     public KMBaseConsumer baseConsumer() {
-      return null;
+      return Mockito.mock(KMBaseConsumer.class);
     }
 
     @Override

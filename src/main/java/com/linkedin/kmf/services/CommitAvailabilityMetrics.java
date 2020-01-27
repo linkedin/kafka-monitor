@@ -12,6 +12,7 @@ package com.linkedin.kmf.services;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Rate;
@@ -45,7 +46,7 @@ class CommitAvailabilityMetrics {
         "The total number of offsets per second that have failed.", tags), new Total());
 
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
-      (config, now) -> {
+      (MetricConfig config, long now) -> {
         double offsetsCommittedCount = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).value();
         double offsetsCommittedErrorCount = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).value();
         return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
