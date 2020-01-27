@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,13 +53,15 @@ public class ConsumeService implements Service {
   private final KMBaseConsumer _baseConsumer;
   private int _latencySlaMs;
 
-  public ConsumeService(String name, CompletableFuture<Void> topicPartitionResult, ConsumerFactory consumerFactory) {
+  public ConsumeService(String name, CompletableFuture<Void> topicPartitionResult, ConsumerFactory consumerFactory)
+      throws ExecutionException, InterruptedException {
     _baseConsumer = consumerFactory.baseConsumer();
     _latencySlaMs = consumerFactory.latencySlaMs();
     _name = name;
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
     _offsetsToCommit = new HashMap<>();
+
     topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
@@ -77,7 +80,7 @@ public class ConsumeService implements Service {
         }
       }, name + " consume-service");
       _consumeThread.setDaemon(true);
-    });
+    }).get();
   }
 
   private void consume() throws Exception {
@@ -121,6 +124,7 @@ public class ConsumeService implements Service {
         };
 
         long currTimeMillis = System.currentTimeMillis();
+
         /* 5 seconds consumer offset commit interval. */
         long timeDiffMillis = 5000;
         if (currTimeMillis - _baseConsumer.lastCommitted() > timeDiffMillis) {
@@ -129,6 +133,7 @@ public class ConsumeService implements Service {
           } else {
             _baseConsumer.commitAsync(commitCallback);
           }
+
           /* Record the current time for the committed consumer offset */
           _baseConsumer.updateLastCommit();
         }
