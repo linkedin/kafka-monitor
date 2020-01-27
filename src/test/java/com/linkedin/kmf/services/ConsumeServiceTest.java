@@ -77,6 +77,7 @@ public class ConsumeServiceTest {
         Assert.assertNotEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
       }
     }, 4, TimeUnit.SECONDS);
+    Assert.assertNotNull(scheduledFuture);
 
     /* Should allow start to be called more than once */
     consumeService.stop();
