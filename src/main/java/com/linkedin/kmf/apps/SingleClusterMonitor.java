@@ -254,7 +254,7 @@ public class SingleClusterMonitor implements App {
   public static void main(String[] args) throws Exception {
     ArgumentParser parser = argParser();
     if (args.length == 0) {
-      LOG.info(parser.formatHelp());
+      System.out.println(parser.formatHelp());
       System.exit(-1);
     }
 

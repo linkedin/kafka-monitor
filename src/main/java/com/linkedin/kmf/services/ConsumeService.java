@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -112,21 +111,21 @@ public class ConsumeService implements Service {
 
       /* Commit availability and commit latency service */
       try {
-        TopicPartition topicPartition = new TopicPartition(_topic, partition);
-        final AtomicReference<Exception> offsetCommitIssues = new AtomicReference<>(null);
-        OffsetAndMetadata offsetAndMetadata;
         /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-        OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, exception) -> {
-          if (exception != null) {
-            offsetCommitIssues.set(exception);
+        OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, kafkaException) -> {
+          if (kafkaException != null) {
+            LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+            _commitAvailabilityMetrics._failedCommitOffsets.record();
           }
           _commitAvailabilityMetrics._offsetsCommitted.record();
         };
 
+        /* Current timestamp to perform subtraction*/
         long currTimeMillis = System.currentTimeMillis();
 
         /* 5 seconds consumer offset commit interval. */
-        long timeDiffMillis = 5000;
+        long timeDiffMillis = TimeUnit.SECONDS.toMillis(5);
+
         if (currTimeMillis - _baseConsumer.lastCommitted() > timeDiffMillis) {
           if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
             _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
@@ -138,11 +137,6 @@ public class ConsumeService implements Service {
           _baseConsumer.updateLastCommit();
         }
 
-        offsetAndMetadata = _baseConsumer.committed(topicPartition);
-        if (offsetAndMetadata != null) {
-          _offsetsToCommit.put(topicPartition, offsetAndMetadata);
-        }
-
       } catch (KafkaException kafkaException) {
         LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
         _commitAvailabilityMetrics._failedCommitOffsets.record();
@@ -152,6 +146,7 @@ public class ConsumeService implements Service {
       long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
       long prevMs = (Long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
+      
       _sensors._recordsConsumed.record();
       _sensors._bytesConsumed.record(record.value().length());
       _sensors._recordsDelay.record(currMs - prevMs);
