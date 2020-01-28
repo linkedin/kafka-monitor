@@ -24,10 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -44,7 +42,6 @@ public class ConsumeService implements Service {
   private Thread _consumeThread;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
-  private final Map<TopicPartition, OffsetAndMetadata> _offsetsToCommit;
   private static final long CONSUME_THREAD_SLEEP_MS = 100;
   private final AtomicBoolean _running;
   private String _topic;
@@ -59,7 +56,6 @@ public class ConsumeService implements Service {
     _name = name;
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
-    _offsetsToCommit = new HashMap<>();
 
     topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
@@ -127,11 +123,8 @@ public class ConsumeService implements Service {
         long timeDiffMillis = TimeUnit.SECONDS.toMillis(5);
 
         if (currTimeMillis - _baseConsumer.lastCommitted() > timeDiffMillis) {
-          if (_offsetsToCommit != null && !_offsetsToCommit.isEmpty()) {
-            _baseConsumer.commitAsync(_offsetsToCommit, commitCallback);
-          } else {
-            _baseConsumer.commitAsync(commitCallback);
-          }
+          /* commit the consumer offset asynchronously with a callback. */
+          _baseConsumer.commitAsync(commitCallback);
 
           /* Record the current time for the committed consumer offset */
           _baseConsumer.updateLastCommit();
@@ -146,7 +139,7 @@ public class ConsumeService implements Service {
       long index = (Long) avroRecord.get(DefaultTopicSchema.INDEX_FIELD.name());
       long currMs = System.currentTimeMillis();
       long prevMs = (Long) avroRecord.get(DefaultTopicSchema.TIME_FIELD.name());
-      
+
       _sensors._recordsConsumed.record();
       _sensors._bytesConsumed.record(record.value().length());
       _sensors._recordsDelay.record(currMs - prevMs);
