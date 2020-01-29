@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -140,13 +141,13 @@ public class ConsumeServiceTest {
       public String answer(InvocationOnMock invocation) {
         testCommittedSuccessfully = true;
         return "Mock Offset Committed Successfully.";
+
       }
-    }).when(kmBaseConsumer).commitAsync(Mockito.any());
+    }).when(kmBaseConsumer).commitAsync(Mockito.any(OffsetCommitCallback.class));
 
     /* avro record to KmBaseConsumer record */
     Mockito.when(kmBaseConsumer.receive()).thenReturn(
-        new BaseConsumerRecord(TOPIC, 2, 3,
-            Utils.jsonFromFields(TOPIC, 2, 3, "producerId", 3),
+        new BaseConsumerRecord(TOPIC, 2, 3, "key",
             Utils.jsonFromFields(TOPIC, 2, 3, "producerId", 2)));
 
     CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
