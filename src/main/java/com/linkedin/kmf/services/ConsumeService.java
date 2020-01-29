@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -98,7 +97,13 @@ public class ConsumeService implements Service {
 
       if (record == null) continue;
 
-      GenericRecord avroRecord = Utils.genericRecordFromJson(record.value());
+      GenericRecord avroRecord = null;
+      try {
+        avroRecord = Utils.genericRecordFromJson(record.value());
+      } catch (Exception exception) {
+        LOG.error("exception occurred while getting avro record.", exception);
+      }
+
       if (avroRecord == null) {
         _sensors._consumeError.record();
         continue;
@@ -130,8 +135,8 @@ public class ConsumeService implements Service {
           _baseConsumer.updateLastCommit();
         }
 
-      } catch (KafkaException kafkaException) {
-        LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+      } catch (Exception exception) {
+        LOG.error("Exception while trying to perform an asynchronous commit.", exception);
         _commitAvailabilityMetrics._failedCommitOffsets.record();
       }
       /* Finished consumer offset commit service. */

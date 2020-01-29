@@ -16,7 +16,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
@@ -61,10 +60,6 @@ public class NewConsumer implements KMBaseConsumer {
   @Override
   public void commitAsync(OffsetCommitCallback callback) {
     _consumer.commitAsync(callback);
-  }
-
-  public ConsumerRecords<String, String> poll(final Duration timeout) {
-    return _consumer.poll(timeout);
   }
 
   @Override

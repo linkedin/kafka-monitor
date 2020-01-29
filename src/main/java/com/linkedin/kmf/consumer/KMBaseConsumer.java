@@ -10,9 +10,7 @@
 
 package com.linkedin.kmf.consumer;
 
-import java.time.Duration;
 import java.util.Map;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
@@ -33,8 +31,6 @@ public interface KMBaseConsumer {
   void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback);
 
   void commitAsync(OffsetCommitCallback callback);
-
-  ConsumerRecords<String, String> poll(final Duration timeout);
 
   OffsetAndMetadata committed(TopicPartition tp);
 
