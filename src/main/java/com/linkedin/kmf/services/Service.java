@@ -45,4 +45,9 @@ public interface Service {
    * Implementations of this method must be thread safe and must be blocking.
    */
   void awaitShutdown();
+
+  default String getServiceName() {
+    return this.getClass().getSimpleName();
+  }
+
 }

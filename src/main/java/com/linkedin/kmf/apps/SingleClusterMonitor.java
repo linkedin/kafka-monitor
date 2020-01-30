@@ -11,16 +11,19 @@
 package com.linkedin.kmf.apps;
 
 import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.ProduceService;
+import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.services.TopicManagementService;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -49,14 +52,20 @@ public class SingleClusterMonitor implements App {
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
   private final String _name;
+  private final List<Service> _allServices;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name, topicPartitionReady);
+    ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
+    _consumeService = new ConsumeService(name, topicPartitionReady, consumerFactory);
+    int servicesInitialCapacity = 4;
+    _allServices = new ArrayList<>(servicesInitialCapacity);
+    _allServices.add(_topicManagementService);
+    _allServices.add(_produceService);
+    _allServices.add(_consumeService);
   }
 
   @Override
@@ -72,9 +81,9 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void stop() {
-    _topicManagementService.stop();
-    _produceService.stop();
-    _consumeService.stop();
+    for (Service service : _allServices) {
+      service.stop();
+    }
     LOG.info(_name + "/SingleClusterMonitor stopped.");
   }
 
@@ -99,9 +108,9 @@ public class SingleClusterMonitor implements App {
 
   @Override
   public void awaitShutdown() {
-    _topicManagementService.awaitShutdown();
-    _produceService.awaitShutdown();
-    _consumeService.awaitShutdown();
+    for (Service service : _allServices) {
+      service.awaitShutdown();
+    }
   }
 
   /** Get the command-line argument parser. */
@@ -305,7 +314,9 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:records-delay-ms-avg",
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
-      "kmf.services:type=consume-service,name=*:consume-error-rate"
+      "kmf.services:type=consume-service,name=*:consume-error-rate",
+      "kmf.services:type=consume-service,name=*:commit-latency-avg",
+      "kmf.services:type=consume-service,name=*:commit-availability-avg"
     );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 

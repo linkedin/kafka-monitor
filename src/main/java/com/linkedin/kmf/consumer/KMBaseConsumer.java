@@ -10,6 +10,12 @@
 
 package com.linkedin.kmf.consumer;
 
+import java.util.Map;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.TopicPartition;
+
+
 /**
  * A base consumer used to abstract different consumer classes.
  *
@@ -20,6 +26,18 @@ public interface KMBaseConsumer {
 
   BaseConsumerRecord receive() throws Exception;
 
+  void commitAsync();
+
+  void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback);
+
+  void commitAsync(OffsetCommitCallback callback);
+
+  OffsetAndMetadata committed(TopicPartition tp);
+
   void close();
+
+  long lastCommitted();
+
+  void updateLastCommit();
 
 }

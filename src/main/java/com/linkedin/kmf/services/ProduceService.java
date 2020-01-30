@@ -227,6 +227,7 @@ public class ProduceService implements Service {
     LOG.info("{}/ProduceService shutdown completed.", _name);
   }
 
+
   @Override
   public boolean isRunning() {
     return _running.get() && !_handleNewPartitionsExecutor.isShutdown();

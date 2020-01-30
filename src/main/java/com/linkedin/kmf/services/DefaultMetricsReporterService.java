@@ -70,6 +70,8 @@ public class DefaultMetricsReporterService implements Service {
     LOG.info("{}/DefaultMetricsReporterService shutdown completed.", _name);
   }
 
+
+
   private void reportMetrics() {
     StringBuilder builder = new StringBuilder();
     for (String metricName: _metricNames) {

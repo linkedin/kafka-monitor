@@ -12,6 +12,7 @@ package com.linkedin.kmf.tests;
 
 import com.linkedin.kmf.apps.SingleClusterMonitor;
 import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import java.util.Map;
@@ -47,7 +48,8 @@ public class BasicEndToEndTest implements Test {
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(props, name, topicPartitionReady);
+    ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
+    _consumeService = new ConsumeService(name, topicPartitionReady, consumerFactory);
   }
 
   @Override

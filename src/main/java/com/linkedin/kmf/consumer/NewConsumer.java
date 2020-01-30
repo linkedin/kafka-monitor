@@ -13,9 +13,15 @@ package com.linkedin.kmf.consumer;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Wrap around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
@@ -24,6 +30,8 @@ public class NewConsumer implements KMBaseConsumer {
 
   private final KafkaConsumer<String, String> _consumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;
+  private static final Logger LOG = LoggerFactory.getLogger(NewConsumer.class);
+  private static long lastCommitted;
 
   public NewConsumer(String topic, Properties consumerProperties) {
     _consumer = new KafkaConsumer<>(consumerProperties);
@@ -40,8 +48,38 @@ public class NewConsumer implements KMBaseConsumer {
   }
 
   @Override
+  public void commitAsync() {
+    _consumer.commitAsync();
+  }
+
+  @Override
+  public void commitAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback) {
+    _consumer.commitAsync(offsets, callback);
+  }
+
+  @Override
+  public void commitAsync(OffsetCommitCallback callback) {
+    _consumer.commitAsync(callback);
+  }
+
+  @Override
+  public OffsetAndMetadata committed(TopicPartition tp) {
+    return _consumer.committed(tp);
+  }
+
+  @Override
   public void close() {
     _consumer.close();
+  }
+
+  @Override
+  public long lastCommitted() {
+    return lastCommitted;
+  }
+
+  @Override
+  public void updateLastCommit() {
+    lastCommitted = System.currentTimeMillis();
   }
 
 }
