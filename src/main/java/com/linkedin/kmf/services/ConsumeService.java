@@ -24,7 +24,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -37,16 +39,18 @@ import org.slf4j.LoggerFactory;
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String TAGS_NAME = "name";
+  private static final long COMMIT_TIME_INTERVAL = 4;
+  private static final long CONSUME_THREAD_SLEEP_MS = 100;
+  private static Metrics metrics;
+  private final AtomicBoolean _running;
+  private final KMBaseConsumer _baseConsumer;
+  private int _latencySlaMs;
   private ConsumeMetrics _sensors;
   private Thread _consumeThread;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
-  private static final long CONSUME_THREAD_SLEEP_MS = 100;
-  private final AtomicBoolean _running;
   private String _topic;
   private String _name;
-  private final KMBaseConsumer _baseConsumer;
-  private int _latencySlaMs;
 
   public ConsumeService(String name, CompletableFuture<Void> topicPartitionResult, ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
@@ -60,7 +64,7 @@ public class ConsumeService implements Service {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
       reporters.add(new JmxReporter(JMX_PREFIX));
-      Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+      metrics = new Metrics(metricConfig, reporters, new SystemTime());
       Map<String, String> tags = new HashMap<>();
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
@@ -113,21 +117,25 @@ public class ConsumeService implements Service {
       /* Commit availability and commit latency service */
       try {
         /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-        OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, kafkaException) -> {
-          if (kafkaException != null) {
-            LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
-            _commitAvailabilityMetrics._failedCommitOffsets.record();
+        OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
+          @Override
+          public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception kafkaException) {
+            if (kafkaException != null) {
+              LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+              _commitAvailabilityMetrics._failedCommitOffsets.record();
+            } else {
+              _commitAvailabilityMetrics._offsetsCommitted.record();
+            }
           }
-          _commitAvailabilityMetrics._offsetsCommitted.record();
         };
 
         /* Current timestamp to perform subtraction*/
         long currTimeMillis = System.currentTimeMillis();
 
         /* 5 seconds consumer offset commit interval. */
-        long timeDiffMillis = TimeUnit.SECONDS.toMillis(5);
+        long timeDiffMillis = TimeUnit.SECONDS.toMillis(COMMIT_TIME_INTERVAL);
 
-        if (currTimeMillis - _baseConsumer.lastCommitted() > timeDiffMillis) {
+        if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
           /* commit the consumer offset asynchronously with a callback. */
           _baseConsumer.commitAsync(commitCallback);
 
@@ -172,6 +180,10 @@ public class ConsumeService implements Service {
       }
     }
     /* end of consume() while loop */
+  }
+
+  Metrics metrics() {
+    return metrics;
   }
 
   @Override

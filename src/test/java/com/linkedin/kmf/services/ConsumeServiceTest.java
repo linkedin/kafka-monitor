@@ -13,20 +13,15 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
-import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.MetricsReporter;
-import org.apache.kafka.common.utils.SystemTime;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -37,16 +32,21 @@ import org.testng.annotations.Test;
 
 
 /**
- * Unit Testing for the Consume Service Class.
+ * This public class is a Unit Testing class for the Consume Service Class.
  * Also tests for Kafka Monitor Consumer offset commits.
  */
 public class ConsumeServiceTest {
   private static final String TOPIC = "kafka-monitor-topic-testing";
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeServiceTest.class);
-  private CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private static final String TAGS_NAME = "name";
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
-  private static Boolean testCommittedSuccessfully = false;
+  /* thread start delay in seconds */
+  private static final long THREAD_START_DELAY = 4;
+  private static final String TAG_NAME_VALUE = "name";
+  private static final long MOCK_LAST_COMMITTED_OFFSET = System.currentTimeMillis();
+  private static final int PARTITION = 2;
+  private static final long FIRST_OFFSET = 2;
+  private static final long SECOND_OFFSET = 3;
 
   @Test
   public void lifecycleTest() throws Exception {
@@ -79,16 +79,10 @@ public class ConsumeServiceTest {
   public void commitAvailabilityTest() throws Exception {
     ConsumeService consumeService = consumeService();
 
-    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
-    List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(Service.JMX_PREFIX));
-    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-    String name = "name";
+    Metrics metrics = consumeService.metrics();
     Map<String, String> tags = new HashMap<>();
-    tags.put(TAGS_NAME, name);
+    tags.put(TAGS_NAME, TAG_NAME_VALUE);
 
-    _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
-    Assert.assertNotNull(_commitAvailabilityMetrics._offsetsCommitted.name());
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
     Assert.assertEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
 
@@ -96,14 +90,16 @@ public class ConsumeServiceTest {
     consumeService.start();
     Assert.assertTrue(consumeService.isRunning());
 
-    long threadStartDelay = 2000;
+    /* in milliseconds */
+    long threadStartDelay = 1000 * THREAD_START_DELAY;
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
     Thread.sleep(threadStartDelay);
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
-    Assert.assertTrue(testCommittedSuccessfully);
-
+    Assert.assertNotNull(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue());
+    Assert.assertEquals(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
+    Assert.assertNotEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
     consumeService.stop();
     consumeService.stop();
 
@@ -113,7 +109,7 @@ public class ConsumeServiceTest {
   /**
    * Sample ConsumeService instance for unit testing
    * @return Sample ConsumeService object.
-   * @throws Exception
+   * @throws Exception should the ConsumeService creation fail or throws an error / exception
    */
   private ConsumeService consumeService() throws Exception {
     LOG.info("Creating an instance of Consume Service for testing..");
@@ -134,26 +130,30 @@ public class ConsumeServiceTest {
     Mockito.when(consumerFactory.latencyPercentileGranularityMs()).thenReturn(1);
 
     /* define return value */
-    long mockLastCommittedOffset = 0;
-    Mockito.when(kmBaseConsumer.lastCommitted()).thenReturn(mockLastCommittedOffset);
-    Mockito.doAnswer(new Answer() {
+    Mockito.when(kmBaseConsumer.lastCommitted()).thenReturn(MOCK_LAST_COMMITTED_OFFSET);
+    Mockito.when(kmBaseConsumer.committed(Mockito.any())).thenReturn(new OffsetAndMetadata(FIRST_OFFSET));
+    Mockito.doAnswer(new Answer<Void>() {
       @Override
-      public String answer(InvocationOnMock invocation) {
-        testCommittedSuccessfully = true;
-        return "Mock Offset Committed Successfully.";
+      public Void answer(InvocationOnMock invocationOnMock) {
+        OffsetCommitCallback callback = invocationOnMock.getArgument(0);
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+        committedOffsets.put(new TopicPartition(TOPIC, PARTITION), new OffsetAndMetadata(FIRST_OFFSET));
+        callback.onComplete(committedOffsets, null);
 
+        return null;
       }
     }).when(kmBaseConsumer).commitAsync(Mockito.any(OffsetCommitCallback.class));
 
+
     /* avro record to KmBaseConsumer record */
     Mockito.when(kmBaseConsumer.receive()).thenReturn(
-        new BaseConsumerRecord(TOPIC, 2, 3, "key",
-            Utils.jsonFromFields(TOPIC, 2, 3, "producerId", 2)));
+        new BaseConsumerRecord(TOPIC, PARTITION, SECOND_OFFSET, "key",
+            Utils.jsonFromFields(TOPIC, 2, 6000, "producerId", 2)));
 
     CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
     topicPartitionResult.complete(null);
 
-    return new ConsumeService("name", topicPartitionResult, consumerFactory);
+    return new ConsumeService(TAG_NAME_VALUE, topicPartitionResult, consumerFactory);
   }
 
   @Test
