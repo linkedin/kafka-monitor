@@ -106,6 +106,37 @@ public class ConsumeServiceTest {
     consumeService.awaitShutdown();
   }
 
+  @Test
+  public void commitLatencyTest() throws Exception {
+    CommitLatencyMetrics commitLatencyMetrics = Mockito.mock(CommitLatencyMetrics.class);
+    Assert.assertNotNull(commitLatencyMetrics);
+
+    ConsumeService consumeService = consumeService();
+
+    Metrics metrics = consumeService.metrics();
+    Map<String, String> tags = new HashMap<>();
+    tags.put(TAGS_NAME, TAG_NAME_VALUE);
+
+    Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, tags)));
+    Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, tags)));
+
+    /* Should start */
+    consumeService.start();
+    Assert.assertTrue(consumeService.isRunning());
+
+    /* in milliseconds */
+    long threadStartDelay = 1000 * THREAD_START_DELAY;
+
+    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
+    Thread.sleep(threadStartDelay);
+
+    consumeService.stop();
+    consumeService.stop();
+
+    consumeService.awaitShutdown();
+  }
+
   /**
    * Sample ConsumeService instance for unit testing
    * @return Sample ConsumeService object.

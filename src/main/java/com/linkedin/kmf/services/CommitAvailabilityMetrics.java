@@ -47,8 +47,10 @@ class CommitAvailabilityMetrics {
 
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
       (MetricConfig config, long now) -> {
-        double offsetsCommittedCount = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).value();
-        double offsetsCommittedErrorCount = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).value();
+        double offsetsCommittedCount =
+            (double) metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue();
+        double offsetsCommittedErrorCount =
+            (double) metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue();
         return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
       });
   }
