@@ -2,36 +2,36 @@
   <img src="/docs/images/xinfra_monitor.png" width="510"/>
 </p>
 
-# Kafka Monitor
+# Xinfra Monitor
 [![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
 
-Kafka Monitor (KMF) is a framework to implement and execute long-running kafka
+Xinfra Monitor (KMF) is a framework to implement and execute long-running kafka
 system tests in a real cluster. It complements Kafka’s existing system
 tests by capturing potential bugs or regressions that are only likely to occur
 after prolonged period of time or with low probability. Moreover, it allows you to monitor Kafka
 cluster using end-to-end pipelines to obtain a number of derived vital stats
 such as end-to-end latency, service availability, consumer offset commit availability,
 as well as message loss rate. You can easily
-deploy Kafka Monitor to test and monitor your Kafka cluster without requiring
+deploy Xinfra Monitor to test and monitor your Kafka cluster without requiring
 any change to your application.
 
-Kafka Monitor can automatically create the monitor topic with the specified config
+Xinfra Monitor can automatically create the monitor topic with the specified config
 and increase partition count of the monitor topic to ensure partition# >=
 broker#. It can also reassign partition and trigger preferred leader election
 to ensure that each broker acts as leader of at least one partition of the
-monitor topic. This allows Kafka Monitor to detect performance issue on every
+monitor topic. This allows Xinfra Monitor to detect performance issue on every
 broker without requiring users to manually manage the partition assignment of
 the monitor topic.
 
-Kafka Monitor is used in conjunction with different middle-layer services such as li-apache-kafka-clients in order to monitor single clusters, pipeline desination clusters, and other types of clusters as done in Linkedin engineering for real-time cluster healthchecks.
+Xinfra Monitor is used in conjunction with different middle-layer services such as li-apache-kafka-clients in order to monitor single clusters, pipeline desination clusters, and other types of clusters as done in Linkedin engineering for real-time cluster healthchecks.
 
 ## Getting Started
 
 ### Prerequisites
-Kafka Monitor requires Gradle 2.0 or higher. Java 7 should be used for
+Xinfra Monitor requires Gradle 2.0 or higher. Java 7 should be used for
 building in order to support both Java 7 and Java 8 at runtime.
 
-Kafka Monitor supports Apache Kafka 0.8 to 2.0:
+Xinfra Monitor supports Apache Kafka 0.8 to 2.0:
 - Use branch 0.8.2.2 to work with Apache Kafka 0.8
 - Use branch 0.9.0.1 to work with Apache Kafka 0.9
 - Use branch 0.10.2.1 to work with Apache Kafka 0.10
@@ -44,7 +44,7 @@ Kafka Monitor supports Apache Kafka 0.8 to 2.0:
 ### Configuration Tips
 
 <ol>
-<li> We advise advanced users to run Kafka Monitor with
+<li> We advise advanced users to run Xinfra Monitor with
 <code>./bin/kafka-monitor-start.sh config/kafka-monitor.properties</code>. The default
 kafka-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
@@ -56,17 +56,17 @@ Config class for respective service, e.g. ProduceServiceConfig.java and
 ConsumeServiceConfig.java.</li>
 <br />
 <li> You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
-monitor multiple Kafka clusters in one Kafka Monitor process. As another
+monitor multiple Kafka clusters in one Xinfra Monitor process. As another
 advanced use-case, you can point ProduceService and ConsumeService to two different Kafka clusters that are connected by MirrorMaker to monitor their end-to-end latency.</li>
 <br />  
-<li> Kafka Monitor by default will automatically create the monitor topic based on
+<li> Xinfra Monitor by default will automatically create the monitor topic based on
 the e.g.  <code>topic-management.replicationFactor</code> and <code>topic-management.partitionsToBrokersRatio</code>
 specified in the config. replicationFactor is 1 by default and you probably
 want to change it to the same replication factor as used for your existing
 topics. You can disable auto topic creation by setting <code>produce.topic.topicCreationEnabled</code> to false.
 </li>
 <br />
-<li> Kafka Monitor can automatically increase partition count of the monitor topic
+<li> Xinfra Monitor can automatically increase partition count of the monitor topic
 to ensure partition# >= broker#. It can also reassign partition and trigger
 preferred leader election to ensure that each broker acts as leader of at least
 one partition of the monitor topic. To use this feature, use either
@@ -83,7 +83,7 @@ EndToEndTest or TopicManagementService in the properties file. </li>
 </ol>
 
 
-### Build Kafka Monitor
+### Build Xinfra Monitor
 ```
 $ git clone https://github.com/linkedin/kafka-monitor.git
 $ cd kafka-monitor 
@@ -95,7 +95,7 @@ $ ./gradlew jar
 $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ```
 
-### Run Kafka Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
+### Run Xinfra Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
 Edit `config/kafka-monitor.properties` to specify custom configurations for producer in the key/value map `produce.producer.props` in
 `config/kafka-monitor.properties`. Similarly specify configurations for
 consumer as well. The documentation for producer and consumer in the key/value maps can be found in the Apache Kafka wiki.
