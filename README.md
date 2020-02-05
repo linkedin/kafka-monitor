@@ -5,7 +5,7 @@
 # Xinfra Monitor
 [![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
 
-Xinfra Monitor (KMF) is a framework to implement and execute long-running kafka
+Xinfra Monitor (formerly Kafka Monitor) is a framework to implement and execute long-running kafka
 system tests in a real cluster. It complements Kafka’s existing system
 tests by capturing potential bugs or regressions that are only likely to occur
 after prolonged period of time or with low probability. Moreover, it allows you to monitor Kafka
