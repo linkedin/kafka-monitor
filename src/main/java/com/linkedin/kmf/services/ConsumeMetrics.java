@@ -22,6 +22,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Percentile;
 import org.apache.kafka.common.metrics.stats.Percentiles;
@@ -64,7 +65,7 @@ public class ConsumeMetrics {
       Sensor topicPartitionCount = metrics.sensor("topic-partitions");
       topicPartitionCount.add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-          new Total(partitionCount));
+          new CumulativeSum(partitionCount));
     });
 
     _bytesConsumed = metrics.sensor("bytes-consumed");
