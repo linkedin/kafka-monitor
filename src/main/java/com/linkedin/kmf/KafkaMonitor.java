@@ -11,6 +11,7 @@ package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.apps.App;
+import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.Service;
 import java.io.BufferedReader;
@@ -76,7 +77,7 @@ public class KafkaMonitor {
           completableFuture.complete(null);
           ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
           Service service = (Service) Class.forName(className)
-              .getConstructor(String.class, CompletableFuture.class, ConsumerFactoryImpl.class)
+              .getConstructor(String.class, CompletableFuture.class, ConsumerFactory.class)
               .newInstance(name, completableFuture, consumerFactory);
           _services.put(name, service);
         } else {
