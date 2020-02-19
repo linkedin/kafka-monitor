@@ -36,9 +36,10 @@ public class CommitLatencyMetrics {
    * @param metrics the commit offset metrics
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
-  CommitLatencyMetrics(final Metrics metrics, final Map<String, String> tags,
-      final int latencyPercentileMaxMs,
-      final int latencyPercentileGranularityMs) {
+  CommitLatencyMetrics(final Metrics metrics,
+                       final Map<String, String> tags,
+                       final int latencyPercentileMaxMs,
+                       final int latencyPercentileGranularityMs) {
     LOG.info("{} was called.", this.getClass().getSimpleName());
 
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");

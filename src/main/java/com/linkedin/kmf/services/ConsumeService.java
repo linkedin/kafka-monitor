@@ -49,6 +49,7 @@ public class ConsumeService implements Service {
   private Thread _consumeThread;
   private AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
+  private CommitLatencyMetrics _commitLatencyMetrics;
   private String _topic;
   private String _name;
 
@@ -69,6 +70,7 @@ public class ConsumeService implements Service {
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
       _sensors = new ConsumeMetrics(metrics, tags, _topic, topicPartitionResult, _adminClient, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
+      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
@@ -125,6 +127,7 @@ public class ConsumeService implements Service {
               _commitAvailabilityMetrics._failedCommitOffsets.record();
             } else {
               _commitAvailabilityMetrics._offsetsCommitted.record();
+              _commitLatencyMetrics._commitOffsetLatency.record();
             }
           }
         };
