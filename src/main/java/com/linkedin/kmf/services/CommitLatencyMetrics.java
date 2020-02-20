@@ -30,6 +30,7 @@ public class CommitLatencyMetrics {
   private static final String METRIC_GROUP_NAME = "commit-latency-service";
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
   final Sensor _commitOffsetLatency;
+  long _committedMs;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
@@ -54,4 +55,9 @@ public class CommitLatencyMetrics {
         new Percentile(new MetricName("commit-offset-latency-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of committing offset", tags), 99.99)));
 
   }
+
+  public void setCommittedMs(long time) {
+    _committedMs = time;
+  }
+
 }

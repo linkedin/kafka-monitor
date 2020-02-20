@@ -115,7 +115,6 @@ public class ConsumeService implements Service {
         continue;
       }
       int partition = record.partition();
-
       /* Commit availability and commit latency service */
       try {
         /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
@@ -127,7 +126,9 @@ public class ConsumeService implements Service {
               _commitAvailabilityMetrics._failedCommitOffsets.record();
             } else {
               _commitAvailabilityMetrics._offsetsCommitted.record();
-              _commitLatencyMetrics._commitOffsetLatency.record();
+              long commitCompletedMs = System.currentTimeMillis();
+              long committedMs = _commitLatencyMetrics._committedMs;
+              _commitLatencyMetrics._commitOffsetLatency.record(commitCompletedMs - committedMs);
             }
           }
         };
@@ -135,17 +136,16 @@ public class ConsumeService implements Service {
         /* Current timestamp to perform subtraction*/
         long currTimeMillis = System.currentTimeMillis();
 
-        /* 5 seconds consumer offset commit interval. */
+        /* 4 seconds consumer offset commit interval. */
         long timeDiffMillis = TimeUnit.SECONDS.toMillis(COMMIT_TIME_INTERVAL);
 
         if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
           /* commit the consumer offset asynchronously with a callback. */
           _baseConsumer.commitAsync(commitCallback);
-
+          _commitLatencyMetrics.setCommittedMs(System.currentTimeMillis());
           /* Record the current time for the committed consumer offset */
           _baseConsumer.updateLastCommit();
         }
-
       } catch (Exception exception) {
         LOG.error("Exception while trying to perform an asynchronous commit.", exception);
         _commitAvailabilityMetrics._failedCommitOffsets.record();
