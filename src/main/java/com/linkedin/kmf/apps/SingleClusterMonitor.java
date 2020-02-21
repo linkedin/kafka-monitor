@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -71,16 +72,16 @@ public class SingleClusterMonitor implements App {
   }
 
   @Override
-  public void start() {
+  public void start() throws Exception {
     _topicManagementService.start();
     CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
     try {
       /* Delay 2 second to reduce the chance that produce and consumer thread has race condition
       with TopicManagementService and MultiClusterTopicManagementService */
-      long threadSleepMs = 1000 * 2;
+      long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
       Thread.sleep(threadSleepMs);
     } catch (InterruptedException e) {
-      LOG.error("InterruptedException while thread sleeping.", e);
+      throw new Exception("Interrupted while sleeping the thread", e);
     }
     CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
       _produceService.start();
@@ -90,7 +91,7 @@ public class SingleClusterMonitor implements App {
     try {
       topicPartitionFuture.get();
     } catch (InterruptedException | ExecutionException e) {
-      LOG.error("Exception occurred while getting the TopicPartitionFuture", e);
+      throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
     }
 
     LOG.info(_name + "/SingleClusterMonitor started.");
