@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
@@ -92,12 +91,8 @@ public class MultiClusterTopicManagementService implements Service {
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
-    _executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-      @Override
-      public Thread newThread(Runnable r) {
-        return new Thread(r, _serviceName + "-multi-cluster-topic-management-service");
-      }
-    });
+    _executor = Executors.newSingleThreadScheduledExecutor(
+        r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
     _topicPartitionResult.complete(null);
   }
 
