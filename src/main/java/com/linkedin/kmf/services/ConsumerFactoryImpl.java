@@ -18,10 +18,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
@@ -34,9 +37,16 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
   private int _latencySlaMs;
   private static AdminClient adminClient;
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
 
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
+    LOGGER.info("Creating AdminClient.");
     adminClient = AdminClient.create(props);
+    try {
+      LOGGER.info("TESTING ConsumerFactoryImpl adminClient: {}", adminClient.describeCluster().clusterId().get().toLowerCase());
+    } catch (InterruptedException | ExecutionException e) {
+      LOGGER.error("Exception occurred while describing cluster", e);
+    }
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
         ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
