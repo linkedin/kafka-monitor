@@ -10,19 +10,11 @@
 
 package com.linkedin.kmf.services;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
-import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
-import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Percentile;
 import org.apache.kafka.common.metrics.stats.Percentiles;
@@ -44,29 +36,9 @@ public class ConsumeMetrics {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeMetrics.class);
 
   ConsumeMetrics(final Metrics metrics,
-      final Map<String, String> tags,
-      String topicName,
-      CompletableFuture<Void> topicPartitionReady,
-      AdminClient adminClient,
-      final int latencyPercentileMaxMs,
-      final int latencyPercentileGranularityMs) {
-    topicPartitionReady.thenRun(() -> {
-      DescribeTopicsResult describeTopicsResult = adminClient.describeTopics(Collections.singleton(topicName));
-      Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
-      KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(topicName);
-      TopicDescription topicDescription = null;
-      try {
-        topicDescription = topicDescriptionKafkaFuture.get();
-      } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Exception occurred while retrieving the topic description.", e);
-      }
-
-      int partitionCount = topicDescription.partitions().size();
-      Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-      topicPartitionCount.add(
-          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-          new CumulativeSum(partitionCount));
-    });
+      Map<String, String> tags,
+      int latencyPercentileMaxMs,
+      int latencyPercentileGranularityMs) {
 
     _bytesConsumed = metrics.sensor("bytes-consumed");
     _bytesConsumed.add(new MetricName("bytes-consumed-rate", METRIC_GROUP_NAME, "The average number of bytes per second that are consumed", tags), new Rate());

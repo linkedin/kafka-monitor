@@ -106,7 +106,7 @@ public class KafkaMonitor {
     return false;
   }
 
-  public synchronized void start() {
+  public synchronized void start() throws Exception {
     if (!_isRunning.compareAndSet(false, true)) {
       return;
     }

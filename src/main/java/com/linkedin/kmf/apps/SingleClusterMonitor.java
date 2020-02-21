@@ -11,6 +11,7 @@
 package com.linkedin.kmf.apps;
 
 import com.linkedin.kmf.services.ConsumeService;
+import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
 import com.linkedin.kmf.services.JettyService;
@@ -29,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -48,6 +51,7 @@ import org.slf4j.LoggerFactory;
 public class SingleClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(SingleClusterMonitor.class);
 
+  private static final int SERVICES_INITIAL_CAPACITY = 4;
   private final TopicManagementService _topicManagementService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
@@ -55,27 +59,41 @@ public class SingleClusterMonitor implements App {
   private final List<Service> _allServices;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+    ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
-    CompletableFuture<Void> topicPartitionReady = _topicManagementService.topicPartitionResult();
+    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
     _produceService = new ProduceService(props, name);
-    ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
-    _consumeService = new ConsumeService(name, topicPartitionReady, consumerFactory);
-    int servicesInitialCapacity = 4;
-    _allServices = new ArrayList<>(servicesInitialCapacity);
+    _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
+    _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(_produceService);
     _allServices.add(_consumeService);
   }
 
   @Override
-  public void start() {
+  public void start() throws Exception {
     _topicManagementService.start();
-    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
-    completableFuture.thenRun(() -> {
+    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+    try {
+      /* Delay 2 second to reduce the chance that produce and consumer thread has race condition
+      with TopicManagementService and MultiClusterTopicManagementService */
+      long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
+      Thread.sleep(threadSleepMs);
+    } catch (InterruptedException e) {
+      throw new Exception("Interrupted while sleeping the thread", e);
+    }
+    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
       _produceService.start();
       _consumeService.start();
     });
+
+    try {
+      topicPartitionFuture.get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
+    }
+
     LOG.info(_name + "/SingleClusterMonitor started.");
   }
 
