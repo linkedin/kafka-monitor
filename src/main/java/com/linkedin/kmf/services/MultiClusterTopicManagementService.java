@@ -92,7 +92,7 @@ public class MultiClusterTopicManagementService implements Service {
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor(
-        r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
+      r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
     _topicPartitionResult.complete(null);
   }
 
