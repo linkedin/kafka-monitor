@@ -52,10 +52,10 @@ public class ConsumeService implements Service {
   private static Metrics metrics;
   private final AtomicBoolean _running;
   private final KMBaseConsumer _baseConsumer;
-  private int _latencySlaMs;
+  private final int _latencySlaMs;
   private ConsumeMetrics _sensors;
   private Thread _consumeThread;
-  private AdminClient _adminClient;
+  private final AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private CommitLatencyMetrics _commitLatencyMetrics;
   private String _topic;
@@ -140,9 +140,7 @@ public class ConsumeService implements Service {
               _commitAvailabilityMetrics._failedCommitOffsets.record();
             } else {
               _commitAvailabilityMetrics._offsetsCommitted.record();
-              long commitCompletedMs = System.currentTimeMillis();
-              long committedMs = _commitLatencyMetrics._committedMs;
-              _commitLatencyMetrics._commitOffsetLatency.record(commitCompletedMs - committedMs);
+              _commitLatencyMetrics.recordCommitComplete();
             }
           }
         };
@@ -156,7 +154,7 @@ public class ConsumeService implements Service {
         if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
           /* commit the consumer offset asynchronously with a callback. */
           _baseConsumer.commitAsync(commitCallback);
-          _commitLatencyMetrics.setCommittedMs(System.currentTimeMillis());
+          _commitLatencyMetrics.recordCommitStart();
           /* Record the current time for the committed consumer offset */
           _baseConsumer.updateLastCommit();
         }

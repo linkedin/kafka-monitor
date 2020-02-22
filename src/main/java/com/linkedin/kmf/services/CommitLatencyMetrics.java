@@ -29,8 +29,8 @@ import org.slf4j.LoggerFactory;
 public class CommitLatencyMetrics {
   private static final String METRIC_GROUP_NAME = "commit-latency-service";
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
-  final Sensor _commitOffsetLatency;
-  long _committedMs;
+  private final Sensor _commitOffsetLatency;
+  private long _commitStartTimeMs;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
@@ -41,12 +41,13 @@ public class CommitLatencyMetrics {
                        final Map<String, String> tags,
                        final int latencyPercentileMaxMs,
                        final int latencyPercentileGranularityMs) {
-    LOG.info("{} was called.", this.getClass().getSimpleName());
-
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, "The maximum latency in ms of committing offset", tags), new Max());
 
+    if (latencyPercentileGranularityMs == 0) {
+      throw new IllegalArgumentException();
+    }
     int bucketNum = latencyPercentileMaxMs / latencyPercentileGranularityMs + 2;
     int sizeInBytes = bucketNum * 4;
     _commitOffsetLatency.add(new Percentiles(sizeInBytes, latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
@@ -56,8 +57,35 @@ public class CommitLatencyMetrics {
 
   }
 
-  public void setCommittedMs(long time) {
-    _committedMs = time;
+  /**
+   * start the recording of consumer offset commit
+   */
+  public void recordCommitStart() {
+    this.setCommitStartTimeMs(System.currentTimeMillis());
   }
 
+  /**
+   * finish the recording of consumer offset commit
+   */
+  public void recordCommitComplete() {
+    long commitCompletedMs = System.currentTimeMillis();
+    long commitStartMs = this.commitStartTimeMs();
+    this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
+  }
+
+  /**
+   * set in milliseconds the start time of consumer offset commit
+   * @param time commit start time in ms
+   */
+  public void setCommitStartTimeMs(long time) {
+    _commitStartTimeMs = time;
+  }
+
+  /**
+   * retrieve the start time of consumer offset commit
+   * @return _commitStartTimeMs
+   */
+  public long commitStartTimeMs() {
+    return _commitStartTimeMs;
+  }
 }

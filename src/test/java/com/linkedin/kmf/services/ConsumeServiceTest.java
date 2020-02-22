@@ -16,6 +16,7 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -41,7 +42,7 @@ public class ConsumeServiceTest {
   private static final String TAGS_NAME = "name";
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
   /* thread start delay in seconds */
-  private static final long THREAD_START_DELAY = 4;
+  private static final long THREAD_START_DELAY_SECONDS = 4;
   private static final String TAG_NAME_VALUE = "name";
   private static final long MOCK_LAST_COMMITTED_OFFSET = System.currentTimeMillis();
   private static final int PARTITION = 2;
@@ -64,7 +65,7 @@ public class ConsumeServiceTest {
     consumeService.testStart();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* Should allow start to be called more than once */
+    /* Should allow stop to be called more than once */
     consumeService.stop();
     consumeService.stop();
     Assert.assertFalse(consumeService.isRunning());
@@ -91,7 +92,7 @@ public class ConsumeServiceTest {
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = 1000 * THREAD_START_DELAY;
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
@@ -121,16 +122,17 @@ public class ConsumeServiceTest {
     Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, tags)));
 
     /* Should start */
-    consumeService.start();
+    consumeService.testStart();
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = 1000 * THREAD_START_DELAY;
+    long threadStartDelayMs = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
      *  We want to sleep current thread so that consumeService can start running for enough seconds. */
-    Thread.sleep(threadStartDelay);
+    Thread.sleep(threadStartDelayMs);
 
+    /* Should allow stop to be called more than once */
     consumeService.stop();
     consumeService.stop();
 
