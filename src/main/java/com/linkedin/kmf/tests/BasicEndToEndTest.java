@@ -55,8 +55,8 @@ public class BasicEndToEndTest implements Test {
   @Override
   public void start() {
     _topicManagementService.start();
-    CompletableFuture<Void> completableFuture = _topicManagementService.topicManagementResult();
-    completableFuture.thenRun(() -> {
+    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+    topicPartitionResult.thenRun(() -> {
       try {
         _produceService.start();
         _consumeService.start();

@@ -22,6 +22,8 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
@@ -34,8 +36,10 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
   private int _latencySlaMs;
   private static AdminClient adminClient;
+  private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
 
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
+    LOG.info("Creating AdminClient.");
     adminClient = AdminClient.create(props);
     Map consumerPropsOverride = props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)
         ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();

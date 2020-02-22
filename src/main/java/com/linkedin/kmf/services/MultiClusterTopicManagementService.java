@@ -80,8 +80,6 @@ public class MultiClusterTopicManagementService implements Service {
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
 
-  private final CompletableFuture<Void> _topicManagementResult;
-
 
   @SuppressWarnings("unchecked")
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
@@ -93,14 +91,9 @@ public class MultiClusterTopicManagementService implements Service {
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
-    _topicManagementResult = new CompletableFuture<>();
     _executor = Executors.newSingleThreadScheduledExecutor(
       r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
     _topicPartitionResult.complete(null);
-  }
-
-  public CompletableFuture<Void> topicManagementResult() {
-    return _topicManagementResult;
   }
 
   public CompletableFuture<Void> topicPartitionResult() {
@@ -182,7 +175,7 @@ public class MultiClusterTopicManagementService implements Service {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeAddPartitions(minPartitionNum);
         }
-        _topicManagementResult.complete(null);
+
         for (Map.Entry<String, TopicManagementHelper> entry : _topicManagementByCluster.entrySet()) {
           String clusterName = entry.getKey();
           TopicManagementHelper helper = entry.getValue();

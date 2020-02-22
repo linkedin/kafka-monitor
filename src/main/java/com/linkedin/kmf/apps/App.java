@@ -12,7 +12,7 @@ package com.linkedin.kmf.apps;
 
 public interface App {
 
-  void start();
+  void start() throws Exception;
 
   void stop();
 
