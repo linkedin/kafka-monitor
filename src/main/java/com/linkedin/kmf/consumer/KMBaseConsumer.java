@@ -40,4 +40,6 @@ public interface KMBaseConsumer {
 
   void updateLastCommit();
 
+  void wakeup();
+
 }

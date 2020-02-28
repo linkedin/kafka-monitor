@@ -61,6 +61,7 @@ public class ConsumeService implements Service {
   private String _name;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static Map<String, String> tags;
+  private final AtomicBoolean _closed = new AtomicBoolean(false);
 
   public ConsumeService(String name,
                         CompletableFuture<Void> topicPartitionResult,
@@ -101,7 +102,7 @@ public class ConsumeService implements Service {
 
     Map<Integer, Long> nextIndexes = new HashMap<>();
 
-    while (_running.get()) {
+    while (_running.get() && !_closed.get()) {
       BaseConsumerRecord record;
       try {
         record = _baseConsumer.receive();
@@ -194,6 +195,7 @@ public class ConsumeService implements Service {
       }
     }
     /* end of consume() while loop */
+    _baseConsumer.close();
   }
 
   Metrics metrics() {
@@ -245,6 +247,8 @@ public class ConsumeService implements Service {
 
   @Override
   public void awaitShutdown() {
+    _closed.set(true);
+    _baseConsumer.wakeup();
     LOG.info("{}/ConsumeService shutdown completed.", _name);
   }
 

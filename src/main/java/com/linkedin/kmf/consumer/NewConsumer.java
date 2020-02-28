@@ -82,4 +82,9 @@ public class NewConsumer implements KMBaseConsumer {
     lastCommitted = System.currentTimeMillis();
   }
 
+  @Override
+  public void wakeup() {
+    _consumer.wakeup();
+  }
+
 }
