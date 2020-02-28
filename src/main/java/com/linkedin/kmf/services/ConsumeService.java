@@ -237,7 +237,7 @@ public class ConsumeService implements Service {
   public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       try {
-        _baseConsumer.close();
+        _closed.set(true);
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
       }
