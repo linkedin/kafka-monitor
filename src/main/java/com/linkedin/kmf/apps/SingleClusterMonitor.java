@@ -323,6 +323,7 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:topic-partitions-count",
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
       "kmf.services:type=consume-service,name=*:consume-availability-avg",
+      "kmf.services:type=consume-service,name=*:offsets-committed-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",
