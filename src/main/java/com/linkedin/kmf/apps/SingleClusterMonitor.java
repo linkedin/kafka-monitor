@@ -14,7 +14,6 @@ import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
-import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.Service;
@@ -343,14 +342,5 @@ public class SingleClusterMonitor implements App {
 
     JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
-
-    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
-    jettyService.start();
-
-    if (!app.isRunning()) {
-      LOG.error("Some services have stopped.");
-      System.exit(-1);
-    }
-    app.awaitShutdown();
   }
 }
