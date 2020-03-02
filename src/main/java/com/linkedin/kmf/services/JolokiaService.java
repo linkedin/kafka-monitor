@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
  * Jolokia server allows user to query jmx metric value with HTTP request
  */
 public class JolokiaService implements Service {
-  private static final Logger LOG = LoggerFactory.getLogger(JettyService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JolokiaService.class);
 
   private final String _name;
   private final JolokiaServer _jolokiaServer;

@@ -61,7 +61,7 @@ public class ConsumeServiceTest {
     Assert.assertFalse(consumeService.isRunning());
 
     /* Should start */
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
     /* Should allow start to be called more than once */
@@ -87,7 +87,7 @@ public class ConsumeServiceTest {
     Assert.assertEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
 
     /* Should start */
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
@@ -173,7 +173,7 @@ public class ConsumeServiceTest {
     };
 
     thread.start();
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Thread.sleep(100);
 
     consumeService.stop();
