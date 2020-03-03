@@ -323,7 +323,6 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=consume-service,name=*:topic-partitions-count",
       "kmf.services:type=produce-service,name=*:produce-availability-avg",
       "kmf.services:type=consume-service,name=*:consume-availability-avg",
-      "kmf.services:type=consume-service,name=*:offsets-committed-avg",
       "kmf.services:type=produce-service,name=*:records-produced-total",
       "kmf.services:type=consume-service,name=*:records-consumed-total",
       "kmf.services:type=consume-service,name=*:records-lost-total",
@@ -333,8 +332,8 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
       "kmf.services:type=consume-service,name=*:consume-error-rate",
-      "kmf.services:type=consume-service,name=*:commit-latency-avg",
-      "kmf.services:type=consume-service,name=*:commit-availability-avg"
+      "kmf.services:type=commit-availability-service,name=*:offsets-committed-avg",
+      "kmf.services:type=commit-availability-service,name=*:commit-latency-avg"
     );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
