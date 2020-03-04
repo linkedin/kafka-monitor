@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 public class CommitLatencyMetrics {
   private static final String METRIC_GROUP_NAME = "commit-latency-service";
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
-  final Sensor _commitOffsetLatency;
+  private final Sensor _commitOffsetLatency;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
