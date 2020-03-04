@@ -322,62 +322,71 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
 
-      List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-      Collection<Node> brokers = this.getAvailableBrokers();
-      boolean partitionReassigned = false;
-      if (partitionInfoList.size() == 0) {
-        throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
-      }
+        List<TopicPartitionInfo> partitionInfoList = _adminClient
+            .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+        Collection<Node> brokers = this.getAvailableBrokers();
+        boolean partitionReassigned = false;
+        if (partitionInfoList.size() == 0) {
+          throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
+        }
 
-      int currentReplicationFactor = getReplicationFactor(partitionInfoList);
-      int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
+        int currentReplicationFactor = getReplicationFactor(partitionInfoList);
+        int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
 
-      if (_replicationFactor < currentReplicationFactor)
-        LOG.debug("Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
-            _replicationFactor, currentReplicationFactor, _topic);
+        if (_replicationFactor < currentReplicationFactor)
+          LOG.debug(
+              "Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
+              _replicationFactor, currentReplicationFactor, _topic);
 
-      if (expectedReplicationFactor > currentReplicationFactor && !zkClient.reassignPartitionsInProgress()) {
-        LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
-            + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
-        reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-        partitionReassigned = true;
-      }
-
-      // Update the properties of the monitor topic if any config is different from the user-specified config
-      Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
-      Properties expectedProperties = new Properties();
-      for (Object key: currentProperties.keySet())
-        expectedProperties.put(key, currentProperties.get(key));
-      for (Object key: _topicProperties.keySet())
-        expectedProperties.put(key, _topicProperties.get(key));
-
-      if (!currentProperties.equals(expectedProperties)) {
-        LOG.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-            + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
-        zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
-      }
-
-      if (partitionInfoList.size() >= brokers.size() &&
-          someBrokerNotPreferredLeader(partitionInfoList, brokers) && !zkClient.reassignPartitionsInProgress()) {
-        LOG.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
-        reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-        partitionReassigned = true;
-      }
-
-      if (partitionInfoList.size() >= brokers.size() &&
-          someBrokerNotElectedLeader(partitionInfoList, brokers)) {
-        if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
+        if (expectedReplicationFactor > currentReplicationFactor && !zkClient
+            .reassignPartitionsInProgress()) {
           LOG.info(
-              "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
-                  + "cluster.", _topic
-          );
-          triggerPreferredLeaderElection(partitionInfoList, _topic);
-          _preferredLeaderElectionRequested = false;
-        } else {
-          _preferredLeaderElectionRequested = true;
+              "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
+                  + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
+          reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(),
+              expectedReplicationFactor);
+          partitionReassigned = true;
+        }
+
+        // Update the properties of the monitor topic if any config is different from the user-specified config
+        Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
+        Properties expectedProperties = new Properties();
+        for (Object key : currentProperties.keySet())
+          expectedProperties.put(key, currentProperties.get(key));
+        for (Object key : _topicProperties.keySet())
+          expectedProperties.put(key, _topicProperties.get(key));
+
+        if (!currentProperties.equals(expectedProperties)) {
+          LOG.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+              + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
+          zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
+        }
+
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotPreferredLeader(partitionInfoList, brokers) && !zkClient
+            .reassignPartitionsInProgress()) {
+          LOG.info("{} will reassign partitions of the topic {} in cluster.",
+              this.getClass().toString(), _topic);
+          reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(),
+              expectedReplicationFactor);
+          partitionReassigned = true;
+        }
+
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotElectedLeader(partitionInfoList, brokers)) {
+          if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
+            LOG.info(
+                "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
+                    + "cluster.", _topic
+            );
+            triggerPreferredLeaderElection(partitionInfoList, _topic);
+            _preferredLeaderElectionRequested = false;
+          } else {
+            _preferredLeaderElectionRequested = true;
+          }
         }
       }
     }
@@ -387,15 +396,17 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
-
-      if (!zkClient.reassignPartitionsInProgress()) {
-        List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-        LOG.info("MultiClusterTopicManagementService will trigger requested preferred leader election for the"
-            + " topic {} in cluster.", _topic);
-        triggerPreferredLeaderElection(partitionInfoList, _topic);
-        _preferredLeaderElectionRequested = false;
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+        if (!zkClient.reassignPartitionsInProgress()) {
+          List<TopicPartitionInfo> partitionInfoList = _adminClient
+              .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+          LOG.info(
+              "MultiClusterTopicManagementService will trigger requested preferred leader election for the"
+                  + " topic {} in cluster.", _topic);
+          triggerPreferredLeaderElection(partitionInfoList, _topic);
+          _preferredLeaderElectionRequested = false;
+        }
       }
     }
 
