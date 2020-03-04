@@ -221,7 +221,7 @@ public class ConsumeService implements Service {
       } catch (InterruptedException | ExecutionException e) {
         LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture", e);
       }
-      int partitionCount = topicDescription.partitions().size();
+      double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
           new CumulativeSum(partitionCount));

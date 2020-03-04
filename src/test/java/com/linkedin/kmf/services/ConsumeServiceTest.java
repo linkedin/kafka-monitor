@@ -122,7 +122,7 @@ public class ConsumeServiceTest {
     Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, tags)));
 
     /* Should start */
-    consumeService.start();
+    consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
