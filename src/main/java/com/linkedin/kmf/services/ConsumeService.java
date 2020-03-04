@@ -15,6 +15,7 @@ import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,17 +25,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
@@ -51,8 +57,12 @@ public class ConsumeService implements Service {
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private String _topic;
   private String _name;
+  private static final String METRIC_GROUP_NAME = "consume-service";
+  private static Map<String, String> tags;
 
-  public ConsumeService(String name, CompletableFuture<Void> topicPartitionResult, ConsumerFactory consumerFactory)
+  public ConsumeService(String name,
+                        CompletableFuture<Void> topicPartitionResult,
+                        ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
     _baseConsumer = consumerFactory.baseConsumer();
     _latencySlaMs = consumerFactory.latencySlaMs();
@@ -60,15 +70,15 @@ public class ConsumeService implements Service {
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
 
-    topicPartitionResult.thenRun(() -> {
+    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
       reporters.add(new JmxReporter(JMX_PREFIX));
       metrics = new Metrics(metricConfig, reporters, new SystemTime());
-      Map<String, String> tags = new HashMap<>();
+      tags = new HashMap<>();
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
-      _sensors = new ConsumeMetrics(metrics, tags, _topic, topicPartitionResult, _adminClient, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
+      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
@@ -78,7 +88,9 @@ public class ConsumeService implements Service {
         }
       }, name + " consume-service");
       _consumeThread.setDaemon(true);
-    }).get();
+    });
+
+    topicPartitionFuture.get();
   }
 
   private void consume() throws Exception {
@@ -186,11 +198,33 @@ public class ConsumeService implements Service {
     return metrics;
   }
 
+  void startConsumeThreadForTesting() {
+    if (_running.compareAndSet(false, true)) {
+      _consumeThread.start();
+      LOG.info("{}/ConsumeService started.", _name);
+    }
+  }
+
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
       _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
+
+      Sensor topicPartitionCount = metrics.sensor("topic-partitions");
+      DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(_topic));
+      Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
+      KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(_topic);
+      TopicDescription topicDescription = null;
+      try {
+        topicDescription = topicDescriptionKafkaFuture.get();
+      } catch (InterruptedException | ExecutionException e) {
+        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture", e);
+      }
+      int partitionCount = topicDescription.partitions().size();
+      topicPartitionCount.add(
+          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
+          new CumulativeSum(partitionCount));
     }
   }
 

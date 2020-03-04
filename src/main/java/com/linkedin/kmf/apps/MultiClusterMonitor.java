@@ -76,8 +76,8 @@ public class MultiClusterMonitor implements App {
   @Override
   public void start() {
     _multiClusterTopicManagementService.start();
-    CompletableFuture<Void> topicManagementReady = _multiClusterTopicManagementService.topicManagementResult();
-    topicManagementReady.thenRun(() -> {
+    CompletableFuture<Void> topicPartitionResult = _multiClusterTopicManagementService.topicPartitionResult();
+    topicPartitionResult.thenRun(() -> {
       _produceService.start();
       _consumeService.start();
     });
