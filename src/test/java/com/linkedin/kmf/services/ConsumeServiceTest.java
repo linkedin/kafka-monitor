@@ -16,6 +16,7 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -125,7 +126,7 @@ public class ConsumeServiceTest {
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = 1000 * THREAD_START_DELAY;
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
      *  We want to sleep current thread so that consumeService can start running for enough seconds. */
