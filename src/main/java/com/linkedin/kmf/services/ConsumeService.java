@@ -41,8 +41,6 @@ import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.Test;
-
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
@@ -201,8 +199,7 @@ public class ConsumeService implements Service {
     return metrics;
   }
 
-  @Test
-  public synchronized void testStart() {
+  void startConsumeThreadForTesting() {
     if (_running.compareAndSet(false, true)) {
       _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
@@ -225,7 +222,7 @@ public class ConsumeService implements Service {
       } catch (InterruptedException | ExecutionException e) {
         LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture", e);
       }
-      int partitionCount = topicDescription.partitions().size();
+      double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
           new CumulativeSum(partitionCount));

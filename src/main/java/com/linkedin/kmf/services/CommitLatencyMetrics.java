@@ -37,10 +37,7 @@ public class CommitLatencyMetrics {
    * @param metrics the commit offset metrics
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
-  CommitLatencyMetrics(final Metrics metrics,
-                       final Map<String, String> tags,
-                       final int latencyPercentileMaxMs,
-                       final int latencyPercentileGranularityMs) {
+  CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs, int latencyPercentileGranularityMs) {
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, "The maximum latency in ms of committing offset", tags), new Max());
@@ -54,7 +51,7 @@ public class CommitLatencyMetrics {
         new Percentile(new MetricName("commit-offset-latency-ms-99th", METRIC_GROUP_NAME, "The 99th percentile latency of committing offset", tags), 99.0),
         new Percentile(new MetricName("commit-offset-latency-ms-999th", METRIC_GROUP_NAME, "The 99.9th percentile latency of committing offset", tags), 99.9),
         new Percentile(new MetricName("commit-offset-latency-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of committing offset", tags), 99.99)));
-
+    LOG.info("{} was constructed successfully.", this.getClass().getSimpleName());
   }
 
   /**

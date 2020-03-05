@@ -46,20 +46,17 @@ class CommitAvailabilityMetrics {
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
         "The total number of offsets per second that have failed.", tags), new Total());
 
-    Measurable measurable = new Measurable() {
-      @Override
-      public double measure(MetricConfig config, long now) {
-        double offsetsCommittedCount = (double) metrics.metrics()
-            .get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags))
-            .metricValue();
-        double offsetsCommittedErrorCount = (double) metrics.metrics()
-            .get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags))
-            .metricValue();
-        return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
-      }
-    };
-
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
-        measurable);
+      (MetricConfig config, long now) -> {
+        Object offsetCommitTotal = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue();
+        Object offsetCommitFailTotal = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue();
+        if (offsetCommitTotal != null && offsetCommitFailTotal != null) {
+          double offsetsCommittedCount = (double) offsetCommitTotal;
+          double offsetsCommittedErrorCount = (double) offsetCommitFailTotal;
+          return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
+        } else {
+          return 0;
+        }
+      });
   }
 }
