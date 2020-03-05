@@ -205,8 +205,8 @@ public class ConsumeServiceTest {
    * @return consume service metrics
    */
   private Metrics consumeServiceMetrics(ConsumeService consumeService) {
-    Metrics metrics = consumeService.metrics();
     setup();
+    Metrics metrics = consumeService.metrics();
     return metrics;
   }
 
