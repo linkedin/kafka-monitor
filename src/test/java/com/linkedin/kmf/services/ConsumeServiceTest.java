@@ -29,6 +29,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
@@ -200,15 +201,22 @@ public class ConsumeServiceTest {
 
   /**
    * return consume service metrics.
-   * set up the tags for the metrics
    * @param consumeService ConsumeService object
    * @return consume service metrics
    */
   private Metrics consumeServiceMetrics(ConsumeService consumeService) {
     Metrics metrics = consumeService.metrics();
+    setup();
+    return metrics;
+  }
+
+  /**
+   * set up the tags for the metrics
+   */
+  @BeforeMethod
+  public void setup() {
     tags = new HashMap<>();
     tags.put(TAGS_NAME, TAG_NAME_VALUE);
-    return metrics;
   }
 
   /**
