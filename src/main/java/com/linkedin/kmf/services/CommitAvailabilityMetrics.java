@@ -12,7 +12,6 @@ package com.linkedin.kmf.services;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
