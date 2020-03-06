@@ -48,7 +48,7 @@ public class CommitLatencyMetrics {
       throw new IllegalArgumentException("The latency percentile granularity was incorrectly passed a zero value.");
     }
 
-    // 2 extra buckets exist, and they are respectively used for values which are less than 0.0 or larger than max.
+    // 2 extra buckets exist which are respectively designated for values which are less than 0.0 or larger than max.
     int bucketNum = latencyPercentileMaxMs / latencyPercentileGranularityMs + 2;
     int sizeInBytes = bucketNum * 4;
     _commitOffsetLatency.add(new Percentiles(sizeInBytes, latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
@@ -66,7 +66,8 @@ public class CommitLatencyMetrics {
     if (!inProgressCommit) {
       this.setCommitStartTimeMs(System.currentTimeMillis());
       inProgressCommit = true;
-    } else { // inProgressCommit == false;
+    } else {
+      // inProgressCommit is already set to TRUE;
       throw new Exception("Offset commit is already in progress.");
     }
   }
@@ -80,7 +81,8 @@ public class CommitLatencyMetrics {
       long commitStartMs = this.commitStartTimeMs();
       this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
       inProgressCommit = false;
-    } else { // inProgressCommit == false;
+    } else {
+      // inProgressCommit is already set to FALSE;
       LOG.error("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
     }
   }
