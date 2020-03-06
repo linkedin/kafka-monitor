@@ -31,6 +31,7 @@ public class CommitLatencyMetrics {
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
   private final Sensor _commitOffsetLatency;
   private long _commitStartTimeMs;
+  private static boolean inProgressCommit;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
@@ -38,13 +39,16 @@ public class CommitLatencyMetrics {
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
   CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs, int latencyPercentileGranularityMs) {
+    inProgressCommit = false;
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, "The maximum latency in ms of committing offset", tags), new Max());
 
     if (latencyPercentileGranularityMs == 0) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException("The latency percentile granularity was incorrectly passed a zero value.");
     }
+
+    // 2 extra buckets exist, and they are respectively used for values which are less than 0.0 or larger than max.
     int bucketNum = latencyPercentileMaxMs / latencyPercentileGranularityMs + 2;
     int sizeInBytes = bucketNum * 4;
     _commitOffsetLatency.add(new Percentiles(sizeInBytes, latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
@@ -56,18 +60,29 @@ public class CommitLatencyMetrics {
 
   /**
    * start the recording of consumer offset commit
+   * @throws Exception if the offset commit is already in progress.
    */
-  public void recordCommitStart() {
-    this.setCommitStartTimeMs(System.currentTimeMillis());
+  public void recordCommitStart() throws Exception {
+    if (!inProgressCommit) {
+      this.setCommitStartTimeMs(System.currentTimeMillis());
+      inProgressCommit = true;
+    } else { // inProgressCommit == false;
+      throw new Exception("Offset commit is already in progress.");
+    }
   }
 
   /**
    * finish the recording of consumer offset commit
    */
   public void recordCommitComplete() {
-    long commitCompletedMs = System.currentTimeMillis();
-    long commitStartMs = this.commitStartTimeMs();
-    this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
+    if (inProgressCommit) {
+      long commitCompletedMs = System.currentTimeMillis();
+      long commitStartMs = this.commitStartTimeMs();
+      this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
+      inProgressCommit = false;
+    } else { // inProgressCommit == false;
+      LOG.error("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
+    }
   }
 
   /**
