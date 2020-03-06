@@ -30,6 +30,8 @@ public class CommitLatencyMetrics {
   private static final String METRIC_GROUP_NAME = "commit-latency-service";
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
   private final Sensor _commitOffsetLatency;
+  private long _commitStartTimeMs;
+  private volatile boolean _inProgressCommit;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
@@ -37,18 +39,67 @@ public class CommitLatencyMetrics {
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
   CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs, int latencyPercentileGranularityMs) {
+    _inProgressCommit = false;
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, "The maximum latency in ms of committing offset", tags), new Max());
 
+    if (latencyPercentileGranularityMs == 0) {
+      throw new IllegalArgumentException("The latency percentile granularity was incorrectly passed a zero value.");
+    }
+
+    // 2 extra buckets exist which are respectively designated for values which are less than 0.0 or larger than max.
     int bucketNum = latencyPercentileMaxMs / latencyPercentileGranularityMs + 2;
     int sizeInBytes = bucketNum * 4;
     _commitOffsetLatency.add(new Percentiles(sizeInBytes, latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
         new Percentile(new MetricName("commit-offset-latency-ms-99th", METRIC_GROUP_NAME, "The 99th percentile latency of committing offset", tags), 99.0),
         new Percentile(new MetricName("commit-offset-latency-ms-999th", METRIC_GROUP_NAME, "The 99.9th percentile latency of committing offset", tags), 99.9),
         new Percentile(new MetricName("commit-offset-latency-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile latency of committing offset", tags), 99.99)));
-
     LOG.info("{} was constructed successfully.", this.getClass().getSimpleName());
+  }
 
+  /**
+   * start the recording of consumer offset commit
+   * @throws Exception if the offset commit is already in progress.
+   */
+  public void recordCommitStart() throws Exception {
+    if (!_inProgressCommit) {
+      this.setCommitStartTimeMs(System.currentTimeMillis());
+      _inProgressCommit = true;
+    } else {
+      // inProgressCommit is already set to TRUE;
+      throw new Exception("Offset commit is already in progress.");
+    }
+  }
+
+  /**
+   * finish the recording of consumer offset commit
+   */
+  public void recordCommitComplete() {
+    if (_inProgressCommit) {
+      long commitCompletedMs = System.currentTimeMillis();
+      long commitStartMs = this.commitStartTimeMs();
+      this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
+      _inProgressCommit = false;
+    } else {
+      // inProgressCommit is already set to FALSE;
+      LOG.error("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
+    }
+  }
+
+  /**
+   * set in milliseconds the start time of consumer offset commit
+   * @param time commit start time in ms
+   */
+  public void setCommitStartTimeMs(long time) {
+    _commitStartTimeMs = time;
+  }
+
+  /**
+   * retrieve the start time of consumer offset commit
+   * @return _commitStartTimeMs
+   */
+  public long commitStartTimeMs() {
+    return _commitStartTimeMs;
   }
 }

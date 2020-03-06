@@ -50,11 +50,12 @@ public class ConsumeService implements Service {
   private static Metrics metrics;
   private final AtomicBoolean _running;
   private final KMBaseConsumer _baseConsumer;
-  private int _latencySlaMs;
+  private final int _latencySlaMs;
   private ConsumeMetrics _sensors;
   private Thread _consumeThread;
-  private AdminClient _adminClient;
+  private final AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
+  private CommitLatencyMetrics _commitLatencyMetrics;
   private String _topic;
   private String _name;
   private static final String METRIC_GROUP_NAME = "consume-service";
@@ -79,6 +80,7 @@ public class ConsumeService implements Service {
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
       _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
+      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
@@ -125,7 +127,6 @@ public class ConsumeService implements Service {
         continue;
       }
       int partition = record.partition();
-
       /* Commit availability and commit latency service */
       try {
         /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
@@ -137,6 +138,7 @@ public class ConsumeService implements Service {
               _commitAvailabilityMetrics._failedCommitOffsets.record();
             } else {
               _commitAvailabilityMetrics._offsetsCommitted.record();
+              _commitLatencyMetrics.recordCommitComplete();
             }
           }
         };
@@ -144,17 +146,16 @@ public class ConsumeService implements Service {
         /* Current timestamp to perform subtraction*/
         long currTimeMillis = System.currentTimeMillis();
 
-        /* 5 seconds consumer offset commit interval. */
+        /* 4 seconds consumer offset commit interval. */
         long timeDiffMillis = TimeUnit.SECONDS.toMillis(COMMIT_TIME_INTERVAL);
 
         if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
           /* commit the consumer offset asynchronously with a callback. */
           _baseConsumer.commitAsync(commitCallback);
-
+          _commitLatencyMetrics.recordCommitStart();
           /* Record the current time for the committed consumer offset */
           _baseConsumer.updateLastCommit();
         }
-
       } catch (Exception exception) {
         LOG.error("Exception while trying to perform an asynchronous commit.", exception);
         _commitAvailabilityMetrics._failedCommitOffsets.record();

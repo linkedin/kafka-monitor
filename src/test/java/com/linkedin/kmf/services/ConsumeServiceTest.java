@@ -43,7 +43,7 @@ public class ConsumeServiceTest {
   private static final String TAGS_NAME = "name";
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
   /* thread start delay in seconds */
-  private static final long THREAD_START_DELAY = 4;
+  private static final long THREAD_START_DELAY_SECONDS = 4;
   private static final String TAG_NAME_VALUE = "name";
   private static final long MOCK_LAST_COMMITTED_OFFSET = System.currentTimeMillis();
   private static final int PARTITION = 2;
@@ -83,7 +83,7 @@ public class ConsumeServiceTest {
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = 1000 * THREAD_START_DELAY;
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
@@ -112,7 +112,7 @@ public class ConsumeServiceTest {
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY);
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
      *  We want to sleep current thread so that consumeService can start running for enough seconds. */
