@@ -31,7 +31,7 @@ public class CommitLatencyMetrics {
   private static final Logger LOG = LoggerFactory.getLogger(CommitLatencyMetrics.class);
   private final Sensor _commitOffsetLatency;
   private long _commitStartTimeMs;
-  private static boolean inProgressCommit;
+  private volatile boolean _inProgressCommit;
 
   /**
    * Metrics for Calculating the offset commit latency of a consumer.
@@ -39,7 +39,7 @@ public class CommitLatencyMetrics {
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
   CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs, int latencyPercentileGranularityMs) {
-    inProgressCommit = false;
+    _inProgressCommit = false;
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, "The maximum latency in ms of committing offset", tags), new Max());
@@ -63,9 +63,9 @@ public class CommitLatencyMetrics {
    * @throws Exception if the offset commit is already in progress.
    */
   public void recordCommitStart() throws Exception {
-    if (!inProgressCommit) {
+    if (!_inProgressCommit) {
       this.setCommitStartTimeMs(System.currentTimeMillis());
-      inProgressCommit = true;
+      _inProgressCommit = true;
     } else {
       // inProgressCommit is already set to TRUE;
       throw new Exception("Offset commit is already in progress.");
@@ -76,11 +76,11 @@ public class CommitLatencyMetrics {
    * finish the recording of consumer offset commit
    */
   public void recordCommitComplete() {
-    if (inProgressCommit) {
+    if (_inProgressCommit) {
       long commitCompletedMs = System.currentTimeMillis();
       long commitStartMs = this.commitStartTimeMs();
       this._commitOffsetLatency.record(commitCompletedMs - commitStartMs);
-      inProgressCommit = false;
+      _inProgressCommit = false;
     } else {
       // inProgressCommit is already set to FALSE;
       LOG.error("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
