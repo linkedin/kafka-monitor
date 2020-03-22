@@ -336,7 +336,11 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=commit-availability-service,name=*:offsets-committed-avg",
       "kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-total",
       "kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-avg",
-      "kmf.services:type=commit-availability-service,name=*:commit-latency-avg"
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-avg",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-max",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-99th",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-999th",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th"
     );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
