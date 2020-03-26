@@ -31,7 +31,7 @@ public class StatsdMetricsReporterService implements Service {
   private final String _name;
   private final List<String> _metricNames;
   private final int _reportIntervalSec;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   private final StatsDClient _statsdClient;
 
   public StatsdMetricsReporterService(Map<String, Object> props, String name) {
@@ -40,7 +40,6 @@ public class StatsdMetricsReporterService implements Service {
     _name = name;
     _metricNames = config.getList(StatsdMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(StatsdMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _statsdClient = new NonBlockingStatsDClient(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX),
             config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
             config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
@@ -48,6 +47,8 @@ public class StatsdMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
+    _executor = Executors.newSingleThreadScheduledExecutor();
+
     _executor.scheduleAtFixedRate(() -> {
       try {
         reportMetrics();

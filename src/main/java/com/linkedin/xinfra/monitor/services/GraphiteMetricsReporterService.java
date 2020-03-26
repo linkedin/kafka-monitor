@@ -33,7 +33,7 @@ public class GraphiteMetricsReporterService implements Service {
   private final String _name;
   private final List<String> _metricNames;
   private final int _reportIntervalSec;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   private final GraphiteClient _graphiteClient;
   private final String _metricNamePrefix;
 
@@ -43,7 +43,6 @@ public class GraphiteMetricsReporterService implements Service {
     GraphiteMetricsReporterServiceConfig config = new GraphiteMetricsReporterServiceConfig(props);
     _metricNames = config.getList(GraphiteMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(GraphiteMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _metricNamePrefix = config.getString(GraphiteMetricsReporterServiceConfig.REPORT_GRAPHITE_PREFIX);
     _graphiteClient = GraphiteClientFactory.defaultGraphiteClient(
         config.getString(GraphiteMetricsReporterServiceConfig.REPORT_GRAPHITE_HOST),
@@ -52,6 +51,8 @@ public class GraphiteMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
+    _executor = Executors.newSingleThreadScheduledExecutor();
+
     _executor.scheduleAtFixedRate(new Runnable() {
       @Override
       public void run() {
