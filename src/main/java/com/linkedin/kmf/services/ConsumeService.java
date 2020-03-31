@@ -236,12 +236,7 @@ public class ConsumeService implements Service {
   @Override
   public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
-      try {
-        _running.set(false);
-      } catch (Exception e) {
-        LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
-      }
-      LOG.info("{}/ConsumeService stopped.", _name);
+      LOG.info("{}/ConsumeService _running set to FALSE.", _name);
     }
   }
 
