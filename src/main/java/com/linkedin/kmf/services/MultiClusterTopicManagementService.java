@@ -314,8 +314,7 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
-      Set<Node> brokers = new HashSet<>();
-      brokers.addAll(_adminClient.describeCluster().nodes().get());
+      Set<Node> brokers = new HashSet<>(_adminClient.describeCluster().nodes().get());
       Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
       return brokers;
