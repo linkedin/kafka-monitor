@@ -15,11 +15,9 @@
 package com.linkedin.kmf.services.configs;
 
 import java.util.Collections;
+import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-
-import java.util.Arrays;
-import java.util.Map;
 
 public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
   private static final ConfigDef CONFIG;
