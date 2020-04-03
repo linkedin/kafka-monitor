@@ -184,7 +184,7 @@ public class ConsumeService implements Service {
         nextIndexes.put(partition, index + 1);
         long numLostRecords = index - nextIndex;
         _sensors._recordsLost.record(numLostRecords);
-        LOG.info("_recordsLost recorded: Avro record current index: {} at {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
+        LOG.info("_recordsLost recorded: Avro record current index: {} at timestamp {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
       }
     }
     /* end of consume() while loop */
