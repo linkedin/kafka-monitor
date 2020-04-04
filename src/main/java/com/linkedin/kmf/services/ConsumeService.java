@@ -61,6 +61,21 @@ public class ConsumeService implements Service {
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static Map<String, String> tags;
 
+  /**
+   * Mainly contains services for three metrics:
+   * 1 - ConsumeAvailability metrics
+   * 2 - CommitOffsetAvailability metrics
+   *   2.1 - commitAvailabilityMetrics records offsets committed upon success. that is, no exception upon callback
+   *   2.2 - commitAvailabilityMetrics records offsets commit fail upon failure. that is, exception upon callback
+   * 3 - CommitOffsetLatency metrics
+   *   3.1 - commitLatencyMetrics records the latency between last successful callback and start of last recorded commit.
+   *
+   * @param name Name of the Monitor instance
+   * @param topicPartitionResult The completable future for topic partition
+   * @param consumerFactory Consumer Factory object.
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
   public ConsumeService(String name,
                         CompletableFuture<Void> topicPartitionResult,
                         ConsumerFactory consumerFactory)
