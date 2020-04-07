@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{
+  private static final String[] NON_OVERRIDABLE_PROPERTIES = new String[]{
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
   };
@@ -108,7 +108,7 @@ public class ProduceService implements Service {
     _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)
       ? (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
 
-    for (String property: NONOVERRIDABLE_PROPERTIES) {
+    for (String property: NON_OVERRIDABLE_PROPERTIES) {
       if (_producerPropsOverride.containsKey(property)) {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
