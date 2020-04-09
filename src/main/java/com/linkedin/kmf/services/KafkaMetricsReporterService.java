@@ -40,7 +40,7 @@ public class KafkaMetricsReporterService implements Service {
   private final String _topic;
   private final ObjectMapper _parser = new ObjectMapper();
 
-  public KafkaMetricsReporterService(Map<String, Object> props, String name, AdminClient adminClient) throws Exception {
+  public KafkaMetricsReporterService(Map<String, Object> props, String name) throws Exception {
     _name = name;
     KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(props);
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
@@ -49,14 +49,6 @@ public class KafkaMetricsReporterService implements Service {
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     initializeProducer();
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
-    Utils.createTopicIfNotExists(
-        _topic,
-        config.getShort(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
-        0, // parameter is set to 0 here since no matter the number of nodes, the topic partition number should be set to zero.
-        1, // fixed partition count 1
-        new Properties(),
-        adminClient
-    );
   }
 
   @Override
