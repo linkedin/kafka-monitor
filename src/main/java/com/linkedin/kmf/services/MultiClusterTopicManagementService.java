@@ -37,10 +37,12 @@ import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
-import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
+import org.apache.kafka.clients.admin.ElectLeadersOptions;
+import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
@@ -69,6 +71,7 @@ import scala.collection.Seq;
  * - Make sure the number of partitions of the monitor topic is same across all monitored clusters.
  *
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class MultiClusterTopicManagementService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
@@ -415,9 +418,13 @@ public class MultiClusterTopicManagementService implements Service {
       for (TopicPartitionInfo javaPartitionInfo : partitionInfoList) {
         partitions.add(new TopicPartition(partitionTopic, javaPartitionInfo.partition()));
       }
-      ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
-      LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
+      ElectLeadersOptions newOptions = new ElectLeadersOptions();
+      newOptions.timeoutMs(new ElectLeadersOptions().timeoutMs());
+      Set<TopicPartition> topicPartitions = new HashSet<>(partitions);
+      ElectLeadersResult electLeadersResult = _adminClient.electLeaders(ElectionType.PREFERRED, topicPartitions, newOptions);
+
+      LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electLeadersResult.all().get());
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Node> brokers, String topic, int partitionCount, int replicationFactor) {
