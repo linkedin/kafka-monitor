@@ -32,6 +32,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.json.JSONObject;
@@ -93,17 +94,24 @@ public class Utils {
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
       try {
         NewTopic newTopic = new NewTopic(topic, partitionCount, replicationFactor);
+        //noinspection rawtypes
         newTopic.configs((Map) topicConfig);
+        @SuppressWarnings("rawtypes")
         List topics = new ArrayList<NewTopic>();
         topics.add(newTopic);
-        adminClient.createTopics(topics);
+        CreateTopicsResult createTopicsResult = adminClient.createTopics(topics);
+        createTopicsResult.all().get();
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
         LOG.debug("Monitoring topic " + topic + " already exists in the cluster.", e);
         return getPartitionNumForTopic(adminClient, topic);
       }
+      Object minISR = topicConfig.containsKey(KafkaConfig.MinInSyncReplicasProp());
+      if (minISR == null) {
+        minISR = -1;
+      }
       LOG.info("Created monitoring topic " + topic + " in cluster with " + partitionCount + " partitions, min ISR of "
-        + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+          + minISR + " and replication factor of " + replicationFactor + ".");
 
       return partitionCount;
     } finally {
