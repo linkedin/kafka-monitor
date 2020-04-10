@@ -420,9 +420,9 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       ElectLeadersOptions newOptions = new ElectLeadersOptions();
-      newOptions.timeoutMs(new ElectLeadersOptions().timeoutMs());
+      ElectionType electionType = ElectionType.PREFERRED;
       Set<TopicPartition> topicPartitions = new HashSet<>(partitions);
-      ElectLeadersResult electLeadersResult = _adminClient.electLeaders(ElectionType.PREFERRED, topicPartitions, newOptions);
+      ElectLeadersResult electLeadersResult = _adminClient.electLeaders(electionType, topicPartitions, newOptions);
 
       LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electLeadersResult.all().get());
     }
