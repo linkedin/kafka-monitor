@@ -95,8 +95,8 @@ public class Utils {
         NewTopic newTopic = new NewTopic(topic, partitionCount, replicationFactor);
         //noinspection rawtypes
         newTopic.configs((Map) topicConfig);
-        @SuppressWarnings("rawtypes")
-        List topics = new ArrayList<NewTopic>();
+
+        List<NewTopic> topics = new ArrayList<>();
         topics.add(newTopic);
         adminClient.createTopics(topics);
       } catch (TopicExistsException e) {
