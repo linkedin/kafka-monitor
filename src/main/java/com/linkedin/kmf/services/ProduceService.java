@@ -395,9 +395,9 @@ public class ProduceService implements Service {
         initializeStateForPartitions(currentPartitionNum);
         LOG.info("New partitions added to monitoring.");
       } catch (InterruptedException e) {
-        LOG.error("InterruptedException occurred {}.", e);
+        LOG.error("InterruptedException occurred.", e);
       } catch (ExecutionException e) {
-        LOG.error("ExecutionException occurred {}.", e);
+        LOG.error("ExecutionException occurred.", e);
       }
     }
   }
