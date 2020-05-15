@@ -237,7 +237,7 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
     private final List _bootstrapServers;
-    private final AdminClient _adminClient;
+    AdminClient _adminClient;
 
 
     @SuppressWarnings("unchecked")
@@ -276,6 +276,9 @@ public class MultiClusterTopicManagementService implements Service {
         NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
         newTopic.configs((Map) _topicProperties);
         CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singletonList(newTopic));
+
+        // waits for this topic creation future to complete, and then returns its result.
+        createTopicsResult.values().get(_topic).get();
         LOGGER.info("CreateTopicsResult: {}.", createTopicsResult.values());
       }
     }
@@ -289,28 +292,11 @@ public class MultiClusterTopicManagementService implements Service {
       return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }
 
-    private List<TopicPartitionInfo> topicPartitionsWithRetry(KafkaFuture<TopicDescription> topicDescriptionKafkaFuture)
-        throws InterruptedException {
-      while (true) {
-        boolean processedSuccessfully = true;
-        long sleepTime = TimeUnit.SECONDS.toMillis(2);
-        do {
-          try {
-            return topicDescriptionKafkaFuture.get().partitions();
-          } catch (Exception exception) {
-            Thread.sleep(sleepTime);
-            processedSuccessfully = false;
-            LOGGER.warn("KafkaFuture failure. Will try once again.", exception);
-          }
-        } while (!processedSuccessfully);
-      }
-    }
-
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
-      Collection<String> topicNames = _adminClient.listTopics().names().get();
-      Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = _adminClient.describeTopics(topicNames).values();
+      Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap =
+          _adminClient.describeTopics(Collections.singleton(_topic)).values();
       KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
-      List<TopicPartitionInfo> partitions = topicPartitionsWithRetry(topicDescriptions);
+      List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
 
       int partitionNum = partitions.size();
       if (partitionNum < minPartitionNum) {
