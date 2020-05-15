@@ -217,12 +217,14 @@ public class MultiClusterTopicManagementService implements Service {
       } catch (Throwable t) {
         /* Need to catch throwable because there is scala API that can throw NoSuchMethodError in runtime
          and such error is not caught by compilation. */
-        LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
+        LOG.error(_serviceName
+            + "/MultiClusterTopicManagementService/PreferredLeaderElectionRunnable will stop due to an error.", t);
         stop();
       }
     }
   }
 
+  @SuppressWarnings("FieldCanBeLocal")
   static class TopicManagementHelper {
     private final boolean _topicCreationEnabled;
     private final String _topic;
@@ -233,8 +235,8 @@ public class MultiClusterTopicManagementService implements Service {
     private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private int _requestTimeoutMs;
-    private List _bootstrapServers;
+    private final int _requestTimeoutMs;
+    private final List _bootstrapServers;
     private final AdminClient _adminClient;
 
 
