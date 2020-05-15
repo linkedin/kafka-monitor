@@ -7,7 +7,7 @@ jobs: # a collection of steps
       - image: circleci/openjdk:8-jdk-stretch # with this image as the primary container; this is where all `steps` will run.
 
     steps:
-      - # TODO (andrewchoi5)
+      # TODO: populate the necessary steps for CircleCI
       - run: echo "Kafka Monitor CircleCI on GitHub"
 
       # See https://circleci.com/docs/2.0/deployment-integrations/ for deploy examples
