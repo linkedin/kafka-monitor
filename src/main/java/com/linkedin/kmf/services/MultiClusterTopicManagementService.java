@@ -165,7 +165,7 @@ public class MultiClusterTopicManagementService implements Service {
         }
 
         /*
-         * The partition number of the monitor topics should be the minimum partition number that satisifies the following conditions:
+         * The partition number of the monitor topics should be the minimum partition number that satisfies the following conditions:
          * - partition number of the monitor topics across all monitored clusters should be the same
          * - partitionNum / brokerNum >= user-configured partitionsToBrokersRatio.
          * - partitionNum >= user-configured minPartitionNum
