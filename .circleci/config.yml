@@ -1,8 +1,13 @@
-version: 2.1
-jobs:
-  build:
-    docker: 
-      - image: circleci/node:4.8.2 # the primary container, where your job's commands are run
+version: 2  # use CircleCI 2.0
+
+jobs: # a collection of steps
+  build: # runs not using Workflows must have a `build` job as entry point
+
+    docker: # run the steps with Docker
+      - image: circleci/openjdk:8-jdk-stretch # with this image as the primary container; this is where all `steps` will run.
+
     steps:
-      - checkout # check out the code in the project directory
-      - run: echo "Kafka Monitor CircleCI"
+      # TODO: populate the necessary steps for CircleCI
+      - run: echo "Kafka Monitor CircleCI on GitHub"
+
+      # See https://circleci.com/docs/2.0/deployment-integrations/ for deploy examples
