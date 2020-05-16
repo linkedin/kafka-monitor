@@ -331,6 +331,9 @@ public class MultiClusterTopicManagementService implements Service {
      * @throws ExecutionException when attempting to retrieve the result of a task that aborted by throwing an exception.
      */
     int numPartitions() throws InterruptedException, ExecutionException {
+
+      // TODO (andrewchoi5): connect this to unit testing method for testing maybeAddPartitions!
+
       return _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get().partitions().size();
     }
 
