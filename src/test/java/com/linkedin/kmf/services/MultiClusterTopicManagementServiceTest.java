@@ -10,58 +10,111 @@
 
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.consumer.KMBaseConsumer;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.Node;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
+@SuppressWarnings("unchecked")
 @Test
 public class MultiClusterTopicManagementServiceTest {
+  private static final String TOPIC = "xinfra-monitor-MultiClusterTopicManagementServiceTest-topic";
+  private static Set<Node> nodeSet;
+  private MultiClusterTopicManagementService.TopicManagementHelper _topicManagementHelper;
+  private CreateTopicsResult _createTopicsResult;
+  private Map<String, KafkaFuture<Void>> _kafkaFutureMap;
+  private KafkaFuture<Void> _kafkaFuture;
 
   @BeforeMethod
   private void start() {
+    _createTopicsResult = Mockito.mock(CreateTopicsResult.class);
+    _kafkaFutureMap = Mockito.mock(Map.class);
+    _kafkaFuture = Mockito.mock(KafkaFuture.class);
 
-    ConsumerFactory consumerFactory = Mockito.mock(ConsumerFactory.class);
-    AdminClient adminClient = Mockito.mock(AdminClient.class);
-    KMBaseConsumer kmBaseConsumer = Mockito.mock(KMBaseConsumer.class);
+    nodeSet = new HashSet<>();
+    nodeSet.add(new Node(1, "host-1", 2132));
+    nodeSet.add(new Node(2, "host-2", 2133));
+    nodeSet.add(new Node(3, "host-3", 2134));
 
-    Mockito.when(consumerFactory.adminClient()).thenReturn(adminClient);
-    Mockito.when(consumerFactory.latencySlaMs()).thenReturn(20000);
-    Mockito.when(consumerFactory.baseConsumer()).thenReturn(kmBaseConsumer);
-    Mockito.when(consumerFactory.topic()).thenReturn("fdasl");
-
-    /* LATENCY_PERCENTILE_MAX_MS_CONFIG, */
-    Mockito.when(consumerFactory.latencyPercentileMaxMs()).thenReturn(5000);
-  }
-
-  @Test
-  private void topicPartitionsWithRetryTest() throws Exception {
-    MultiClusterTopicManagementService multiClusterTopicManagementService =
-        Mockito.mock(MultiClusterTopicManagementService.class);
-    AdminClient adminClient = Mockito.mock(AdminClient.class);
-
-    //   new MultiClusterTopicManagementService(Mockito.mock(Map.class), "multi-cluster-topic-management-service-test");
-
-    Map properties = new HashMap<>();
-
-    MultiClusterTopicManagementService.TopicManagementHelper topicManagementHelper =
-        Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
-//        new MultiClusterTopicManagementService.TopicManagementHelper(properties);
-    topicManagementHelper._adminClient = adminClient;
-
-    Assert.assertEquals(topicManagementHelper.numPartitions(), 0);
-    topicManagementHelper.maybeAddPartitions(5);
-    Assert.assertEquals(topicManagementHelper.numPartitions(), 5);
+    _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
+    _topicManagementHelper._topic = TOPIC;
+    _topicManagementHelper._adminClient = Mockito.mock(AdminClient.class);
+    _topicManagementHelper._topicCreationEnabled = true;
   }
 
   @AfterMethod
   private void finish() {
+    System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
+  }
 
+  @Test
+  protected void topicCreationTest() throws Exception {
+
+    Mockito.doCallRealMethod().when(_topicManagementHelper).maybeCreateTopic();
+
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster())
+        .thenReturn(Mockito.mock(DescribeClusterResult.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes())
+        .thenReturn(Mockito.mock(KafkaFuture.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes().get()).thenReturn(nodeSet);
+
+    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()))
+        .thenReturn(_createTopicsResult);
+    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()).values())
+        .thenReturn(_kafkaFutureMap);
+    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()).values().get(TOPIC))
+        .thenReturn(_kafkaFuture);
+    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()).values().get(TOPIC).get())
+        .thenAnswer(new Answer<Object>() {
+          /**
+           * @param invocation the invocation on the mocked TopicManagementHelper.
+           * @return NULL value
+           * @throws Throwable the throwable to be thrown when Exception occurs.
+           */
+          @Override
+          public Void answer(InvocationOnMock invocation) throws Throwable {
+            Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC)))
+                .thenReturn(Mockito.mock(DescribeTopicsResult.class));
+            Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC)).values())
+                .thenReturn(Mockito.mock(Map.class));
+            Mockito.when(
+                _topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC)).values().get(TOPIC))
+                .thenReturn(Mockito.mock(KafkaFuture.class));
+            Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC))
+                .values()
+                .get(TOPIC)
+                .get()).thenReturn(Mockito.mock(TopicDescription.class));
+            Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC))
+                .values()
+                .get(TOPIC)
+                .get()
+                .name()).thenReturn(TOPIC);
+            return null;
+          }
+        });
+    _topicManagementHelper.maybeCreateTopic();
+
+    Assert.assertNotNull(
+        _topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC)).values().get(TOPIC).get());
+    Assert.assertEquals(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(TOPIC))
+        .values()
+        .get(TOPIC)
+        .get()
+        .name(), TOPIC);
   }
 }

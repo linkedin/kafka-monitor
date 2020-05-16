@@ -226,8 +226,6 @@ public class MultiClusterTopicManagementService implements Service {
 
   @SuppressWarnings("FieldCanBeLocal")
   static class TopicManagementHelper {
-    private final boolean _topicCreationEnabled;
-    private final String _topic;
     private final String _zkConnect;
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
@@ -237,7 +235,11 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
     private final List _bootstrapServers;
+
+    // package private for unit testing
+    boolean _topicCreationEnabled;
     AdminClient _adminClient;
+    String _topic;
 
 
     @SuppressWarnings("unchecked")
