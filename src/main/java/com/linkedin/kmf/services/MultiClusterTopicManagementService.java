@@ -226,8 +226,6 @@ public class MultiClusterTopicManagementService implements Service {
 
   @SuppressWarnings("FieldCanBeLocal")
   static class TopicManagementHelper {
-    private final boolean _topicCreationEnabled;
-    private final String _topic;
     private final String _zkConnect;
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
@@ -237,7 +235,11 @@ public class MultiClusterTopicManagementService implements Service {
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
     private final List _bootstrapServers;
+
+    // package private for unit testing
+    boolean _topicCreationEnabled;
     AdminClient _adminClient;
+    String _topic;
 
 
     @SuppressWarnings("unchecked")
@@ -321,6 +323,20 @@ public class MultiClusterTopicManagementService implements Service {
         _adminClient.createPartitions(newPartitionsMap);
       }
     }
+
+    /**
+     * Exposed package-private access for testing. Get the total number of partitions for a Kafka topic.
+     * @return total number of topic partitions
+     * @throws InterruptedException when a thread is waiting, sleeping and the thread is interrupted, either before / during the activity.
+     * @throws ExecutionException when attempting to retrieve the result of a task that aborted by throwing an exception.
+     */
+    int numPartitions() throws InterruptedException, ExecutionException {
+
+      // TODO (andrewchoi5): connect this to unit testing method for testing maybeAddPartitions!
+
+      return _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get().partitions().size();
+    }
+
 
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
       Set<Node> brokers = new HashSet<>(_adminClient.describeCluster().nodes().get());
