@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
+import kafka.controller.ReplicaAssignment;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -41,6 +42,7 @@ import org.apache.kafka.clients.admin.ElectLeadersOptions;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.PartitionReassignment;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaException;
@@ -346,8 +348,8 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
 
         List<TopicPartitionInfo> partitionInfoList = _adminClient
             .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -420,8 +422,8 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
         if (!zkClient.reassignPartitionsInProgress()) {
           List<TopicPartitionInfo> partitionInfoList = _adminClient
               .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -466,7 +468,8 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
+      scala.collection.Map<Object, ReplicaAssignment>
+          currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
       String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
       String newAssignmentJson = formatAsReassignmentJson(topic, assignedReplicas);
 
@@ -525,12 +528,12 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToBeReassigned) {
+    private static String formatAsReassignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
       StringBuilder bldr = new StringBuilder();
       bldr.append("{\"version\":1,\"partitions\":[\n");
       for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
         bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
-        scala.collection.Seq<Object> replicas = partitionsToBeReassigned.apply(partition);
+        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
         for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
           Object replica = replicas.apply(replicaIndex);
           bldr.append(replica).append(",");

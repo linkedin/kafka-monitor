@@ -81,7 +81,9 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       props.forEach(consumerProps::putIfAbsent);
     }
 
-    _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
+        .getConstructor(String.class, Properties.class, AdminClient.class)
+        .newInstance(_topic, consumerProps, adminClient());
 
   }
 
