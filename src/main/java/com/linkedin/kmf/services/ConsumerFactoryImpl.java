@@ -28,16 +28,17 @@ import org.slf4j.LoggerFactory;
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
   private final KMBaseConsumer _baseConsumer;
-  private String _topic;
+  private final String _topic;
   private static final String FALSE = "false";
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private static final String[] NON_OVERRIDABLE_PROPERTIES =
       new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
-  private int _latencySlaMs;
+  private final int _latencySlaMs;
   private static AdminClient adminClient;
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
 
+  @SuppressWarnings("rawtypes")
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
     LOG.info("Creating AdminClient.");
     adminClient = AdminClient.create(props);
