@@ -61,7 +61,7 @@ public class NewConsumer implements KMBaseConsumer {
     // TODO: use long hash = UUID.nameUUIDFromBytes(s.getBytes()).getMostSignificantBits() ?
     // TODO: MessageDigest digest = MessageDigest.getInstance("SHA-256");
     // TODO: byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
-    return Utils.murmur2(groupId.getBytes()) % (consumerOffsetsTopicPartitions);
+    return Utils.murmur2(groupId.getBytes()) % consumerOffsetsTopicPartitions;
   }
 
   /**
@@ -81,13 +81,15 @@ public class NewConsumer implements KMBaseConsumer {
         .size();
 
     String consumerGroupPrefix = "__shadow_group";
-    int counter = 0;
-    String groupId = "";
-    while (groupIdHelper(consumerGroupPrefix + counter, numConsumerOffsetsTopicPartitions) != groupIdHelper(groupId,
+    int suffix = 0;
+
+    // TODO: populate desired consumer group identifer.
+    String groupId = "WANTED_CONSUMER_GROUP_ID";
+    while (groupIdHelper(consumerGroupPrefix + suffix, numConsumerOffsetsTopicPartitions) != groupIdHelper(groupId,
         numConsumerOffsetsTopicPartitions)) {
-      counter++;
+      suffix++;
     }
-    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupPrefix + suffix);
   }
 
   @Override

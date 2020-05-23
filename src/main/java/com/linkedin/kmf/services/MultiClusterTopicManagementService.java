@@ -42,7 +42,6 @@ import org.apache.kafka.clients.admin.ElectLeadersOptions;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.admin.PartitionReassignment;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaException;
@@ -471,7 +470,7 @@ public class MultiClusterTopicManagementService implements Service {
       scala.collection.Map<Object, ReplicaAssignment>
           currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
       String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
-      String newAssignmentJson = formatAsReassignmentJson(topic, assignedReplicas);
+      String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
       LOGGER.info("Reassign partitions for topic " + topic);
       LOGGER.info("Current partition replica assignment " + currentAssignmentJson);
@@ -534,8 +533,8 @@ public class MultiClusterTopicManagementService implements Service {
       for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
         bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
         ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
-        for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
-          Object replica = replicas.apply(replicaIndex);
+        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
+          Object replica = replicas.replicas().apply(replicaIndex);
           bldr.append(replica).append(",");
         }
         bldr.setLength(bldr.length() - 1);
@@ -545,5 +544,38 @@ public class MultiClusterTopicManagementService implements Service {
       bldr.append("]}");
       return bldr.toString();
     }
+
+    /**
+     * @param topic Kafka topic
+     * @param partitionsToReassign a map from partition (int) to new replica list (int seq)
+     *
+     * @return a json string with the same format as output of kafka.utils.ZkUtils.formatAsReassignmentJson
+     *
+     * Example:
+     * <pre>
+     *   {"version":1,"partitions":[
+     *     {"topic":"kmf-topic","partition":1,"replicas":[0,1]},
+     *     {"topic":"kmf-topic","partition":2,"replicas":[1,2]},
+     *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
+     * </pre>
+     */
+    private static String formatAsNewReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToReassign) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{\"version\":1,\"partitions\":[\n");
+      for (int partition = 0; partition < partitionsToReassign.size(); partition++) {
+        builder.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+        Seq<Object> replicas = partitionsToReassign.apply(partition);
+        for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
+          Object replica = replicas.apply(replicaIndex);
+          builder.append(replica).append(",");
+        }
+        builder.setLength(builder.length() - 1);
+        builder.append("]},\n");
+      }
+      builder.setLength(builder.length() - 2);
+      builder.append("]}");
+      return builder.toString();
+    }
+
   }
 }

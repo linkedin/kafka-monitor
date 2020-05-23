@@ -42,8 +42,6 @@ public class TopicManagementServiceTest {
 
   @Test
   public void noDetection() {
-    String test = "sdlkfj" + 1;
-    System.out.println(test);
     List<TopicPartitionInfo> partitions = new ArrayList<>();
     Node[] node = nodes(2);
     partitions.add(new TopicPartitionInfo(0, node[0], new ArrayList<>(Arrays.asList(node[0], node[1])), new ArrayList<>()));
