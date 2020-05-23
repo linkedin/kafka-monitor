@@ -214,7 +214,7 @@ public class ConsumeService implements Service {
     /* end of consume() while loop */
   }
 
-  protected Metrics metrics() {
+  Metrics metrics() {
     return metrics;
   }
 

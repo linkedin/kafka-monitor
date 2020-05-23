@@ -469,7 +469,7 @@ public class MultiClusterTopicManagementService implements Service {
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
       scala.collection.Map<Object, ReplicaAssignment>
           currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-      String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
+      String currentAssignmentJson = formatAsOldAssignmentJson(topic, currentAssignment);
       String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
       LOGGER.info("Reassign partitions for topic " + topic);
@@ -527,7 +527,7 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsReassignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
+    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
       StringBuilder bldr = new StringBuilder();
       bldr.append("{\"version\":1,\"partitions\":[\n");
       for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
