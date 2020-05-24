@@ -29,13 +29,16 @@ import org.testng.annotations.Test;
 
 @Test
 public class NewConsumerTest {
+  private static final int NUM_OFFSETS_TOPIC_PARTITIONS = 5;
 
   @BeforeMethod
   public void beforeMethod() {
+    System.out.println("Running beforeMethod of " + this.getClass());
   }
 
   @AfterMethod
   public void afterMethod() {
+    System.out.println("Finished running testConsumerGroupCoordinatorHashing() of " + this.getClass());
   }
 
   @SuppressWarnings("unchecked")
@@ -76,7 +79,7 @@ public class NewConsumerTest {
         .get(Topic.GROUP_METADATA_TOPIC_NAME)
         .get()
         .partitions()
-        .size()).thenReturn(5);
+        .size()).thenReturn(NUM_OFFSETS_TOPIC_PARTITIONS);
 
     newConsumer._targetConsumerGroupId = "target-group-id";
     newConsumer._consumerGroupPrefix = "__shadow_consumer_group-";
@@ -85,8 +88,10 @@ public class NewConsumerTest {
     System.out.println("Consumer properties after configuration: " + consumerProperties);
     Assert.assertNotNull(consumerProperties.get("group.id"));
 
-    int hashedResult = newConsumer.consumerGroupCoordinatorHasher(consumerProperties.get("group.id").toString(), 5);
-    int hashedResult2 = newConsumer.consumerGroupCoordinatorHasher(newConsumer._targetConsumerGroupId, 5);
+    int hashedResult = newConsumer.consumerGroupCoordinatorHasher(consumerProperties.get("group.id").toString(),
+        NUM_OFFSETS_TOPIC_PARTITIONS);
+    int hashedResult2 = newConsumer.consumerGroupCoordinatorHasher(newConsumer._targetConsumerGroupId,
+        NUM_OFFSETS_TOPIC_PARTITIONS);
     System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult));
     System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult2));
     Assert.assertEquals(hashedResult, hashedResult2);
