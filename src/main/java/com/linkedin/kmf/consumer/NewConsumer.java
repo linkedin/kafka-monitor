@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Wraps around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
+ * Wraps around the new consumer from Apache Kafka and implements the #KMBaseConsumer interface
  */
 public class NewConsumer implements KMBaseConsumer {
 
@@ -38,29 +38,41 @@ public class NewConsumer implements KMBaseConsumer {
   private Iterator<ConsumerRecord<String, String>> _recordIter;
   private static final Logger LOGGER = LoggerFactory.getLogger(NewConsumer.class);
   private static long lastCommitted;
+  protected String _targetConsumerGroupId;
+  protected String _consumerGroupPrefix = "__shadow_consumer_group-";
+  protected int _consumerGroupSuffixCandidate = 0;
 
   public NewConsumer(String topic, Properties consumerProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
-    LOGGER.info("{} is being instantiated in the constructor..", this.getClass());
-    this.configureGroupId(consumerProperties, adminClient);
+    LOGGER.info("{} is being instantiated in the constructor..", this.getClass().getSimpleName());
+
+    NewConsumerConfig newConsumerConfig = new NewConsumerConfig(consumerProperties);
+    _targetConsumerGroupId = newConsumerConfig.getString(NewConsumerConfig.TARGET_CONSUMER_GROUP_ID_CONFIG);
+
+    if (_targetConsumerGroupId != null) {
+      this.configureGroupId(consumerProperties, adminClient);
+    }
     _consumer = new KafkaConsumer<>(consumerProperties);
     _consumer.subscribe(Collections.singletonList(topic));
   }
 
   /**
    * https://docs.confluent.io/current/clients/producer.html
-   * https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java#L69
    * The partitioner will hash the key with murmur2 algorithm
    * and divide it by the number of partitions.
    * The result is that the same key is always assigned to the same partition.
+   * https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java#L69
    * @param groupId kafka consumer group ID
    * @param consumerOffsetsTopicPartitions number of partitions in the __consumer_offsets topic.
-   * @return hashed integer
+   * @return hashed integer which represents a number, the Math.abs value of which is the broker
+   * ID of the group coordinator, or the leader of the offsets topic partition.
    */
-  protected int groupIdHelper(String groupId, int consumerOffsetsTopicPartitions) {
+  protected int consumerGroupCoordinatorHasher(String groupId, int consumerOffsetsTopicPartitions) {
     // TODO: use long hash = UUID.nameUUIDFromBytes(s.getBytes()).getMostSignificantBits() ?
     // TODO: MessageDigest digest = MessageDigest.getInstance("SHA-256");
     // TODO: byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
+
+    LOGGER.debug("Hashed and modulo output: {}", Utils.murmur2(groupId.getBytes()));
     return Utils.murmur2(groupId.getBytes()) % consumerOffsetsTopicPartitions;
   }
 
@@ -72,24 +84,22 @@ public class NewConsumer implements KMBaseConsumer {
    */
   protected void configureGroupId(Properties consumerProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
-    String consumerOffsetsTopic = Topic.GROUP_METADATA_TOPIC_NAME;
-    int numConsumerOffsetsTopicPartitions = adminClient.describeTopics(Collections.singleton(consumerOffsetsTopic))
+    if (_targetConsumerGroupId.equals("")) {
+      throw new IllegalArgumentException("The target consumer group identifier cannot be empty: " + _targetConsumerGroupId);
+    }
+
+    int numOffsetsTopicPartitions = adminClient.describeTopics(Collections.singleton(Topic.GROUP_METADATA_TOPIC_NAME))
         .values()
-        .get(consumerOffsetsTopic)
+        .get(Topic.GROUP_METADATA_TOPIC_NAME)
         .get()
         .partitions()
         .size();
 
-    String consumerGroupPrefix = "__shadow_group";
-    int suffix = 0;
-
-    // TODO: populate desired consumer group identifer.
-    String groupId = "WANTED_CONSUMER_GROUP_ID";
-    while (groupIdHelper(consumerGroupPrefix + suffix, numConsumerOffsetsTopicPartitions) != groupIdHelper(groupId,
-        numConsumerOffsetsTopicPartitions)) {
-      suffix++;
+    while (consumerGroupCoordinatorHasher(_targetConsumerGroupId, numOffsetsTopicPartitions)
+        != consumerGroupCoordinatorHasher(_consumerGroupPrefix + _consumerGroupSuffixCandidate, numOffsetsTopicPartitions)) {
+      _consumerGroupSuffixCandidate++;
     }
-    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupPrefix + suffix);
+    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, _consumerGroupPrefix + _consumerGroupSuffixCandidate);
   }
 
   @Override
