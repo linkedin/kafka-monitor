@@ -171,7 +171,7 @@ public class ProduceService implements Service {
         _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
         LOG.info("{}/ProduceService started", _name);
       } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
-        LOG.error("Exception occurred while starting produce service: ", e);
+        LOG.error("Exception occurred while starting produce service for topic: {}", _topic, e);
       }
     }
   }
