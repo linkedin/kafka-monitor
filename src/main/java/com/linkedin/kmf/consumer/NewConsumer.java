@@ -24,7 +24,6 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.internals.Topic;
-import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +73,7 @@ public class NewConsumer implements KMBaseConsumer {
     // TODO: MessageDigest digest = MessageDigest.getInstance("SHA-256");
     // TODO: byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
 
-    LOGGER.debug("Hashed and modulo output: {}", Utils.murmur2(groupId.getBytes()));
+    LOGGER.debug("Hashed and modulo output: {}", groupId.hashCode());
     return Math.abs(groupId.hashCode()) % consumerOffsetsTopicPartitions;
   }
 
