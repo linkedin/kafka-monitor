@@ -52,22 +52,32 @@ public class SingleClusterMonitor implements App {
 
   private static final int SERVICES_INITIAL_CAPACITY = 4;
   private final TopicManagementService _topicManagementService;
-  private final ProduceService _produceService;
-  private final ConsumeService _consumeService;
+  private ProduceService _produceService;
+  private ConsumeService _consumeService;
   private final String _name;
-  private final List<Service> _allServices;
+  private List<Service> _allServices;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
-    _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-    _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
-    _allServices.add(_topicManagementService);
-    _allServices.add(_produceService);
-    _allServices.add(_consumeService);
+    topicPartitionResult.thenRun(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          _produceService = new ProduceService(props, name);
+          _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
+          _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
+          _allServices.add(_topicManagementService);
+          _allServices.add(_produceService);
+          _allServices.add(_consumeService);
+        } catch (Exception e) {
+          LOG.error("Exception occurred while instantiating ProduceService and ConsumeService. ", e);
+        }
+      }
+    }).get();
+    // Waits for and blocks for _produceService and _consumeService instantiations inside run() to complete.
   }
 
   @Override
