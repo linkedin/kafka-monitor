@@ -230,7 +230,7 @@ public class ConsumeService implements Service {
       try {
         topicDescription = topicDescriptionKafkaFuture.get();
       } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture", e);
+        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture for topic: {}", _topic, e);
       }
       double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
