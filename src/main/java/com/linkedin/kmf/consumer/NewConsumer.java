@@ -57,6 +57,8 @@ public class NewConsumer implements KMBaseConsumer {
   }
 
   /**
+   * https://github.com/apache/kafka/blob/trunk/core/src/main/scala/kafka/coordinator/group/GroupMetadataManager.scala#L189
+   * The consumer group string hash is used for this modulo operation.
    * https://docs.confluent.io/current/clients/producer.html
    * The partitioner will hash the key with murmur2 algorithm
    * and divide it by the number of partitions.
@@ -73,7 +75,7 @@ public class NewConsumer implements KMBaseConsumer {
     // TODO: byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
 
     LOGGER.debug("Hashed and modulo output: {}", Utils.murmur2(groupId.getBytes()));
-    return Utils.murmur2(groupId.getBytes()) % consumerOffsetsTopicPartitions;
+    return Math.abs(groupId.hashCode()) % consumerOffsetsTopicPartitions;
   }
 
   /**
