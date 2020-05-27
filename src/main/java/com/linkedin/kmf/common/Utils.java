@@ -31,6 +31,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.json.JSONObject;
@@ -98,7 +99,12 @@ public class Utils {
 
         List<NewTopic> topics = new ArrayList<>();
         topics.add(newTopic);
-        adminClient.createTopics(topics);
+        CreateTopicsResult result = adminClient.createTopics(topics);
+
+        // waits for this topic creation future to complete, and then returns its result.
+        result.values().get(topic).get();
+        LOG.info("CreateTopicsResult: {}.", result.values());
+
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
         LOG.debug("Monitoring topic " + topic + " already exists in the cluster.", e);
