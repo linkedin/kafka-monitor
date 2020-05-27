@@ -24,6 +24,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.internals.Topic;
+import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +38,11 @@ public class NewConsumer implements KMBaseConsumer {
   private Iterator<ConsumerRecord<String, String>> _recordIter;
   private static final Logger LOGGER = LoggerFactory.getLogger(NewConsumer.class);
   private static long lastCommitted;
-  protected String _targetConsumerGroupId;
-  protected String _consumerGroupPrefix = "__shadow_consumer_group-";
-  protected int _consumerGroupSuffixCandidate = 0;
+
+  // package private permission for NewConsumerTest to access.
+  String _consumerGroupPrefix = "__shadow_consumer_group-";
+  int _consumerGroupSuffixCandidate = 0;
+  String _targetConsumerGroupId;
 
   public NewConsumer(String topic, Properties consumerProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
@@ -57,24 +60,16 @@ public class NewConsumer implements KMBaseConsumer {
 
   /**
    * https://github.com/apache/kafka/blob/trunk/core/src/main/scala/kafka/coordinator/group/GroupMetadataManager.scala#L189
-   * The consumer group string hash is used for this modulo operation.
-   * https://docs.confluent.io/current/clients/producer.html
-   * The partitioner will hash the key with murmur2 algorithm
-   * and divide it by the number of partitions.
-   * The result is that the same key is always assigned to the same partition.
-   * https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java#L69
+   * The consumer group string's hash code is used for this modulo operation.
    * @param groupId kafka consumer group ID
    * @param consumerOffsetsTopicPartitions number of partitions in the __consumer_offsets topic.
-   * @return hashed integer which represents a number, the Math.abs value of which is the broker
+   * @return hashed integer which represents a number, the Kafka's Utils.abs() value of which is the broker
    * ID of the group coordinator, or the leader of the offsets topic partition.
    */
-  protected int consumerGroupCoordinatorHasher(String groupId, int consumerOffsetsTopicPartitions) {
-    // TODO: use long hash = UUID.nameUUIDFromBytes(s.getBytes()).getMostSignificantBits() ?
-    // TODO: MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    // TODO: byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
+  protected int partitionsFor(String groupId, int consumerOffsetsTopicPartitions) {
 
     LOGGER.debug("Hashed and modulo output: {}", groupId.hashCode());
-    return Math.abs(groupId.hashCode()) % consumerOffsetsTopicPartitions;
+    return Utils.abs(groupId.hashCode()) % consumerOffsetsTopicPartitions;
   }
 
   /**
@@ -96,8 +91,8 @@ public class NewConsumer implements KMBaseConsumer {
         .partitions()
         .size();
 
-    while (consumerGroupCoordinatorHasher(_targetConsumerGroupId, numOffsetsTopicPartitions)
-        != consumerGroupCoordinatorHasher(_consumerGroupPrefix + _consumerGroupSuffixCandidate, numOffsetsTopicPartitions)) {
+    while (partitionsFor(_targetConsumerGroupId, numOffsetsTopicPartitions)
+        != partitionsFor(_consumerGroupPrefix + _consumerGroupSuffixCandidate, numOffsetsTopicPartitions)) {
       _consumerGroupSuffixCandidate++;
     }
     consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, _consumerGroupPrefix + _consumerGroupSuffixCandidate);

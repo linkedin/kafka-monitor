@@ -50,7 +50,7 @@ public class NewConsumerTest {
     NewConsumer newConsumer = Mockito.mock(NewConsumer.class);
 
     Mockito.doCallRealMethod().when(newConsumer).configureGroupId(Mockito.any(), Mockito.any());
-    Mockito.doCallRealMethod().when(newConsumer).consumerGroupCoordinatorHasher(Mockito.anyString(), Mockito.anyInt());
+    Mockito.doCallRealMethod().when(newConsumer).partitionsFor(Mockito.anyString(), Mockito.anyInt());
 
     /*
      * Mock the behavior of AdminClient only.
@@ -88,9 +88,9 @@ public class NewConsumerTest {
     System.out.println("Consumer properties after configuration: " + consumerProperties);
     Assert.assertNotNull(consumerProperties.get("group.id"));
 
-    int hashedResult = newConsumer.consumerGroupCoordinatorHasher(consumerProperties.get("group.id").toString(),
+    int hashedResult = newConsumer.partitionsFor(consumerProperties.get("group.id").toString(),
         NUM_OFFSETS_TOPIC_PARTITIONS);
-    int hashedResult2 = newConsumer.consumerGroupCoordinatorHasher(newConsumer._targetConsumerGroupId,
+    int hashedResult2 = newConsumer.partitionsFor(newConsumer._targetConsumerGroupId,
         NUM_OFFSETS_TOPIC_PARTITIONS);
     System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult));
     System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult2));
