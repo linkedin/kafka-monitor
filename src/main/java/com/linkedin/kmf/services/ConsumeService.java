@@ -103,7 +103,7 @@ public class ConsumeService implements Service {
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
-          ConsumeService.this.consume();
+          consume();
         } catch (Exception e) {
           LOG.error(name + "/ConsumeService failed", e);
         }
