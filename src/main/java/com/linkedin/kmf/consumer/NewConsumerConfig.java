@@ -23,9 +23,8 @@ public class NewConsumerConfig extends AbstractConfig {
 
   public static final String TARGET_CONSUMER_GROUP_ID_CONFIG = "target.consumer.group.id";
   public static final String TARGET_CONSUMER_GROUP_ID_CONFIG_DOC =
-      "The identifier (in String) of the consumer group in which the target consumer - whose group coordinator to which "
-          + "Xinfra Monitor consumer should commit its consumer offsets is responsible for receiving its committed "
-          + "offsets - resides.";
+      "When defined a consumer group is chosen such that it maps to the same group coordinator as the specified "
+          + "group coordinator.";
 
   static {
     CONFIG_DEF = new ConfigDef().define(TARGET_CONSUMER_GROUP_ID_CONFIG,
