@@ -229,7 +229,6 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
     private final int _minPartitionNum;
-    private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
@@ -239,6 +238,7 @@ public class MultiClusterTopicManagementService implements Service {
     boolean _topicCreationEnabled;
     AdminClient _adminClient;
     String _topic;
+    TopicFactory _topicFactory;
 
 
     @SuppressWarnings("unchecked")
@@ -276,7 +276,8 @@ public class MultiClusterTopicManagementService implements Service {
         int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
         NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
         newTopic.configs((Map) _topicProperties);
-        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio, _topicProperties, _adminClient);
+        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
+            _topicProperties, _adminClient);
       }
     }
 
