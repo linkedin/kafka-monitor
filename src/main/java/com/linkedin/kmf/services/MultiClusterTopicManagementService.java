@@ -36,6 +36,7 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.ElectLeadersOptions;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
@@ -301,7 +302,6 @@ public class MultiClusterTopicManagementService implements Service {
         LOGGER.info("{} will increase partition of the topic {} in the cluster from {}"
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
         Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
-        List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
           BrokerMetadata brokerMetadata = new BrokerMetadata(
@@ -313,10 +313,49 @@ public class MultiClusterTopicManagementService implements Service {
         if (!blackListedBrokers.isEmpty()) {
           brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
         }
+
+        // The replica assignments for the new partitions, and not the old partitions.
+        // NewPartitions.increaseTo(6, asList(asList(1, 2),
+        //                                    asList(2, 3),
+        //                                    asList(3, 1)))
+        // partition 3's PL will be broker 1, partition 4's PL will be broker 2 and partition 5's PL will be broker 3.
+        List<List<Integer>> newPartitionAssignments = new ArrayList<>(new ArrayList<>());
+        int partitionDifference = minPartitionNum - partitionNum;
+
+        // leader assignments
+        for (BrokerMetadata brokerMetadata : brokers) {
+          List replicas = new ArrayList<>();
+          // leader replica/broker
+          replicas.add(brokerMetadata.id());
+          newPartitionAssignments.add(replicas);
+          if (newPartitionAssignments.size() > partitionDifference) {
+            break;
+          }
+        }
+
+        // Regardless of the partition/replica assignments here, `maybeReassignPartitionAndElectLeader()`
+        // will reassign the partition as needed periodically.
+        // follower assignments
+        newPartitionAssignmentLoops:
+        for (List<Integer> replicas : newPartitionAssignments) {
+          brokersLoop:
+          for (BrokerMetadata broker : brokers) {
+            if (!replicas.contains(broker.id())) {
+              replicas.add(broker.id());
+            }
+            if (replicas.size() == _replicationFactor) {
+              break brokersLoop;
+            }
+          }
+        }
+
+        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, newPartitionAssignments);
+
         Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
-        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, replicaAssignment);
         newPartitionsMap.put(_topic, newPartitions);
-        _adminClient.createPartitions(newPartitionsMap);
+        CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
+
+        // TODO: should we block thread on the createPartitionsResult future?
       }
     }
 
