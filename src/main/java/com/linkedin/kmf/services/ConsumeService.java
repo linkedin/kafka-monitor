@@ -88,30 +88,27 @@ public class ConsumeService implements Service {
 
     // Returns a new CompletionStage (topicPartitionFuture) which
     // executes the given action - code inside run() - when this stage (topicPartitionResult) completes normally,.
-    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(new Runnable() {
-      @Override
-      public void run() {
-        MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
-        List<MetricsReporter> reporters = new ArrayList<>();
-        reporters.add(new JmxReporter(JMX_PREFIX));
-        metrics = new Metrics(metricConfig, reporters, new SystemTime());
-        tags = new HashMap<>();
-        tags.put(TAGS_NAME, name);
-        _topic = consumerFactory.topic();
-        _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
-            consumerFactory.latencyPercentileGranularityMs());
-        _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
-            consumerFactory.latencyPercentileGranularityMs());
-        _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
-        _consumeThread = new Thread(() -> {
-          try {
-            ConsumeService.this.consume();
-          } catch (Exception e) {
-            LOG.error(name + "/ConsumeService failed", e);
-          }
-        }, name + " consume-service");
-        _consumeThread.setDaemon(true);
-      }
+    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+      MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+      List<MetricsReporter> reporters = new ArrayList<>();
+      reporters.add(new JmxReporter(JMX_PREFIX));
+      metrics = new Metrics(metricConfig, reporters, new SystemTime());
+      tags = new HashMap<>();
+      tags.put(TAGS_NAME, name);
+      _topic = consumerFactory.topic();
+      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
+      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
+      _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
+      _consumeThread = new Thread(() -> {
+        try {
+          ConsumeService.this.consume();
+        } catch (Exception e) {
+          LOG.error(name + "/ConsumeService failed", e);
+        }
+      }, name + " consume-service");
+      _consumeThread.setDaemon(true);
     });
 
     // In a blocking fashion, waits for this topicPartitionFuture to complete, and then returns its result.
