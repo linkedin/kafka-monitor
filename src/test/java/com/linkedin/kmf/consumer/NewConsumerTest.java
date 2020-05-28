@@ -22,7 +22,6 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.internals.Topic;
-import org.apache.kafka.common.utils.Utils;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -94,8 +93,8 @@ public class NewConsumerTest {
         ConsumerGroupCoordinatorUtils.partitionFor(TARGET_CONSUMER_GROUP_ID, NUM_OFFSETS_TOPIC_PARTITIONS);
 
     Assert.assertEquals(hashedResult, hashedResult2);
-    System.out.println("Modulo result as an absolute value: " + Utils.abs(hashedResult));
-    System.out.println("Modulo result as an absolute value: " + Utils.abs(hashedResult2));
+    System.out.println("Modulo result as an absolute value: " + hashedResult);
+    System.out.println("Modulo result as an absolute value: " + hashedResult2);
 
     // Testing II: Also test that the groupIds are different.
     Assert.assertNotEquals(TARGET_CONSUMER_GROUP_ID, consumerProperties.get(ConsumerConfig.GROUP_ID_CONFIG));
