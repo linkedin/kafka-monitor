@@ -37,7 +37,6 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.ElectLeadersOptions;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
@@ -231,7 +230,6 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
     private final int _minPartitionNum;
-    private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
@@ -241,6 +239,7 @@ public class MultiClusterTopicManagementService implements Service {
     boolean _topicCreationEnabled;
     AdminClient _adminClient;
     String _topic;
+    TopicFactory _topicFactory;
 
 
     @SuppressWarnings("unchecked")
@@ -278,11 +277,8 @@ public class MultiClusterTopicManagementService implements Service {
         int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
         NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
         newTopic.configs((Map) _topicProperties);
-        CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singletonList(newTopic));
-
-        // waits for this topic creation future to complete, and then returns its result.
-        createTopicsResult.values().get(_topic).get();
-        LOGGER.info("CreateTopicsResult: {}.", createTopicsResult.values());
+        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
+            _topicProperties, _adminClient);
       }
     }
 

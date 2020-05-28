@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -59,6 +60,7 @@ public class MultiClusterTopicManagementServiceTest {
     _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
     _topicManagementHelper._topic = SERVICE_TEST_TOPIC;
     _topicManagementHelper._adminClient = Mockito.mock(AdminClient.class);
+    _topicManagementHelper._topicFactory = Mockito.mock(TopicFactory.class);
     _topicManagementHelper._topicCreationEnabled = true;
   }
 
@@ -94,6 +96,7 @@ public class MultiClusterTopicManagementServiceTest {
        */
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
+
         Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)))
             .thenReturn(Mockito.mock(DescribeTopicsResult.class));
         Mockito.when(
@@ -115,10 +118,8 @@ public class MultiClusterTopicManagementServiceTest {
       }
     };
 
-    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection())
-        .values()
-        .get(SERVICE_TEST_TOPIC)
-        .get()).thenAnswer(createKafkaTopicFutureAnswer);
+    Mockito.when(_topicManagementHelper._topicFactory.createTopicIfNotExist(Mockito.anyString(), Mockito.anyShort(),
+        Mockito.anyDouble(), Mockito.any(), Mockito.any())).thenAnswer(createKafkaTopicFutureAnswer);
 
     _topicManagementHelper.maybeCreateTopic();
 
