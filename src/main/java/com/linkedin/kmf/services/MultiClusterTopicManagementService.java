@@ -367,8 +367,6 @@ public class MultiClusterTopicManagementService implements Service {
      */
     int numPartitions() throws InterruptedException, ExecutionException {
 
-      // TODO (andrewchoi5): connect this to unit testing method for testing maybeAddPartitions!
-
       return _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get().partitions().size();
     }
 

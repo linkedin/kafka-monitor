@@ -11,10 +11,13 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.topicfactory.TopicFactory;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
@@ -22,6 +25,7 @@ import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -45,7 +49,7 @@ public class MultiClusterTopicManagementServiceTest {
   private KafkaFuture<Void> _kafkaFuture;
 
   @BeforeMethod
-  private void startTest() {
+  private void startTest() throws ExecutionException, InterruptedException {
     _createTopicsResult = Mockito.mock(CreateTopicsResult.class);
     _kafkaFutureMap = Mockito.mock(Map.class);
     _kafkaFuture = Mockito.mock(KafkaFuture.class);
@@ -62,11 +66,56 @@ public class MultiClusterTopicManagementServiceTest {
     _topicManagementHelper._adminClient = Mockito.mock(AdminClient.class);
     _topicManagementHelper._topicFactory = Mockito.mock(TopicFactory.class);
     _topicManagementHelper._topicCreationEnabled = true;
+
+    List<TopicPartitionInfo> topicPartitions = new ArrayList<>();
+    topicPartitions.add(new TopicPartitionInfo(1, new Node(1, "host-1", 3521), new ArrayList<>(), new ArrayList<>()));
+    topicPartitions.add(new TopicPartitionInfo(2, new Node(2, "host-2", 3522), new ArrayList<>(), new ArrayList<>()));
+    topicPartitions.add(new TopicPartitionInfo(3, new Node(3, "host-3", 3523), new ArrayList<>(), new ArrayList<>()));
+    topicPartitions.add(new TopicPartitionInfo(4, new Node(4, "host-4", 3524), new ArrayList<>(), new ArrayList<>()));
+    topicPartitions.add(new TopicPartitionInfo(5, new Node(5, "host-5", 3525), new ArrayList<>(), new ArrayList<>()));
+
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)))
+        .thenReturn(Mockito.mock(DescribeTopicsResult.class));
+    Mockito.when(
+        _topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)).values())
+        .thenReturn(Mockito.mock(Map.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
+        .values()
+        .get(SERVICE_TEST_TOPIC)).thenReturn(Mockito.mock(KafkaFuture.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
+        .values()
+        .get(SERVICE_TEST_TOPIC)
+        .get()).thenReturn(Mockito.mock(TopicDescription.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
+        .values()
+        .get(SERVICE_TEST_TOPIC)
+        .get()
+        .name()).thenReturn(SERVICE_TEST_TOPIC);
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
+        .values()
+        .get(SERVICE_TEST_TOPIC)
+        .get()
+        .partitions())
+        .thenReturn(topicPartitions);
+
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster())
+        .thenReturn(Mockito.mock(DescribeClusterResult.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes())
+        .thenReturn(Mockito.mock(KafkaFuture.class));
+    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes().get()).thenReturn(nodeSet);
   }
 
   @AfterMethod
   private void finishTest() {
     System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
+  }
+
+  @Test
+  protected void maybeAddPartitionsTest() throws ExecutionException, InterruptedException {
+    Mockito.doCallRealMethod().when(_topicManagementHelper).maybeAddPartitions(Mockito.anyInt());
+    _topicManagementHelper.maybeAddPartitions(100);
+
+    Assert.assertEquals(_topicManagementHelper.numPartitions(), 1);
   }
 
   @Test
