@@ -333,7 +333,9 @@ public class MultiClusterTopicManagementService implements Service {
       // .increaseTo(6, asList(asList(1, 2),
       //                       asList(2, 3),
       //                       asList(3, 1)))
-      // partition 3's PL will be broker 1, partition 4's PL will be broker 2 and partition 5's PL will be broker 3.
+      // partition 3's preferred leader will be broker 1,
+      // partition 4's preferred leader will be broker 2 and
+      // partition 5's preferred leader will be broker 3.
       List<List<Integer>> newPartitionAssignments = new ArrayList<>(new ArrayList<>());
       int partitionDifference = minPartitionNum - partitionNum;
 
@@ -349,7 +351,7 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       // follower assignments -
-      // Regardless of the partition/replica assignments here, `maybeReassignPartitionAndElectLeader()`
+      // Regardless of the partition/replica assignments here, maybeReassignPartitionAndElectLeader()
       // will reassign the partition as needed periodically.
       for (List<Integer> replicas : newPartitionAssignments) {
         for (BrokerMetadata broker : brokers) {

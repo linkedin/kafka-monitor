@@ -85,8 +85,6 @@ public class MultiClusterTopicManagementServiceTest {
         MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
     Assert.assertNotNull(newPartitionAssignments);
 
-    System.out.println(newPartitionAssignments);
-
     Assert.assertEquals(newPartitionAssignments.toString(),
         "[[6, 2, 4, 3], [2, 6, 4, 3], [4, 6, 2, 3], [3, 6, 2, 4], [8, 6, 2, 4], [5, 6, 2, 4]]");
   }
