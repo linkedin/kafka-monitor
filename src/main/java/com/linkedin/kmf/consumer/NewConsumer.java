@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.consumer;
 
+import com.linkedin.kmf.common.ConsumerGroupCoordinatorUtils;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
@@ -23,8 +24,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.internals.Topic;
-import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,63 +38,24 @@ public class NewConsumer implements KMBaseConsumer {
   private static final Logger LOGGER = LoggerFactory.getLogger(NewConsumer.class);
   private static long lastCommitted;
 
-  // package private permission for NewConsumerTest to access.
-  String _consumerGroupPrefix = "__shadow_consumer_group-";
-  int _consumerGroupSuffixCandidate = 0;
-  String _targetConsumerGroupId;
-
   public NewConsumer(String topic, Properties consumerProperties, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
     LOGGER.info("{} is being instantiated in the constructor..", this.getClass().getSimpleName());
 
     NewConsumerConfig newConsumerConfig = new NewConsumerConfig(consumerProperties);
-    _targetConsumerGroupId = newConsumerConfig.getString(NewConsumerConfig.TARGET_CONSUMER_GROUP_ID_CONFIG);
+    String targetConsumerGroupId = newConsumerConfig.getString(NewConsumerConfig.TARGET_CONSUMER_GROUP_ID_CONFIG);
 
-    if (_targetConsumerGroupId != null) {
-      this.configureGroupId(consumerProperties, adminClient);
+    if (targetConsumerGroupId != null) {
+      consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, configureGroupId(targetConsumerGroupId, adminClient));
     }
     _consumer = new KafkaConsumer<>(consumerProperties);
     _consumer.subscribe(Collections.singletonList(topic));
   }
 
-  /**
-   * https://github.com/apache/kafka/blob/trunk/core/src/main/scala/kafka/coordinator/group/GroupMetadataManager.scala#L189
-   * The consumer group string's hash code is used for this modulo operation.
-   * @param groupId kafka consumer group ID
-   * @param consumerOffsetsTopicPartitions number of partitions in the __consumer_offsets topic.
-   * @return hashed integer which represents a number, the Kafka's Utils.abs() value of which is the broker
-   * ID of the group coordinator, or the leader of the offsets topic partition.
-   */
-  protected int partitionsFor(String groupId, int consumerOffsetsTopicPartitions) {
-
-    LOGGER.debug("Hashed and modulo output: {}", groupId.hashCode());
-    return Utils.abs(groupId.hashCode()) % consumerOffsetsTopicPartitions;
-  }
-
-  /**
-   * hash(group.id) % (number of __consumer_offsets topic partitions).
-   * The partition's leader is the group coordinator
-   * Choose B s.t hash(A) % (number of __consumer_offsets topic partitions) == hash(B) % (number of __consumer_offsets topic partitions)
-   * @param consumerProperties persistent set of kafka consumer properties
-   */
-  protected void configureGroupId(Properties consumerProperties, AdminClient adminClient)
+  static String configureGroupId(String targetConsumerGroupId, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
-    if (_targetConsumerGroupId.equals("")) {
-      throw new IllegalArgumentException("The target consumer group identifier cannot be empty: " + _targetConsumerGroupId);
-    }
 
-    int numOffsetsTopicPartitions = adminClient.describeTopics(Collections.singleton(Topic.GROUP_METADATA_TOPIC_NAME))
-        .values()
-        .get(Topic.GROUP_METADATA_TOPIC_NAME)
-        .get()
-        .partitions()
-        .size();
-
-    while (partitionsFor(_targetConsumerGroupId, numOffsetsTopicPartitions)
-        != partitionsFor(_consumerGroupPrefix + _consumerGroupSuffixCandidate, numOffsetsTopicPartitions)) {
-      _consumerGroupSuffixCandidate++;
-    }
-    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, _consumerGroupPrefix + _consumerGroupSuffixCandidate);
+    return ConsumerGroupCoordinatorUtils.findCollision(targetConsumerGroupId, adminClient);
   }
 
   @Override

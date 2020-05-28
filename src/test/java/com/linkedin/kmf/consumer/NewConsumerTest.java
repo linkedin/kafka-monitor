@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.consumer;
 
+import com.linkedin.kmf.common.ConsumerGroupCoordinatorUtils;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +19,10 @@ import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.internals.Topic;
+import org.apache.kafka.common.utils.Utils;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -30,6 +33,7 @@ import org.testng.annotations.Test;
 @Test
 public class NewConsumerTest {
   private static final int NUM_OFFSETS_TOPIC_PARTITIONS = 5;
+  private static final String TARGET_CONSUMER_GROUP_ID = "target-group-id";
 
   @BeforeMethod
   public void beforeMethod() {
@@ -47,10 +51,6 @@ public class NewConsumerTest {
     Properties consumerProperties = new Properties();
 
     AdminClient adminClient = Mockito.mock(AdminClient.class);
-    NewConsumer newConsumer = Mockito.mock(NewConsumer.class);
-
-    Mockito.doCallRealMethod().when(newConsumer).configureGroupId(Mockito.any(), Mockito.any());
-    Mockito.doCallRealMethod().when(newConsumer).partitionsFor(Mockito.anyString(), Mockito.anyInt());
 
     /*
      * Mock the behavior of AdminClient only.
@@ -81,19 +81,24 @@ public class NewConsumerTest {
         .partitions()
         .size()).thenReturn(NUM_OFFSETS_TOPIC_PARTITIONS);
 
-    newConsumer._targetConsumerGroupId = "target-group-id";
-    newConsumer._consumerGroupPrefix = "__shadow_consumer_group-";
-    newConsumer._consumerGroupSuffixCandidate = 0;
-    newConsumer.configureGroupId(consumerProperties, adminClient);
+    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG,
+        NewConsumer.configureGroupId(TARGET_CONSUMER_GROUP_ID, adminClient));
     System.out.println("Consumer properties after configuration: " + consumerProperties);
-    Assert.assertNotNull(consumerProperties.get("group.id"));
+    Assert.assertNotNull(consumerProperties.get(ConsumerConfig.GROUP_ID_CONFIG));
 
-    int hashedResult = newConsumer.partitionsFor(consumerProperties.get("group.id").toString(),
-        NUM_OFFSETS_TOPIC_PARTITIONS);
-    int hashedResult2 = newConsumer.partitionsFor(newConsumer._targetConsumerGroupId,
-        NUM_OFFSETS_TOPIC_PARTITIONS);
-    System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult));
-    System.out.println("Modulo result as an absolute value: " + Math.abs(hashedResult2));
+    // Testing I: run partitionsFor() on the result to make sure they are the same
+    int hashedResult =
+        ConsumerGroupCoordinatorUtils.partitionFor(consumerProperties.get(ConsumerConfig.GROUP_ID_CONFIG).toString(),
+            NUM_OFFSETS_TOPIC_PARTITIONS);
+    int hashedResult2 =
+        ConsumerGroupCoordinatorUtils.partitionFor(TARGET_CONSUMER_GROUP_ID, NUM_OFFSETS_TOPIC_PARTITIONS);
+
     Assert.assertEquals(hashedResult, hashedResult2);
+    System.out.println("Modulo result as an absolute value: " + Utils.abs(hashedResult));
+    System.out.println("Modulo result as an absolute value: " + Utils.abs(hashedResult2));
+
+    // Testing II: Also test that the groupIds are different.
+    Assert.assertNotEquals(TARGET_CONSUMER_GROUP_ID, consumerProperties.get(ConsumerConfig.GROUP_ID_CONFIG));
+
   }
 }
