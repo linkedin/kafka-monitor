@@ -57,7 +57,7 @@ public class ConsumeService implements Service {
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
   private CommitLatencyMetrics _commitLatencyMetrics;
   private String _topic;
-  private String _name;
+  private final String _name;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static Map<String, String> tags;
 
@@ -73,8 +73,8 @@ public class ConsumeService implements Service {
    * @param name Name of the Monitor instance
    * @param topicPartitionResult The completable future for topic partition
    * @param consumerFactory Consumer Factory object.
-   * @throws ExecutionException
-   * @throws InterruptedException
+   * @throws ExecutionException when attempting to retrieve the result of a task that aborted by throwing an exception
+   * @throws InterruptedException when a thread is waiting, sleeping, or otherwise occupied and the thread is interrupted
    */
   public ConsumeService(String name,
                         CompletableFuture<Void> topicPartitionResult,
@@ -86,6 +86,8 @@ public class ConsumeService implements Service {
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
 
+    // Returns a new CompletionStage (topicPartitionFuture) which
+    // executes the given action - code inside run() - when this stage (topicPartitionResult) completes normally,.
     CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
@@ -94,8 +96,10 @@ public class ConsumeService implements Service {
       tags = new HashMap<>();
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
-      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
-      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
+      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
+      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
@@ -107,6 +111,7 @@ public class ConsumeService implements Service {
       _consumeThread.setDaemon(true);
     });
 
+    // In a blocking fashion, waits for this topicPartitionFuture to complete, and then returns its result.
     topicPartitionFuture.get();
   }
 
@@ -124,6 +129,7 @@ public class ConsumeService implements Service {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         /* Avoid busy while loop */
+        //noinspection BusyWait
         Thread.sleep(CONSUME_THREAD_SLEEP_MS);
         continue;
       }
@@ -134,7 +140,7 @@ public class ConsumeService implements Service {
       try {
         avroRecord = Utils.genericRecordFromJson(record.value());
       } catch (Exception exception) {
-        LOG.error("exception occurred while getting avro record.", exception);
+        LOG.error("An exception occurred while getting avro record.", exception);
       }
 
       if (avroRecord == null) {
@@ -232,6 +238,7 @@ public class ConsumeService implements Service {
       } catch (InterruptedException | ExecutionException e) {
         LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture for topic: {}", _topic, e);
       }
+      @SuppressWarnings("ConstantConditions")
       double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),

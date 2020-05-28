@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
+import kafka.controller.ReplicaAssignment;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -342,8 +343,8 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
 
         List<TopicPartitionInfo> partitionInfoList = _adminClient
             .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -416,8 +417,8 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
         if (!zkClient.reassignPartitionsInProgress()) {
           List<TopicPartitionInfo> partitionInfoList = _adminClient
               .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -462,9 +463,10 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-      String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
-      String newAssignmentJson = formatAsReassignmentJson(topic, assignedReplicas);
+      scala.collection.Map<Object, ReplicaAssignment>
+          currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
+      String currentAssignmentJson = formatAsOldAssignmentJson(topic, currentAssignment);
+      String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
       LOGGER.info("Reassign partitions for topic " + topic);
       LOGGER.info("Current partition replica assignment " + currentAssignmentJson);
@@ -521,14 +523,14 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToBeReassigned) {
+    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
       StringBuilder bldr = new StringBuilder();
       bldr.append("{\"version\":1,\"partitions\":[\n");
       for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
         bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
-        scala.collection.Seq<Object> replicas = partitionsToBeReassigned.apply(partition);
-        for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
-          Object replica = replicas.apply(replicaIndex);
+        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
+        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
+          Object replica = replicas.replicas().apply(replicaIndex);
           bldr.append(replica).append(",");
         }
         bldr.setLength(bldr.length() - 1);
@@ -538,5 +540,38 @@ public class MultiClusterTopicManagementService implements Service {
       bldr.append("]}");
       return bldr.toString();
     }
+
+    /**
+     * @param topic Kafka topic
+     * @param partitionsToReassign a map from partition (int) to new replica list (int seq)
+     *
+     * @return a json string with the same format as output of kafka.utils.ZkUtils.formatAsReassignmentJson
+     *
+     * Example:
+     * <pre>
+     *   {"version":1,"partitions":[
+     *     {"topic":"kmf-topic","partition":1,"replicas":[0,1]},
+     *     {"topic":"kmf-topic","partition":2,"replicas":[1,2]},
+     *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
+     * </pre>
+     */
+    private static String formatAsNewReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToReassign) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{\"version\":1,\"partitions\":[\n");
+      for (int partition = 0; partition < partitionsToReassign.size(); partition++) {
+        builder.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+        Seq<Object> replicas = partitionsToReassign.apply(partition);
+        for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
+          Object replica = replicas.apply(replicaIndex);
+          builder.append(replica).append(",");
+        }
+        builder.setLength(builder.length() - 1);
+        builder.append("]},\n");
+      }
+      builder.setLength(builder.length() - 2);
+      builder.append("]}");
+      return builder.toString();
+    }
+
   }
 }
