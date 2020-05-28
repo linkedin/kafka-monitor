@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
@@ -33,6 +34,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import scala.Option;
 
 
 /**
@@ -60,6 +62,9 @@ public class MultiClusterTopicManagementServiceTest {
     nodeSet.add(new Node(3, "host-3", 2134));
     nodeSet.add(new Node(4, "host-4", 2135));
     nodeSet.add(new Node(5, "host-5", 2136));
+    nodeSet.add(new Node(6, "host-5", 2136));
+    nodeSet.add(new Node(7, "host-5", 2136));
+    nodeSet.add(new Node(8, "host-5", 2136));
 
     _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
     _topicManagementHelper._topic = SERVICE_TEST_TOPIC;
@@ -76,8 +81,7 @@ public class MultiClusterTopicManagementServiceTest {
 
     Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)))
         .thenReturn(Mockito.mock(DescribeTopicsResult.class));
-    Mockito.when(
-        _topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)).values())
+    Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)).values())
         .thenReturn(Mockito.mock(Map.class));
     Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
         .values()
@@ -95,8 +99,7 @@ public class MultiClusterTopicManagementServiceTest {
         .values()
         .get(SERVICE_TEST_TOPIC)
         .get()
-        .partitions())
-        .thenReturn(topicPartitions);
+        .partitions()).thenReturn(topicPartitions);
 
     Mockito.when(_topicManagementHelper._adminClient.describeCluster())
         .thenReturn(Mockito.mock(DescribeClusterResult.class));
@@ -111,11 +114,19 @@ public class MultiClusterTopicManagementServiceTest {
   }
 
   @Test
-  protected void maybeAddPartitionsTest() throws ExecutionException, InterruptedException {
-    Mockito.doCallRealMethod().when(_topicManagementHelper).maybeAddPartitions(Mockito.anyInt());
-    _topicManagementHelper.maybeAddPartitions(100);
+  protected void maybeAddPartitionsTest() {
+    Set<BrokerMetadata> brokerMetadataSet = new HashSet<>();
+    for (Node broker : nodeSet) {
+      brokerMetadataSet.add(new BrokerMetadata(broker.id(), Option.apply(broker.rack())));
+    }
+    List<List<Integer>> newPartitionAssignments =
+        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
+    Assert.assertNotNull(newPartitionAssignments);
 
-    Assert.assertEquals(_topicManagementHelper.numPartitions(), 1);
+    System.out.println(newPartitionAssignments);
+
+    Assert.assertEquals(newPartitionAssignments.toString(),
+        "[[6, 2, 4, 3], [2, 6, 4, 3], [4, 6, 2, 3], [3, 6, 2, 4], [8, 6, 2, 4], [5, 6, 2, 4]]");
   }
 
   @Test

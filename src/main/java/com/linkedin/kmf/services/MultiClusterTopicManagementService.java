@@ -314,40 +314,7 @@ public class MultiClusterTopicManagementService implements Service {
           brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
         }
 
-        // The replica assignments for the new partitions, and not the old partitions.
-        // NewPartitions.increaseTo(6, asList(asList(1, 2),
-        //                                    asList(2, 3),
-        //                                    asList(3, 1)))
-        // partition 3's PL will be broker 1, partition 4's PL will be broker 2 and partition 5's PL will be broker 3.
-        List<List<Integer>> newPartitionAssignments = new ArrayList<>(new ArrayList<>());
-        int partitionDifference = minPartitionNum - partitionNum;
-
-        // leader assignments
-        for (BrokerMetadata brokerMetadata : brokers) {
-          List replicas = new ArrayList<>();
-          // leader replica/broker
-          replicas.add(brokerMetadata.id());
-          newPartitionAssignments.add(replicas);
-          if (newPartitionAssignments.size() > partitionDifference) {
-            break;
-          }
-        }
-
-        // Regardless of the partition/replica assignments here, `maybeReassignPartitionAndElectLeader()`
-        // will reassign the partition as needed periodically.
-        // follower assignments
-        newPartitionAssignmentLoops:
-        for (List<Integer> replicas : newPartitionAssignments) {
-          brokersLoop:
-          for (BrokerMetadata broker : brokers) {
-            if (!replicas.contains(broker.id())) {
-              replicas.add(broker.id());
-            }
-            if (replicas.size() == _replicationFactor) {
-              break brokersLoop;
-            }
-          }
-        }
+        List<List<Integer>> newPartitionAssignments = newPartitionAssignments(minPartitionNum, partitionNum, brokers, _replicationFactor);
 
         NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, newPartitionAssignments);
 
@@ -357,6 +324,44 @@ public class MultiClusterTopicManagementService implements Service {
 
         // TODO: should we block thread on the createPartitionsResult future?
       }
+    }
+
+    static List<List<Integer>> newPartitionAssignments(int minPartitionNum, int partitionNum,
+        Set<BrokerMetadata> brokers, int rf) {
+
+      // The replica assignments for the new partitions, and not the old partitions.
+      // .increaseTo(6, asList(asList(1, 2),
+      //                       asList(2, 3),
+      //                       asList(3, 1)))
+      // partition 3's PL will be broker 1, partition 4's PL will be broker 2 and partition 5's PL will be broker 3.
+      List<List<Integer>> newPartitionAssignments = new ArrayList<>(new ArrayList<>());
+      int partitionDifference = minPartitionNum - partitionNum;
+
+      // leader assignments -
+      for (BrokerMetadata brokerMetadata : brokers) {
+        List replicas = new ArrayList<>();
+        // leader replica/broker -
+        replicas.add(brokerMetadata.id());
+        newPartitionAssignments.add(replicas);
+        if (newPartitionAssignments.size() == partitionDifference) {
+          break;
+        }
+      }
+
+      // follower assignments -
+      // Regardless of the partition/replica assignments here, `maybeReassignPartitionAndElectLeader()`
+      // will reassign the partition as needed periodically.
+      for (List<Integer> replicas : newPartitionAssignments) {
+        for (BrokerMetadata broker : brokers) {
+          if (!replicas.contains(broker.id())) {
+            replicas.add(broker.id());
+          }
+          if (replicas.size() == rf) {
+            break;
+          }
+        }
+      }
+      return newPartitionAssignments;
     }
 
     /**
