@@ -322,7 +322,7 @@ public class MultiClusterTopicManagementService implements Service {
         newPartitionsMap.put(_topic, newPartitions);
         CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
 
-        // TODO: should we block thread on the createPartitionsResult future?
+        createPartitionsResult.all().get();
       }
     }
 
