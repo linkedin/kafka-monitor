@@ -40,6 +40,7 @@ import scala.Option;
 @SuppressWarnings("unchecked")
 @Test
 public class MultiClusterTopicManagementServiceTest {
+
   private static final String SERVICE_TEST_TOPIC = "xinfra-monitor-Multi-Cluster-Topic-Management-Service-Test-topic";
   private static Set<Node> nodeSet;
   private MultiClusterTopicManagementService.TopicManagementHelper _topicManagementHelper;
