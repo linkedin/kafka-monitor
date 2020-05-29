@@ -11,6 +11,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.topicfactory.TopicFactory;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -76,7 +77,7 @@ public class MultiClusterTopicManagementServiceTest {
     System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
   }
 
-  @Test
+  @Test(invocationCount = 10000)
   protected void maybeAddPartitionsTest() {
     Set<BrokerMetadata> brokerMetadataSet = new HashSet<>();
     for (Node broker : nodeSet) {
@@ -86,8 +87,44 @@ public class MultiClusterTopicManagementServiceTest {
         MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
     Assert.assertNotNull(newPartitionAssignments);
 
-    Assert.assertEquals(newPartitionAssignments.toString(),
-        "[[6, 2, 4, 3], [2, 6, 4, 3], [4, 6, 2, 3], [3, 6, 2, 4], [8, 6, 2, 4], [5, 6, 2, 4]]");
+    List<List<Integer>> newPartitionAssignmentsList = new ArrayList<>();
+    List<Integer> list = new ArrayList<>();
+    list.add(6);
+    list.add(2);
+    list.add(4);
+    list.add(3);
+    newPartitionAssignmentsList.add(list);
+    list = new ArrayList<>();
+    list.add(2);
+    list.add(6);
+    list.add(4);
+    list.add(3);
+    newPartitionAssignmentsList.add(list);
+    list = new ArrayList<>();
+    list.add(4);
+    list.add(6);
+    list.add(2);
+    list.add(3);
+    newPartitionAssignmentsList.add(list);
+    list = new ArrayList<>();
+    list.add(3);
+    list.add(6);
+    list.add(2);
+    list.add(4);
+    newPartitionAssignmentsList.add(list);
+    list = new ArrayList<>();
+    list.add(8);
+    list.add(6);
+    list.add(2);
+    list.add(4);
+    newPartitionAssignmentsList.add(list);
+    list = new ArrayList<>();
+    list.add(5);
+    list.add(6);
+    list.add(2);
+    list.add(4);
+    newPartitionAssignmentsList.add(list);
+    Assert.assertEquals(newPartitionAssignmentsList, newPartitionAssignments);
   }
 
   @Test
