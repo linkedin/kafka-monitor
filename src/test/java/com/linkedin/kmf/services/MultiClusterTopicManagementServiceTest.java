@@ -12,9 +12,11 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.topicfactory.TopicFactory;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
@@ -29,6 +31,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import scala.Option;
 
 
 /**
@@ -37,6 +40,7 @@ import org.testng.annotations.Test;
 @SuppressWarnings("unchecked")
 @Test
 public class MultiClusterTopicManagementServiceTest {
+
   private static final String SERVICE_TEST_TOPIC = "xinfra-monitor-Multi-Cluster-Topic-Management-Service-Test-topic";
   private static Set<Node> nodeSet;
   private MultiClusterTopicManagementService.TopicManagementHelper _topicManagementHelper;
@@ -50,12 +54,15 @@ public class MultiClusterTopicManagementServiceTest {
     _kafkaFutureMap = Mockito.mock(Map.class);
     _kafkaFuture = Mockito.mock(KafkaFuture.class);
 
-    nodeSet = new HashSet<>();
+    nodeSet = new LinkedHashSet<>();
     nodeSet.add(new Node(1, "host-1", 2132));
     nodeSet.add(new Node(2, "host-2", 2133));
     nodeSet.add(new Node(3, "host-3", 2134));
     nodeSet.add(new Node(4, "host-4", 2135));
     nodeSet.add(new Node(5, "host-5", 2136));
+    nodeSet.add(new Node(6, "host-5", 2136));
+    nodeSet.add(new Node(7, "host-5", 2136));
+    nodeSet.add(new Node(8, "host-5", 2136));
 
     _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
     _topicManagementHelper._topic = SERVICE_TEST_TOPIC;
@@ -67,6 +74,25 @@ public class MultiClusterTopicManagementServiceTest {
   @AfterMethod
   private void finishTest() {
     System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
+  }
+
+  @Test(invocationCount = 2)
+  protected void maybeAddPartitionsTest() {
+    Set<BrokerMetadata> brokerMetadataSet = new LinkedHashSet<>();
+    for (Node broker : nodeSet) {
+      brokerMetadataSet.add(new BrokerMetadata(broker.id(), Option.apply(broker.rack())));
+    }
+    List<List<Integer>> newPartitionAssignments =
+        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
+    Assert.assertNotNull(newPartitionAssignments);
+
+    System.out.println(newPartitionAssignments);
+    Assert.assertEquals(newPartitionAssignments.get(0).get(0).intValue(), 1);
+    Assert.assertEquals(newPartitionAssignments.get(1).get(0).intValue(), 2);
+    Assert.assertEquals(newPartitionAssignments.get(2).get(0).intValue(), 3);
+    Assert.assertEquals(newPartitionAssignments.get(3).get(0).intValue(), 4);
+    Assert.assertEquals(newPartitionAssignments.get(4).get(0).intValue(), 5);
+    Assert.assertEquals(newPartitionAssignments.get(5).get(0).intValue(), 6);
   }
 
   @Test
