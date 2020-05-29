@@ -62,12 +62,17 @@ public class SingleClusterMonitor implements App {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+
+    // block on the MultiClusterTopicManagementService to complete.
+    topicPartitionResult.get();
+
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(_produceService);
     _allServices.add(_consumeService);
+
   }
 
   @Override

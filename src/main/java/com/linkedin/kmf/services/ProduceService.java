@@ -171,7 +171,7 @@ public class ProduceService implements Service {
         _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
         LOG.info("{}/ProduceService started", _name);
       } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
-        LOG.error("Exception occurred while starting produce service: ", e);
+        LOG.error("Exception occurred while starting produce service for topic: {}", _topic, e);
       }
     }
   }
@@ -395,9 +395,9 @@ public class ProduceService implements Service {
         initializeStateForPartitions(currentPartitionNum);
         LOG.info("New partitions added to monitoring.");
       } catch (InterruptedException e) {
-        LOG.error("InterruptedException occurred {}.", e);
+        LOG.error("InterruptedException occurred.", e);
       } catch (ExecutionException e) {
-        LOG.error("ExecutionException occurred {}.", e);
+        LOG.error("ExecutionException occurred.", e);
       }
     }
   }

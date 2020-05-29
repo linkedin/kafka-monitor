@@ -68,7 +68,7 @@ public class CommitLatencyMetrics {
       _inProgressCommit = true;
     } else {
       // inProgressCommit is already set to TRUE;
-      throw new Exception("Offset commit is already in progress.");
+      LOG.debug("Offset commit is already in progress.");
     }
   }
 
@@ -83,7 +83,7 @@ public class CommitLatencyMetrics {
       _inProgressCommit = false;
     } else {
       // inProgressCommit is already set to FALSE;
-      LOG.error("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
+      LOG.debug("Offset commit is not in progress. CommitLatencyMetrics shouldn't completing a record commit here.");
     }
   }
 
