@@ -11,7 +11,6 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.topicfactory.TopicFactory;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -87,44 +86,13 @@ public class MultiClusterTopicManagementServiceTest {
         MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
     Assert.assertNotNull(newPartitionAssignments);
 
-    List<List<Integer>> newPartitionAssignmentsList = new ArrayList<>();
-    List<Integer> list = new ArrayList<>();
-    list.add(6);
-    list.add(2);
-    list.add(4);
-    list.add(3);
-    newPartitionAssignmentsList.add(list);
-    list = new ArrayList<>();
-    list.add(2);
-    list.add(6);
-    list.add(4);
-    list.add(3);
-    newPartitionAssignmentsList.add(list);
-    list = new ArrayList<>();
-    list.add(4);
-    list.add(6);
-    list.add(2);
-    list.add(3);
-    newPartitionAssignmentsList.add(list);
-    list = new ArrayList<>();
-    list.add(3);
-    list.add(6);
-    list.add(2);
-    list.add(4);
-    newPartitionAssignmentsList.add(list);
-    list = new ArrayList<>();
-    list.add(8);
-    list.add(6);
-    list.add(2);
-    list.add(4);
-    newPartitionAssignmentsList.add(list);
-    list = new ArrayList<>();
-    list.add(5);
-    list.add(6);
-    list.add(2);
-    list.add(4);
-    newPartitionAssignmentsList.add(list);
-    Assert.assertEquals(newPartitionAssignmentsList, newPartitionAssignments);
+    System.out.println(newPartitionAssignments);
+    Assert.assertEquals(newPartitionAssignments.get(0).get(0).intValue(), 6);
+    Assert.assertEquals(newPartitionAssignments.get(1).get(0).intValue(), 2);
+    Assert.assertEquals(newPartitionAssignments.get(2).get(0).intValue(), 4);
+    Assert.assertEquals(newPartitionAssignments.get(3).get(0).intValue(), 3);
+    Assert.assertEquals(newPartitionAssignments.get(4).get(0).intValue(), 8);
+    Assert.assertEquals(newPartitionAssignments.get(5).get(0).intValue(), 5);
   }
 
   @Test
