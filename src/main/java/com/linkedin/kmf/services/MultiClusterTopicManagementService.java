@@ -54,6 +54,7 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.Option$;
 import scala.collection.Seq;
 
@@ -387,8 +388,9 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(),
+          com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS, com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS,
+          Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, Option.apply(null))) {
 
         List<TopicPartitionInfo> partitionInfoList = _adminClient
             .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();

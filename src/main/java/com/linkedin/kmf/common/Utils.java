@@ -88,6 +88,7 @@ public class Utils {
       throws ExecutionException, InterruptedException {
     try {
       if (adminClient.listTopics().names().get().contains(topic)) {
+        LOG.info("AdminClient indicates that {} already exists in the cluster. Topic config: {}", topic, topicConfig);
         return getPartitionNumForTopic(adminClient, topic);
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
@@ -107,7 +108,7 @@ public class Utils {
 
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
-        LOG.debug("Monitoring topic " + topic + " already exists in the cluster.", e);
+        LOG.info("Monitoring topic " + topic + " already exists in the cluster.", e);
         return getPartitionNumForTopic(adminClient, topic);
       }
       LOG.info("Created monitoring topic {} in cluster with {} partitions and replication factor of {}.", topic,
@@ -115,7 +116,7 @@ public class Utils {
 
       return partitionCount;
     } finally {
-      LOG.info("Completed the topic creation if it doesn't exist for {}", topic);
+      LOG.info("Completed the topic creation if it doesn't exist for {}.", topic);
     }
   }
 
