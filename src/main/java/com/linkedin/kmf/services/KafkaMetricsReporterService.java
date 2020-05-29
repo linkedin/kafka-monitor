@@ -28,8 +28,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class KafkaMetricsReporterService implements Service {
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
   private static final String METRICS_PRODUCER_ID = "kafka-metrics-reporter-id";
   private final String _name;
   private final List<String> _metricsNames;
@@ -49,9 +50,10 @@ public class KafkaMetricsReporterService implements Service {
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     initializeProducer();
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
+    Integer rf = config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR);
     Utils.createTopicIfNotExists(
         _topic,
-        config.getShort(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR),
+        rf.shortValue(),
         0, // parameter is set to 0 here since no matter the number of nodes, the topic partition number should be set to zero.
         1, // fixed partition count 1
         new Properties(),
@@ -65,17 +67,17 @@ public class KafkaMetricsReporterService implements Service {
       try {
         reportMetrics();
       } catch (Exception e) {
-        LOG.error(_name + "/KafkaMetricsReporterService failed to report metrics", e);
+        LOGGER.error(_name + "/KafkaMetricsReporterService failed to report metrics.", e);
       }
     }, _reportIntervalSec, _reportIntervalSec, TimeUnit.SECONDS);
-    LOG.info("{}/KafkaMetricsReporterService started", _name);
+    LOGGER.info("{}/KafkaMetricsReporterService has started.", _name);
   }
 
   @Override
   public synchronized void stop() {
     _executor.shutdown();
     _producer.close();
-    LOG.info("{}/KafkaMetricsReporterService stopped", _name);
+    LOGGER.info("{}/KafkaMetricsReporterService stopped.", _name);
   }
 
   @Override
@@ -88,9 +90,9 @@ public class KafkaMetricsReporterService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      LOG.info("Thread interrupted when waiting for {}/KafkaMetricsReporterService to shutdown", _name);
+      LOGGER.info("Thread interrupted when waiting for {}/KafkaMetricsReporterService to shutdown", _name);
     }
-    LOG.info("{}/KafkaMetricsReporterService shutdown completed", _name);
+    LOGGER.info("{}/KafkaMetricsReporterService shutdown completed", _name);
   }
 
 
@@ -122,10 +124,10 @@ public class KafkaMetricsReporterService implements Service {
       }
     }
     try {
-      LOG.debug("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
+      LOGGER.info("Kafka Metrics Reporter sending metrics = " + _parser.writerWithDefaultPrettyPrinter().writeValueAsString(metrics));
       _producer.send(new ProducerRecord<>(_topic, _parser.writeValueAsString(metrics)));
     } catch (JsonProcessingException e) {
-      LOG.warn("unsupported json format: " + metrics, e);
+      LOGGER.warn("unsupported json format: " + metrics, e);
     }
   }
 }
