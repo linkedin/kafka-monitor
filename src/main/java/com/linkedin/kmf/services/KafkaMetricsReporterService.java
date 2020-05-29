@@ -26,6 +26,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class KafkaMetricsReporterService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsReporterService.class);
   private static final String METRICS_PRODUCER_ID = "kafka-metrics-reporter-id";
