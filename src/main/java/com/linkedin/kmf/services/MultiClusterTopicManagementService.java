@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
-import kafka.controller.ReplicaAssignment;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -508,9 +507,9 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      scala.collection.Map<Object, ReplicaAssignment>
-          currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-      String currentAssignmentJson = formatAsOldAssignmentJson(topic, currentAssignment);
+      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment =
+          zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
+      String currentAssignmentJson = formatAsNewReassignmentJson(topic, currentAssignment);
       String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
       LOGGER.info("Reassign partitions for topic " + topic);
@@ -568,23 +567,25 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
-      StringBuilder bldr = new StringBuilder();
-      bldr.append("{\"version\":1,\"partitions\":[\n");
-      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
-        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
-        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
-        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
-          Object replica = replicas.replicas().apply(replicaIndex);
-          bldr.append(replica).append(",");
-        }
-        bldr.setLength(bldr.length() - 1);
-        bldr.append("]},\n");
-      }
-      bldr.setLength(bldr.length() - 2);
-      bldr.append("]}");
-      return bldr.toString();
-    }
+
+    // TODO (andrewchoi5): uncomment this method when Xinfra Monitor is upgraded to 'org.apache.kafka' 'kafka_2.12' version '2.4.1'
+//    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
+//      StringBuilder bldr = new StringBuilder();
+//      bldr.append("{\"version\":1,\"partitions\":[\n");
+//      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
+//        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+//        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
+//        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
+//          Object replica = replicas.replicas().apply(replicaIndex);
+//          bldr.append(replica).append(",");
+//        }
+//        bldr.setLength(bldr.length() - 1);
+//        bldr.append("]},\n");
+//      }
+//      bldr.setLength(bldr.length() - 2);
+//      bldr.append("]}");
+//      return bldr.toString();
+//    }
 
     /**
      * @param topic Kafka topic
