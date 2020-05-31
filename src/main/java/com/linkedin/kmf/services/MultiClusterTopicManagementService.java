@@ -37,12 +37,10 @@ import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
-import org.apache.kafka.clients.admin.ElectLeadersOptions;
-import org.apache.kafka.clients.admin.ElectLeadersResult;
+import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
@@ -481,13 +479,9 @@ public class MultiClusterTopicManagementService implements Service {
       for (TopicPartitionInfo javaPartitionInfo : partitionInfoList) {
         partitions.add(new TopicPartition(partitionTopic, javaPartitionInfo.partition()));
       }
+      ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
-      ElectLeadersOptions newOptions = new ElectLeadersOptions();
-      ElectionType electionType = ElectionType.PREFERRED;
-      Set<TopicPartition> topicPartitions = new HashSet<>(partitions);
-      ElectLeadersResult electLeadersResult = _adminClient.electLeaders(electionType, topicPartitions, newOptions);
-
-      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electLeadersResult.all().get());
+      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Node> brokers, String topic, int partitionCount, int replicationFactor) {

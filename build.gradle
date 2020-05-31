@@ -39,7 +39,7 @@ allprojects {
     compile 'com.timgroup:java-statsd-client:3.0.1'
     compile 'com.signalfx.public:signalfx-codahale:0.0.47'
     compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.3.1'
-    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.1'
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.1'
     testCompile 'org.mockito:mockito-core:2.24.0'
     testCompile 'org.testng:testng:6.8.8'
   }
