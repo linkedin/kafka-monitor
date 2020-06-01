@@ -81,10 +81,27 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       props.forEach(consumerProps::putIfAbsent);
     }
 
-    _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
-        .getConstructor(String.class, Properties.class, AdminClient.class)
-        .newInstance(_topic, consumerProps, adminClient());
+    if (adminClientConstructorExists(consumerClassName)) {
+      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
+          .getConstructor(String.class, Properties.class, AdminClient.class)
+          .newInstance(_topic, consumerProps, adminClient());
+    } else {
+      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
+          .getConstructor(String.class, Properties.class)
+          .newInstance(_topic, consumerProps);
+    }
+  }
 
+  static boolean adminClientConstructorExists(String consumerClassName) throws ClassNotFoundException {
+    try {
+      Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
+      return true;
+    } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+      LOG.error("The method was not found. This is not a constructor with AdminClient parameter: ", noSuchMethodException);
+      return false;
+    } catch (ClassNotFoundException e) {
+      throw new ClassNotFoundException("The class was not found: ", e);
+    }
   }
 
   @Override
