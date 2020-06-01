@@ -11,9 +11,8 @@ package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.apps.App;
-import com.linkedin.kmf.services.ConsumerFactory;
-import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.Service;
+import com.linkedin.kmf.services.ServiceFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.lang.reflect.Constructor;
@@ -79,19 +78,11 @@ public class KafkaMonitor {
         App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
-        Constructor<?>[] constructors = Class.forName(className).getConstructors();
-        if (this.constructorContainsFuture(constructors)) {
-          CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-          completableFuture.complete(null);
-          ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
-          Service service = (Service) Class.forName(className)
-              .getConstructor(String.class, CompletableFuture.class, ConsumerFactory.class)
-              .newInstance(name, completableFuture, consumerFactory);
-          _services.put(name, service);
-        } else {
-          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-          _services.put(name, service);
-        }
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + "Factory")
+            .getConstructor(Map.class, String.class)
+            .newInstance(props, name);
+        Service service = serviceFactory.create();
+        _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
