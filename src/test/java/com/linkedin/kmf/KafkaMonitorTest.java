@@ -11,6 +11,7 @@
 package com.linkedin.kmf;
 
 import com.linkedin.kmf.services.Service;
+import com.linkedin.kmf.services.ServiceFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,22 +28,22 @@ public class KafkaMonitorTest {
     KafkaMonitor kafkaMonitor = kafkaMonitor();
 
     /* Nothing should be started */
-    org.testng.Assert.assertEquals(FakeService.startCount.get(), 0);
-    org.testng.Assert.assertEquals(FakeService.stopCount.get(), 0);
+    org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 0);
+    org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 0);
 
     /* Should accept but ignore start because start has not been called */
     kafkaMonitor.stop();
-    org.testng.Assert.assertEquals(FakeService.stopCount.get(), 0);
+    org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 0);
 
     /* Should start */
     kafkaMonitor.start();
-    org.testng.Assert.assertEquals(FakeService.startCount.get(), 1);
+    org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 1);
 
     /* Should allow start to be called more than once */
     kafkaMonitor.stop();
     kafkaMonitor.stop();
-    org.testng.Assert.assertEquals(FakeService.startCount.get(), 1);
-    org.testng.Assert.assertEquals(FakeService.stopCount.get(), 1);
+    org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 1);
+    org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 1);
 
     /* Should be allowed to shutdown more than once. */
     kafkaMonitor.awaitShutdown();
@@ -78,16 +79,40 @@ public class KafkaMonitorTest {
     FakeService.clearCounters();
     Map<String, Map> config = new HashMap<>();
     Map<String, Object> fakeServiceConfig = new HashMap<>();
-    fakeServiceConfig.put(KafkaMonitor.CLASS_NAME_CONFIG, FakeService.class.getName());
+    fakeServiceConfig.put(XinfraMonitorConstants.CLASS_NAME_CONFIG, FakeService.class.getName());
     config.put("fake-service", fakeServiceConfig);
+
     return new KafkaMonitor(config);
   }
 
+  /**
+   * Factory class which instantiates a new FakeService service object.
+   */
+  @SuppressWarnings("rawtypes")
+  static final class FakeServiceFactory implements ServiceFactory {
+
+    private final Map _config;
+    private final String _serviceInstanceName;
+
+    public FakeServiceFactory(Map config, String serviceInstanceName) {
+
+      this._config = config;
+      this._serviceInstanceName = serviceInstanceName;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Service createService() throws Exception {
+
+      return new KafkaMonitorTest.FakeService(_config, _serviceInstanceName);
+
+    }
+  }
 
   static final class FakeService implements Service {
 
-    private static AtomicInteger startCount = new AtomicInteger();
-    private static AtomicInteger stopCount = new AtomicInteger();
+    private static final AtomicInteger START_COUNT = new AtomicInteger();
+    private static final AtomicInteger STOP_COUNT = new AtomicInteger();
     private final AtomicBoolean _isRunning = new AtomicBoolean();
 
     /** required */
@@ -96,20 +121,20 @@ public class KafkaMonitorTest {
     }
 
     private static void clearCounters() {
-      startCount.set(0);
-      stopCount.set(0);
+      START_COUNT.set(0);
+      STOP_COUNT.set(0);
     }
 
     @Override
     public void start() {
       _isRunning.compareAndSet(false, true);
-      startCount.incrementAndGet();
+      START_COUNT.incrementAndGet();
     }
 
     @Override
     public synchronized void stop() {
       _isRunning.compareAndSet(true, false);
-      stopCount.incrementAndGet();
+      STOP_COUNT.incrementAndGet();
       notifyAll();
     }
 
@@ -121,9 +146,9 @@ public class KafkaMonitorTest {
     @Override
     public synchronized void awaitShutdown() {
       try {
-        if (stopCount.get() == 0) {
+        if (STOP_COUNT.get() == 0) {
           wait(3_000);
-          if (stopCount.get() == 0) {
+          if (STOP_COUNT.get() == 0) {
             throw new IllegalStateException("Never notified.");
           }
         }

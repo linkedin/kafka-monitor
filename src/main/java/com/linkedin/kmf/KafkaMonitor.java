@@ -40,9 +40,6 @@ import org.slf4j.LoggerFactory;
  */
 public class KafkaMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
-  public static final String CLASS_NAME_CONFIG = "class.name";
-  private static final String METRIC_GROUP_NAME = "kafka-monitor";
-  private static final String JMX_PREFIX = "kmf";
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
@@ -61,7 +58,7 @@ public class KafkaMonitor {
    * @param allClusterProps the properties of ALL kafka clusters for which apps and services need to be appended.
    * @throws Exception
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({"rawtypes"})
   public KafkaMonitor(Map<String, Map> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
@@ -69,19 +66,19 @@ public class KafkaMonitor {
     for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
       String name = clusterProperty.getKey();
       Map props = clusterProperty.getValue();
-      if (!props.containsKey(CLASS_NAME_CONFIG))
-        throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
-      String className = (String) props.get(CLASS_NAME_CONFIG);
+      if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
+        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
+      String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
 
       Class<?> aClass = Class.forName(className);
       if (App.class.isAssignableFrom(aClass)) {
         App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
-        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + "Factory")
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
             .getConstructor(Map.class, String.class)
             .newInstance(props, name);
-        Service service = serviceFactory.create();
+        Service service = serviceFactory.createService();
         _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
@@ -90,9 +87,9 @@ public class KafkaMonitor {
     _executor = Executors.newSingleThreadScheduledExecutor();
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(JMX_PREFIX));
+    reporters.add(new JmxReporter(XinfraMonitorConstants.JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
-    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
+    metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
   }
 

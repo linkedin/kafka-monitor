@@ -10,8 +10,25 @@
 
 package com.linkedin.kmf.services;
 
-public interface ServiceFactory {
+import java.util.Map;
 
-  Service createService() throws Exception;
 
+/**
+ * Factory that constructs the ProduceService
+ */
+@SuppressWarnings("rawtypes")
+public class ProduceServiceFactory implements ServiceFactory {
+  private final Map _props;
+  private final String _name;
+
+  public ProduceServiceFactory(Map props, String name) {
+    _props = props;
+    _name = name;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public Service createService() throws Exception {
+    return new ProduceService(_props, _name);
+  }
 }

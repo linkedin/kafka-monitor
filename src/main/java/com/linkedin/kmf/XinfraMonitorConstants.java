@@ -8,10 +8,23 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.kmf.services;
+package com.linkedin.kmf;
 
-public interface ServiceFactory {
+/**
+ * Constant variables in Xinfra Monitor repo.
+ */
+public class XinfraMonitorConstants {
 
-  Service createService() throws Exception;
+  public XinfraMonitorConstants() {
+  }
+
+  static final String FACTORY = "Factory";
+
+  static final String CLASS_NAME_CONFIG = "class.name";
+
+  static final String METRIC_GROUP_NAME = "kafka-monitor";
+
+  static final String JMX_PREFIX = "kmf";
+
 
 }

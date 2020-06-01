@@ -11,29 +11,27 @@
 package com.linkedin.kmf.services;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 
 /**
- * Factory that constructs the ConsumeService.
+ * Factory class which constructs the TopicManagementService.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
-public class ConsumeServiceFactory implements ServiceFactory {
-  private final Map _props;
-  private final String _name;
+@SuppressWarnings("rawtypes")
+public class TopicManagementServiceFactory implements ServiceFactory {
+  private final Map _properties;
+  private final String _serviceName;
 
-  public ConsumeServiceFactory(Map props, String name) {
-    _props = props;
-    _name = name;
+  public TopicManagementServiceFactory(Map properties, String serviceName) {
+
+    _properties = properties;
+    _serviceName = serviceName;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public Service createService() throws Exception {
 
-    CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
-    topicPartitionResult.complete(null);
-    ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(_props);
+    return new TopicManagementService(_properties, _serviceName);
 
-    return new ConsumeService(_name, topicPartitionResult, consumerFactory);
   }
 }
