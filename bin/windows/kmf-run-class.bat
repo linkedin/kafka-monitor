@@ -10,7 +10,7 @@ REM an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expre
 setlocal enabledelayedexpansion
 
 IF [%1] EQU [] (
-	echo USAGE: %0 com.linkedin.kmf.KafkaMonitor config/kafka-monitor.properties
+	echo USAGE: %0 com.linkedin.kmf.XinfraMonitor config/kafka-monitor.properties
 	EXIT /B 1
 )
 

@@ -25,41 +25,43 @@ public class KafkaMonitorTest {
 
   @Test
   public void lifecycleTest() throws Exception {
-    KafkaMonitor kafkaMonitor = kafkaMonitor();
+    XinfraMonitor xinfraMonitor = kafkaMonitor();
 
     /* Nothing should be started */
     org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 0);
     org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 0);
 
     /* Should accept but ignore start because start has not been called */
-    kafkaMonitor.stop();
+
+    xinfraMonitor.stop();
     org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 0);
 
     /* Should start */
-    kafkaMonitor.start();
+    xinfraMonitor.start();
     org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 1);
 
     /* Should allow start to be called more than once */
-    kafkaMonitor.stop();
-    kafkaMonitor.stop();
+    xinfraMonitor.stop();
+    xinfraMonitor.stop();
     org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 1);
     org.testng.Assert.assertEquals(FakeService.STOP_COUNT.get(), 1);
 
+
     /* Should be allowed to shutdown more than once. */
-    kafkaMonitor.awaitShutdown();
-    kafkaMonitor.awaitShutdown();
+    xinfraMonitor.awaitShutdown();
+    xinfraMonitor.awaitShutdown();
   }
 
   @Test
   public void awaitShutdownOtherThread() throws Exception {
-    final KafkaMonitor kafkaMonitor = kafkaMonitor();
+    final XinfraMonitor xinfraMonitor = kafkaMonitor();
     final AtomicReference<Throwable> error = new AtomicReference<>();
 
     Thread t = new Thread("test awaitshutdown thread") {
       @Override
       public void run() {
         try {
-          kafkaMonitor.awaitShutdown();
+          xinfraMonitor.awaitShutdown();
         } catch (Throwable t) {
           error.set(t);
         }
@@ -67,22 +69,23 @@ public class KafkaMonitorTest {
     };
 
     t.start();
-    kafkaMonitor.start();
+    xinfraMonitor.start();
     Thread.sleep(100);
-    kafkaMonitor.stop();
+    xinfraMonitor.stop();
     t.join(500);
     org.testng.Assert.assertFalse(t.isAlive());
     org.testng.Assert.assertEquals(error.get(), null);
   }
 
-  private KafkaMonitor kafkaMonitor() throws Exception {
+  private XinfraMonitor kafkaMonitor() throws Exception {
     FakeService.clearCounters();
     Map<String, Map> config = new HashMap<>();
     Map<String, Object> fakeServiceConfig = new HashMap<>();
+
     fakeServiceConfig.put(XinfraMonitorConstants.CLASS_NAME_CONFIG, FakeService.class.getName());
     config.put("fake-service", fakeServiceConfig);
+    return new XinfraMonitor(config);
 
-    return new KafkaMonitor(config);
   }
 
   /**
