@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory;
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
  * applications.
  */
-public class KafkaMonitor {
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
+public class XinfraMonitor {
+  private static final Logger LOG = LoggerFactory.getLogger(XinfraMonitor.class);
   public static final String CLASS_NAME_CONFIG = "class.name";
   private static final String METRIC_GROUP_NAME = "kafka-monitor";
   private static final String JMX_PREFIX = "kmf";
@@ -63,7 +63,7 @@ public class KafkaMonitor {
    * @throws Exception
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public KafkaMonitor(Map<String, Map> allClusterProps) throws Exception {
+  public XinfraMonitor(Map<String, Map> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
@@ -179,7 +179,7 @@ public class KafkaMonitor {
   @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.properties");
+      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/kafka-monitor.properties");
       return;
     }
 
@@ -194,11 +194,11 @@ public class KafkaMonitor {
 
     @SuppressWarnings("unchecked")
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
-    kafkaMonitor.start();
+    XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
+    xinfraMonitor.start();
     LOG.info("Xinfra Monitor (KafkaMonitor) started.");
 
-    kafkaMonitor.awaitShutdown();
+    xinfraMonitor.awaitShutdown();
   }
 
 }
