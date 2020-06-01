@@ -32,18 +32,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
-import kafka.controller.ReplicaAssignment;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
-import org.apache.kafka.clients.admin.ElectLeadersOptions;
-import org.apache.kafka.clients.admin.ElectLeadersResult;
+import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
@@ -54,7 +51,6 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.Option$;
 import scala.collection.Seq;
 
@@ -388,9 +384,9 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(),
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(),
           com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS, com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS,
-          Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, Option.apply(null))) {
+          Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
 
         List<TopicPartitionInfo> partitionInfoList = _adminClient
             .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -463,8 +459,8 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSaslEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null, null)) {
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
         if (!zkClient.reassignPartitionsInProgress()) {
           List<TopicPartitionInfo> partitionInfoList = _adminClient
               .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -483,13 +479,9 @@ public class MultiClusterTopicManagementService implements Service {
       for (TopicPartitionInfo javaPartitionInfo : partitionInfoList) {
         partitions.add(new TopicPartition(partitionTopic, javaPartitionInfo.partition()));
       }
+      ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
-      ElectLeadersOptions newOptions = new ElectLeadersOptions();
-      ElectionType electionType = ElectionType.PREFERRED;
-      Set<TopicPartition> topicPartitions = new HashSet<>(partitions);
-      ElectLeadersResult electLeadersResult = _adminClient.electLeaders(electionType, topicPartitions, newOptions);
-
-      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electLeadersResult.all().get());
+      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Node> brokers, String topic, int partitionCount, int replicationFactor) {
@@ -509,9 +501,9 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      scala.collection.Map<Object, ReplicaAssignment>
-          currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-      String currentAssignmentJson = formatAsOldAssignmentJson(topic, currentAssignment);
+      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment =
+          zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
+      String currentAssignmentJson = formatAsNewReassignmentJson(topic, currentAssignment);
       String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
       LOGGER.info("Reassign partitions for topic " + topic);
@@ -569,23 +561,25 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
-      StringBuilder bldr = new StringBuilder();
-      bldr.append("{\"version\":1,\"partitions\":[\n");
-      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
-        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
-        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
-        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
-          Object replica = replicas.replicas().apply(replicaIndex);
-          bldr.append(replica).append(",");
-        }
-        bldr.setLength(bldr.length() - 1);
-        bldr.append("]},\n");
-      }
-      bldr.setLength(bldr.length() - 2);
-      bldr.append("]}");
-      return bldr.toString();
-    }
+
+    // TODO (andrewchoi5): uncomment this method when Xinfra Monitor is upgraded to 'org.apache.kafka' 'kafka_2.12' version '2.4.1'
+//    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
+//      StringBuilder bldr = new StringBuilder();
+//      bldr.append("{\"version\":1,\"partitions\":[\n");
+//      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
+//        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+//        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
+//        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
+//          Object replica = replicas.replicas().apply(replicaIndex);
+//          bldr.append(replica).append(",");
+//        }
+//        bldr.setLength(bldr.length() - 1);
+//        bldr.append("]},\n");
+//      }
+//      bldr.setLength(bldr.length() - 2);
+//      bldr.append("]}");
+//      return bldr.toString();
+//    }
 
     /**
      * @param topic Kafka topic
