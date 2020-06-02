@@ -97,7 +97,7 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
     try {
       return Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
     } catch (java.lang.NoSuchMethodException noSuchMethodException) {
-      LOG.info("The method was not found. This is not a constructor with AdminClient parameter: ", noSuchMethodException);
+    LOG.info(consumerClassName + " does not provide a constructor with signature (Ljava/lang/String;Ljava/util/Properties;Lorg/apache/kafka/clients/admin/AdminClient;)V - falling back to (Ljava/util/Properties;)V");
       return null;
     } catch (ClassNotFoundException e) {
       throw new ClassNotFoundException("The class was not found: ", e);
