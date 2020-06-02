@@ -81,10 +81,28 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       props.forEach(consumerProps::putIfAbsent);
     }
 
-    _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
-        .getConstructor(String.class, Properties.class, AdminClient.class)
-        .newInstance(_topic, consumerProps, adminClient());
+    java.lang.reflect.Constructor<?> constructor = adminClientConstructorIfExists(consumerClassName);
+    if (constructor != null) {
+      _baseConsumer = (KMBaseConsumer) constructor
+          .newInstance(_topic, consumerProps, adminClient());
+    } else {
+      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
+          .getConstructor(String.class, Properties.class)
+          .newInstance(_topic, consumerProps);
+    }
+  }
 
+  private static java.lang.reflect.Constructor<?> adminClientConstructorIfExists(String consumerClassName)
+      throws ClassNotFoundException {
+    try {
+      return Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
+    } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+      LOG.info(consumerClassName
+          + " does not provide a constructor with signature (Ljava/lang/String;Ljava/util/Properties;Lorg/apache/kafka/clients/admin/AdminClient;)V - falling back to (Ljava/util/Properties;)V");
+      return null;
+    } catch (ClassNotFoundException e) {
+      throw new ClassNotFoundException("The class was not found: ", e);
+    }
   }
 
   @Override
