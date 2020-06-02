@@ -81,9 +81,9 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       props.forEach(consumerProps::putIfAbsent);
     }
 
-    if (adminClientConstructorExists(consumerClassName)) {
-      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
-          .getConstructor(String.class, Properties.class, AdminClient.class)
+    java.lang.reflect.Constructor<?> constructor = adminClientConstructorIfExists(consumerClassName);
+    if (constructor != null) {
+      _baseConsumer = (KMBaseConsumer) constructor
           .newInstance(_topic, consumerProps, adminClient());
     } else {
       _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
@@ -92,13 +92,13 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
     }
   }
 
-  static boolean adminClientConstructorExists(String consumerClassName) throws ClassNotFoundException {
+  private static java.lang.reflect.Constructor<?> adminClientConstructorIfExists(String consumerClassName)
+      throws ClassNotFoundException {
     try {
-      Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
-      return true;
+      return Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
     } catch (java.lang.NoSuchMethodException noSuchMethodException) {
-      LOG.error("The method was not found. This is not a constructor with AdminClient parameter: ", noSuchMethodException);
-      return false;
+      LOG.info("The method was not found. This is not a constructor with AdminClient parameter: ", noSuchMethodException);
+      return null;
     } catch (ClassNotFoundException e) {
       throw new ClassNotFoundException("The class was not found: ", e);
     }
