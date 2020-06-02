@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -56,7 +57,7 @@ public class XinfraMonitor {
    * For example, if there are 10 clusters to be monitored, then this Constructor will create 10 * num_apps_per_cluster
    * and 10 * num_services_per_cluster.
    * @param allClusterProps the properties of ALL kafka clusters for which apps and services need to be appended.
-   * @throws Exception
+   * @throws Exception when exception occurs while assigning Apps and Services
    */
 
   @SuppressWarnings({"rawtypes"})
@@ -94,9 +95,9 @@ public class XinfraMonitor {
       (config, now) -> _offlineRunnables.size());
   }
 
-  private boolean constructorContainsFuture(Constructor<?>[] constructors) {
+  private boolean constructorContainsClass(Constructor<?>[] constructors, Class<?> classObject) {
     for (int n = 0; n < constructors[0].getParameterTypes().length; ++n) {
-      if (constructors[0].getParameterTypes()[n].equals(CompletableFuture.class)) {
+      if (constructors[0].getParameterTypes()[n].equals(classObject)) {
         return true;
       }
     }
