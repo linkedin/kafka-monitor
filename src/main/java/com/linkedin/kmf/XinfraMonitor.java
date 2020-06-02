@@ -7,27 +7,25 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
+
 package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.apps.App;
-import com.linkedin.kmf.services.ConsumerFactory;
-import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.Service;
+import com.linkedin.kmf.services.ServiceFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -42,9 +40,6 @@ import org.slf4j.LoggerFactory;
  */
 public class XinfraMonitor {
   private static final Logger LOG = LoggerFactory.getLogger(XinfraMonitor.class);
-  public static final String CLASS_NAME_CONFIG = "class.name";
-  private static final String METRIC_GROUP_NAME = "kafka-monitor";
-  private static final String JMX_PREFIX = "kmf";
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
@@ -63,7 +58,8 @@ public class XinfraMonitor {
    * @param allClusterProps the properties of ALL kafka clusters for which apps and services need to be appended.
    * @throws Exception when exception occurs while assigning Apps and Services
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+
+  @SuppressWarnings({"rawtypes"})
   public XinfraMonitor(Map<String, Map> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
@@ -71,36 +67,20 @@ public class XinfraMonitor {
     for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
       String name = clusterProperty.getKey();
       Map props = clusterProperty.getValue();
-      if (!props.containsKey(CLASS_NAME_CONFIG))
-        throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
-      String className = (String) props.get(CLASS_NAME_CONFIG);
+      if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
+        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
+      String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
 
       Class<?> aClass = Class.forName(className);
       if (App.class.isAssignableFrom(aClass)) {
         App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
-        Constructor<?>[] constructors = Class.forName(className).getConstructors();
-        if (this.constructorContainsClass(constructors, CompletableFuture.class)) {
-          // for ConsumeService public constructor
-          CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-          completableFuture.complete(null);
-          ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
-          Service service = (Service) Class.forName(className)
-              .getConstructor(String.class, CompletableFuture.class, ConsumerFactory.class)
-              .newInstance(name, completableFuture, consumerFactory);
-          _services.put(name, service);
-        } else if (this.constructorContainsClass(constructors, AdminClient.class)) {
-          // for KafkaMetricsReporterService constructor
-          AdminClient adminClient = AdminClient.create(props);
-          Service service = (Service) Class.forName(className)
-              .getConstructor(Map.class, String.class, AdminClient.class)
-              .newInstance(props, name, adminClient);
-          _services.put(name, service);
-        } else {
-          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-          _services.put(name, service);
-        }
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
+            .getConstructor(Map.class, String.class)
+            .newInstance(props, name);
+        Service service = serviceFactory.createService();
+        _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
@@ -108,9 +88,9 @@ public class XinfraMonitor {
     _executor = Executors.newSingleThreadScheduledExecutor();
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(JMX_PREFIX));
+    reporters.add(new JmxReporter(XinfraMonitorConstants.JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
-    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
+    metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
   }
 
