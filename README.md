@@ -45,8 +45,8 @@ Xinfra Monitor supports Apache Kafka 0.8 to 2.0:
 
 <ol>
 <li> We advise advanced users to run Xinfra Monitor with
-<code>./bin/kafka-monitor-start.sh config/kafka-monitor.properties</code>. The default
-kafka-monitor.properties in the repo provides an simple example of how to
+<code>./bin/kafka-monitor-start.sh config/xinfra-monitor.properties</code>. The default
+xinfra-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
 <code>zookeeper.connect</code> and <code>bootstrap.servers</code> to point to your cluster.
   </li>
@@ -55,7 +55,7 @@ monitor a single cluster. You probably need to change the value of
 Config class for respective service, e.g. ProduceServiceConfig.java and
 ConsumeServiceConfig.java.</li>
 <br />
-<li> You can specify multiple SingleClusterMonitor in the kafka-monitor.properties to
+<li> You can specify multiple SingleClusterMonitor in the xinfra-monitor.properties to
 monitor multiple Kafka clusters in one Xinfra Monitor process. As another
 advanced use-case, you can point ProduceService and ConsumeService to two different Kafka clusters that are connected by MirrorMaker to monitor their end-to-end latency.</li>
 <br />  
@@ -92,16 +92,16 @@ $ ./gradlew jar
 
 ### Start XinfraMonitor to run tests/services specified in the config file
 ```
-$ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
+$ ./bin/kafka-monitor-start.sh config/xinfra-monitor.properties
 ```
 
 ### Run Xinfra Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
-Edit `config/kafka-monitor.properties` to specify custom configurations for producer in the key/value map `produce.producer.props` in
-`config/kafka-monitor.properties`. Similarly specify configurations for
+Edit `config/xinfra-monitor.properties` to specify custom configurations for producer in the key/value map `produce.producer.props` in
+`config/xinfra-monitor.properties`. Similarly specify configurations for
 consumer as well. The documentation for producer and consumer in the key/value maps can be found in the Apache Kafka wiki.
 
 ```
-$ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
+$ ./bin/kafka-monitor-start.sh config/xinfra-monitor.properties
 ```
 
 ### Run SingleClusterMonitor app to monitor kafka cluster
