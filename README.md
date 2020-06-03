@@ -90,7 +90,7 @@ $ cd kafka-monitor
 $ ./gradlew jar
 ```
 
-### Start KafkaMonitor to run tests/services specified in the config file
+### Start XinfraMonitor to run tests/services specified in the config file
 ```
 $ ./bin/kafka-monitor-start.sh config/kafka-monitor.properties
 ```

@@ -52,7 +52,7 @@ public class XinfraMonitor {
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
 
   /**
-   * KafkaMonitor constructor creates apps and services for each of the individual clusters (properties) that's passed in.
+   * XinfraMonitor constructor creates apps and services for each of the individual clusters (properties) that's passed in.
    * For example, if there are 10 clusters to be monitored, then this Constructor will create 10 * num_apps_per_cluster
    * and 10 * num_services_per_cluster.
    * @param allClusterProps the properties of ALL kafka clusters for which apps and services need to be appended.
@@ -185,7 +185,7 @@ public class XinfraMonitor {
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
     xinfraMonitor.start();
-    LOG.info("Xinfra Monitor (KafkaMonitor) started.");
+    LOG.info("Xinfra Monitor has started.");
 
     xinfraMonitor.awaitShutdown();
   }
