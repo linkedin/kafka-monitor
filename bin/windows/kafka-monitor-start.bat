@@ -15,7 +15,7 @@ popd
 
 
 IF [%1] EQU [] (
-	echo USAGE: %0 config/kafka-monitor.properties
+	echo USAGE: %0 config/xinfra-monitor.properties
 	EXIT /B 1
 )
 

@@ -168,7 +168,7 @@ public class XinfraMonitor {
   @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/kafka-monitor.properties");
+      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.properties");
       return;
     }
 
