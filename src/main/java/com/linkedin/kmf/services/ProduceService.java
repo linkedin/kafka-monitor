@@ -64,7 +64,7 @@ public class ProduceService implements Service {
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
-  private final KMPartitioner _partitioner;
+  private KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
@@ -278,10 +278,10 @@ public class ProduceService implements Service {
           for (int partition = 0; partition < partitionNum; partition++) {
             double recordsProduced = (double) metrics.metrics()
                 .get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
-                .metricValue();
+                .value();
             double produceError = (double) metrics.metrics()
                 .get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
-                .metricValue();
+                .value();
             // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
             if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
               produceError = 0;
@@ -409,13 +409,13 @@ public class ProduceService implements Service {
   private class ProduceServiceThreadFactory implements ThreadFactory {
 
     private final AtomicInteger _threadId = new AtomicInteger();
-    public Thread newThread(@SuppressWarnings("NullableProblems") Runnable r) {
+    public Thread newThread(Runnable r) {
       return new Thread(r, _name + "-produce-service-" + _threadId.getAndIncrement());
     }
   }
 
   private class HandleNewPartitionsThreadFactory implements ThreadFactory {
-    public Thread newThread(@SuppressWarnings("NullableProblems") Runnable r) {
+    public Thread newThread(Runnable r) {
       return new Thread(r, _name + "-produce-service-new-partition-handler");
     }
   }
