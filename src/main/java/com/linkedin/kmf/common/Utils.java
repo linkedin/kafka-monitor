@@ -130,7 +130,7 @@ public class Utils {
   /**
    * @param timestamp time in Ms when this message is generated
    * @param topic     topic this message is sent to
-   * @param idx       index is consecutive numbers used by KafkaMonitor to determine duplicate or lost messages
+   * @param idx       index is consecutive numbers used by XinfraMonitor to determine duplicate or lost messages
    * @param msgSize   size of the message
    * @return string that encodes the above fields
    */

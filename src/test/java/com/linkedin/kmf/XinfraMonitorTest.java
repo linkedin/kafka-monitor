@@ -21,11 +21,11 @@ import org.testng.annotations.Test;
 
 
 @Test
-public class KafkaMonitorTest {
+public class XinfraMonitorTest {
 
   @Test
   public void lifecycleTest() throws Exception {
-    XinfraMonitor xinfraMonitor = kafkaMonitor();
+    XinfraMonitor xinfraMonitor = xinfraMonitor();
 
     /* Nothing should be started */
     org.testng.Assert.assertEquals(FakeService.START_COUNT.get(), 0);
@@ -54,7 +54,7 @@ public class KafkaMonitorTest {
 
   @Test
   public void awaitShutdownOtherThread() throws Exception {
-    final XinfraMonitor xinfraMonitor = kafkaMonitor();
+    final XinfraMonitor xinfraMonitor = xinfraMonitor();
     final AtomicReference<Throwable> error = new AtomicReference<>();
 
     Thread t = new Thread("test awaitshutdown thread") {
@@ -77,7 +77,7 @@ public class KafkaMonitorTest {
     org.testng.Assert.assertEquals(error.get(), null);
   }
 
-  private XinfraMonitor kafkaMonitor() throws Exception {
+  private XinfraMonitor xinfraMonitor() throws Exception {
     FakeService.clearCounters();
     Map<String, Map> config = new HashMap<>();
     Map<String, Object> fakeServiceConfig = new HashMap<>();
@@ -107,7 +107,7 @@ public class KafkaMonitorTest {
     @Override
     public Service createService() throws Exception {
 
-      return new KafkaMonitorTest.FakeService(_config, _serviceInstanceName);
+      return new XinfraMonitorTest.FakeService(_config, _serviceInstanceName);
 
     }
   }
