@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -338,14 +339,13 @@ public class MultiClusterTopicManagementService implements Service {
       int partitionDifference = minPartitionNum - partitionNum;
 
       // leader assignments -
-      for (BrokerMetadata brokerMetadata : brokers) {
+      while (newPartitionAssignments.size() != partitionDifference) {
         List replicas = new ArrayList<>();
         // leader replica/broker -
-        replicas.add(brokerMetadata.id());
+        int brokerMetadata = randomBroker(brokers).id();
+        replicas.add(brokerMetadata);
+
         newPartitionAssignments.add(replicas);
-        if (newPartitionAssignments.size() == partitionDifference) {
-          break;
-        }
       }
 
       // follower assignments -
@@ -362,6 +362,20 @@ public class MultiClusterTopicManagementService implements Service {
         }
       }
       return newPartitionAssignments;
+    }
+
+    private static BrokerMetadata randomBroker(Set<BrokerMetadata> brokers) {
+      int brokerSetSize = brokers.size();
+      // In practicality, the Random object should be rather more shared than this.
+      int random = new Random().nextInt(brokerSetSize);
+      int index = 0;
+      for (BrokerMetadata brokerMetadata : brokers) {
+        if (index == random)
+          return brokerMetadata;
+        index++;
+      }
+
+      throw new IllegalStateException("Couldn't find random broker.");
     }
 
     /**
