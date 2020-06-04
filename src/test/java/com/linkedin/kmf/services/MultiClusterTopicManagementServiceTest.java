@@ -60,9 +60,11 @@ public class MultiClusterTopicManagementServiceTest {
     nodeSet.add(new Node(3, "host-3", 2134));
     nodeSet.add(new Node(4, "host-4", 2135));
     nodeSet.add(new Node(5, "host-5", 2136));
-    nodeSet.add(new Node(6, "host-5", 2136));
-    nodeSet.add(new Node(7, "host-5", 2136));
-    nodeSet.add(new Node(8, "host-5", 2136));
+    nodeSet.add(new Node(6, "host-5", 2137));
+    nodeSet.add(new Node(7, "host-5", 2138));
+    nodeSet.add(new Node(8, "host-5", 2139));
+    nodeSet.add(new Node(9, "host-5", 2140));
+    nodeSet.add(new Node(10, "host-5", 2141));
 
     _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
     _topicManagementHelper._topic = SERVICE_TEST_TOPIC;
@@ -82,17 +84,18 @@ public class MultiClusterTopicManagementServiceTest {
     for (Node broker : nodeSet) {
       brokerMetadataSet.add(new BrokerMetadata(broker.id(), Option.apply(broker.rack())));
     }
+
+    int minPartitionNum = 14;
+    int partitionNum = 5;
+    int rf = 4;
+
     List<List<Integer>> newPartitionAssignments =
-        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(390, 5, brokerMetadataSet, 4);
+        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(minPartitionNum, partitionNum, brokerMetadataSet, rf);
     Assert.assertNotNull(newPartitionAssignments);
 
     System.out.println(newPartitionAssignments);
-    Assert.assertEquals(newPartitionAssignments.get(0).get(0).intValue(), 1);
-    Assert.assertEquals(newPartitionAssignments.get(1).get(0).intValue(), 2);
-    Assert.assertEquals(newPartitionAssignments.get(2).get(0).intValue(), 3);
-    Assert.assertEquals(newPartitionAssignments.get(3).get(0).intValue(), 4);
-    Assert.assertEquals(newPartitionAssignments.get(4).get(0).intValue(), 5);
-    Assert.assertEquals(newPartitionAssignments.get(5).get(0).intValue(), 6);
+    Assert.assertEquals(newPartitionAssignments.size(), minPartitionNum - partitionNum);
+    Assert.assertEquals(newPartitionAssignments.get(0).size(), rf);
   }
 
   @Test
