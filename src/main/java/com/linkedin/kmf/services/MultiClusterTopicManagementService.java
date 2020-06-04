@@ -335,7 +335,7 @@ public class MultiClusterTopicManagementService implements Service {
       // partition 3's preferred leader will be broker 1,
       // partition 4's preferred leader will be broker 2 and
       // partition 5's preferred leader will be broker 3.
-      List<List<Integer>> newPartitionAssignments = new ArrayList<>(new ArrayList<>());
+      List<List<Integer>> newPartitionAssignments = new ArrayList<>();
       int partitionDifference = minPartitionNum - partitionNum;
 
       // leader assignments -
@@ -365,17 +365,25 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     private static BrokerMetadata randomBroker(Set<BrokerMetadata> brokers) {
-      int brokerSetSize = brokers.size();
-      // In practicality, the Random object should be rather more shared than this.
-      int random = new Random().nextInt(brokerSetSize);
-      int index = 0;
-      for (BrokerMetadata brokerMetadata : brokers) {
-        if (index == random)
-          return brokerMetadata;
-        index++;
+
+      if (brokers == null || brokers.size() == 0) {
+        throw new IllegalArgumentException("brokers object is either null or empty.");
       }
 
-      throw new IllegalStateException("Couldn't find random broker.");
+      // Using Set enforces the usage of loop which is O(n).
+      // As the list of brokers does not change in newPartitionAssignments,
+      // the acceptance of a List argument instead of a Set will be faster which is (O(1))
+      List<BrokerMetadata> brokerMetadataList = new ArrayList<>();
+
+      // convert to a list so there's no need to create a index and iterate through this set
+      brokerMetadataList.addAll(brokers);
+
+      int brokerSetSize = brokers.size();
+
+      // In practicality, the Random object should be rather more shared than this.
+      int random = new Random().nextInt(brokerSetSize);
+
+      return brokerMetadataList.get(random);
     }
 
     /**
