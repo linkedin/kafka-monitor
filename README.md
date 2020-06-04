@@ -45,7 +45,7 @@ Xinfra Monitor supports Apache Kafka 0.8 to 2.0:
 
 <ol>
 <li> We advise advanced users to run Xinfra Monitor with
-<code>./bin/kafka-monitor-start.sh config/xinfra-monitor.properties</code>. The default
+<code>./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties</code>. The default
 xinfra-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
 <code>zookeeper.connect</code> and <code>bootstrap.servers</code> to point to your cluster.
@@ -92,7 +92,7 @@ $ ./gradlew jar
 
 ### Start XinfraMonitor to run tests/services specified in the config file
 ```
-$ ./bin/kafka-monitor-start.sh config/xinfra-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties
 ```
 
 ### Run Xinfra Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
@@ -101,7 +101,7 @@ Edit `config/xinfra-monitor.properties` to specify custom configurations for pro
 consumer as well. The documentation for producer and consumer in the key/value maps can be found in the Apache Kafka wiki.
 
 ```
-$ ./bin/kafka-monitor-start.sh config/xinfra-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties
 ```
 
 ### Run SingleClusterMonitor app to monitor kafka cluster
@@ -124,7 +124,7 @@ from the destination cluster. See config/multi-cluster-monitor.properties for
 the full jmx path for these metrics.
 
 ```
-$ ./bin/kafka-monitor-start.sh config/multi-cluster-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/multi-cluster-monitor.properties
 ```
 
 ### Get metric values (e.g. service availability, message loss rate) in real-time as time series graphs
