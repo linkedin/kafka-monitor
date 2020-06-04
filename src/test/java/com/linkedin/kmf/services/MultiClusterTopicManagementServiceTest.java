@@ -83,7 +83,7 @@ public class MultiClusterTopicManagementServiceTest {
       brokerMetadataSet.add(new BrokerMetadata(broker.id(), Option.apply(broker.rack())));
     }
     List<List<Integer>> newPartitionAssignments =
-        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(11, 5, brokerMetadataSet, 4);
+        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(390, 5, brokerMetadataSet, 4);
     Assert.assertNotNull(newPartitionAssignments);
 
     System.out.println(newPartitionAssignments);
