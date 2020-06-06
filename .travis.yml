@@ -28,7 +28,7 @@ cache:
 deploy:
   provider: script
   script: bash -v scripts/publishToBintray.sh
-  skip_cleanup: true
+  cleanup: true
   on:
     all_branches: true
     tags: true
