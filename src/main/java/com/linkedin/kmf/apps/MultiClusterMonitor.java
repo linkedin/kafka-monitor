@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
  * across Kafka clusters and make sure they have the same number of partitions.
  */
 
+@SuppressWarnings("rawtypes")
 public class MultiClusterMonitor implements App {
   private static final Logger LOG = LoggerFactory.getLogger(MultiClusterMonitor.class);
 
@@ -65,7 +66,6 @@ public class MultiClusterMonitor implements App {
     return serviceProps;
   }
 
-  @SuppressWarnings("unchecked")
   private Map<String, Object> createMultiClusterTopicManagementServiceProps(Map<String, Object> props, MultiClusterMonitorConfig config) {
     Map<String, Object> serviceProps = new HashMap<>();
     serviceProps.put(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG, props.get(MultiClusterMonitorConfig.TOPIC_MANAGEMENT_SERVICE_CONFIG));
