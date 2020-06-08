@@ -151,7 +151,7 @@ public class SignalFxMetricsReporterService implements Service {
 
   private SettableDoubleGauge createMetric(MbeanAttributeValue attributeValue) {
     String signalFxMetricName = generateSignalFxMetricName(attributeValue.mbean(), attributeValue.attribute());
-    SettableDoubleGauge gauge = null;
+    SettableDoubleGauge gauge;
 
     if (signalFxMetricName.contains("partition")) {
       gauge = createPartitionMetric(signalFxMetricName);

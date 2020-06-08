@@ -16,7 +16,7 @@ package com.linkedin.kmf.services;
  */
 public interface Service {
 
-  static final String JMX_PREFIX = "kmf.services";
+  String JMX_PREFIX = "kmf.services";
 
   /**
    * The start logic must only execute once.  If an error occurs then the implementer of this class must assume that
