@@ -10,11 +10,10 @@
 
 package com.linkedin.kmf.services.configs;
 
+import java.util.Collections;
+import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-
-import java.util.Arrays;
-import java.util.Map;
 
 import static org.apache.kafka.common.config.ConfigDef.Range.atLeast;
 
@@ -43,8 +42,7 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
-                                    ConfigDef.Type.LIST,
-                                    Arrays.asList("kmf.services:*:*"),
+                                    ConfigDef.Type.LIST, Collections.singletonList("kmf.services:*:*"),
                                     ConfigDef.Importance.MEDIUM,
                                     REPORT_METRICS_DOC)
                             .define(REPORT_INTERVAL_SEC_CONFIG,

@@ -16,6 +16,7 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -28,6 +29,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
@@ -41,12 +43,13 @@ public class ConsumeServiceTest {
   private static final String TAGS_NAME = "name";
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
   /* thread start delay in seconds */
-  private static final long THREAD_START_DELAY = 4;
+  private static final long THREAD_START_DELAY_SECONDS = 4;
   private static final String TAG_NAME_VALUE = "name";
   private static final long MOCK_LAST_COMMITTED_OFFSET = System.currentTimeMillis();
   private static final int PARTITION = 2;
   private static final long FIRST_OFFSET = 2;
   private static final long SECOND_OFFSET = 3;
+  private static Map<String, String> tags;
 
   @Test
   public void lifecycleTest() throws Exception {
@@ -61,49 +64,61 @@ public class ConsumeServiceTest {
     Assert.assertFalse(consumeService.isRunning());
 
     /* Should start */
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* Should allow start to be called more than once */
-    consumeService.stop();
-    consumeService.stop();
-    Assert.assertFalse(consumeService.isRunning());
-
-    /* Should be allowed to shutdown more than once. */
-    consumeService.awaitShutdown();
-    consumeService.awaitShutdown();
-    Assert.assertFalse(consumeService.isRunning());
+    shutdownConsumeService(consumeService);
   }
 
   @Test
   public void commitAvailabilityTest() throws Exception {
     ConsumeService consumeService = consumeService();
-
-    Metrics metrics = consumeService.metrics();
-    Map<String, String> tags = new HashMap<>();
-    tags.put(TAGS_NAME, TAG_NAME_VALUE);
+    Metrics metrics = consumeServiceMetrics(consumeService);
 
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
     Assert.assertEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
 
     /* Should start */
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
     /* in milliseconds */
-    long threadStartDelay = 1000 * THREAD_START_DELAY;
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
 
     /* Thread.sleep safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
     Thread.sleep(threadStartDelay);
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
-    Assert.assertNotNull(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue());
+    Assert.assertNotNull(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
+        tags)).metricValue());
     Assert.assertEquals(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
     Assert.assertNotEquals(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue(), 0.0);
-    consumeService.stop();
-    consumeService.stop();
+    shutdownConsumeService(consumeService);
+  }
 
-    consumeService.awaitShutdown();
+  @Test
+  public void commitLatencyTest() throws Exception {
+    CommitLatencyMetrics commitLatencyMetrics = Mockito.mock(CommitLatencyMetrics.class);
+    Assert.assertNotNull(commitLatencyMetrics);
+
+    ConsumeService consumeService = consumeService();
+    Metrics metrics = consumeServiceMetrics(consumeService);
+
+    Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, tags)));
+    Assert.assertNull(metrics.metrics().get(metrics.metricName("commit-offset-latency-ms-max", METRIC_GROUP_NAME, tags)));
+
+    /* Should start */
+    consumeService.startConsumeThreadForTesting();
+    Assert.assertTrue(consumeService.isRunning());
+
+    /* in milliseconds */
+    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
+
+    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
+    Thread.sleep(threadStartDelay);
+
+    shutdownConsumeService(consumeService);
   }
 
   /**
@@ -173,7 +188,7 @@ public class ConsumeServiceTest {
     };
 
     thread.start();
-    consumeService.testStart();
+    consumeService.startConsumeThreadForTesting();
     Thread.sleep(100);
 
     consumeService.stop();
@@ -182,6 +197,45 @@ public class ConsumeServiceTest {
     Assert.assertFalse(thread.isAlive());
     Assert.assertEquals(error.get(), null);
 
+  }
+
+  /**
+   * return consume service metrics.
+   * @param consumeService ConsumeService object
+   * @return consume service metrics
+   */
+  private Metrics consumeServiceMetrics(ConsumeService consumeService) {
+    setup();
+    Metrics metrics = consumeService.metrics();
+    return metrics;
+  }
+
+  /**
+   * set up the tags for the metrics
+   */
+  @BeforeMethod
+  public void setup() {
+    tags = new HashMap<>();
+    tags.put(TAGS_NAME, TAG_NAME_VALUE);
+  }
+
+  /**
+   * shutdown the consume service.
+   * @param consumeService object of ConsumeService
+   */
+  private void shutdownConsumeService(ConsumeService consumeService) {
+    /*
+     intentionally attempt stopping twice as such executions shouldn't throw any exceptions.
+     Should allow start to be called more than once
+    */
+    consumeService.stop();
+    consumeService.stop();
+    Assert.assertFalse(consumeService.isRunning());
+
+    /* Should be allowed to shutdown more than once. */
+    consumeService.awaitShutdown();
+    consumeService.awaitShutdown();
+    Assert.assertFalse(consumeService.isRunning());
   }
 
 }

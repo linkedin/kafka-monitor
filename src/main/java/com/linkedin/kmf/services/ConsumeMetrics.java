@@ -77,9 +77,9 @@ public class ConsumeMetrics {
 
     metrics.addMetric(new MetricName("consume-availability-avg", METRIC_GROUP_NAME, "The average consume availability", tags),
       (config, now) -> {
-        double recordsConsumedRate = metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).value();
-        double recordsLostRate = metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).value();
-        double recordsDelayedRate = metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).value();
+        double recordsConsumedRate = (double) metrics.metrics().get(metrics.metricName("records-consumed-rate", METRIC_GROUP_NAME, tags)).metricValue();
+        double recordsLostRate = (double) metrics.metrics().get(metrics.metricName("records-lost-rate", METRIC_GROUP_NAME, tags)).metricValue();
+        double recordsDelayedRate = (double) metrics.metrics().get(metrics.metricName("records-delayed-rate", METRIC_GROUP_NAME, tags)).metricValue();
 
         if (new Double(recordsLostRate).isNaN())
           recordsLostRate = 0;

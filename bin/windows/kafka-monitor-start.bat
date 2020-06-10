@@ -15,11 +15,11 @@ popd
 
 
 IF [%1] EQU [] (
-	echo USAGE: %0 config/kafka-monitor.properties
+	echo USAGE: %0 config/xinfra-monitor.properties
 	EXIT /B 1
 )
 
-set COMMAND=%BASE_DIR%\kmf-run-class.bat com.linkedin.kmf.KafkaMonitor %*
+set COMMAND=%BASE_DIR%\kmf-run-class.bat com.linkedin.kmf.XinfraMonitor %*
 
 rem echo basedir: %BASE_DIR%
 

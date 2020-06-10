@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,7 +37,7 @@ import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -69,8 +70,9 @@ import scala.collection.Seq;
  * - Make sure the number of partitions of the monitor topic is same across all monitored clusters.
  *
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class MultiClusterTopicManagementService implements Service {
-  private static final Logger LOG = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MultiClusterTopicManagementService.class);
   private static final String METRIC_GROUP_NAME = "topic-management-service";
   private final CompletableFuture<Void> _topicPartitionResult = new CompletableFuture<>();
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
@@ -123,7 +125,7 @@ public class MultiClusterTopicManagementService implements Service {
       Runnable pleRunnable = new PreferredLeaderElectionRunnable();
       _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs,
           TimeUnit.MILLISECONDS);
-      LOG.info("{}/MultiClusterTopicManagementService started.", _serviceName);
+      LOGGER.info("{}/MultiClusterTopicManagementService started.", _serviceName);
     }
   }
 
@@ -131,7 +133,7 @@ public class MultiClusterTopicManagementService implements Service {
   public synchronized void stop() {
     if (_isRunning.compareAndSet(true, false)) {
       _executor.shutdown();
-      LOG.info("{}/MultiClusterTopicManagementService stopped.", _serviceName);
+      LOGGER.info("{}/MultiClusterTopicManagementService stopped.", _serviceName);
     }
   }
 
@@ -145,9 +147,9 @@ public class MultiClusterTopicManagementService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      LOG.info("Thread interrupted when waiting for {}/MultiClusterTopicManagementService to shutdown", _serviceName);
+      LOGGER.info("Thread interrupted when waiting for {}/MultiClusterTopicManagementService to shutdown", _serviceName);
     }
-    LOG.info("{}/MultiClusterTopicManagementService shutdown completed", _serviceName);
+    LOGGER.info("{}/MultiClusterTopicManagementService shutdown completed", _serviceName);
   }
 
 
@@ -162,7 +164,7 @@ public class MultiClusterTopicManagementService implements Service {
         }
 
         /*
-         * The partition number of the monitor topics should be the minimum partition number that satisifies the following conditions:
+         * The partition number of the monitor topics should be the minimum partition number that satisfies the following conditions:
          * - partition number of the monitor topics across all monitored clusters should be the same
          * - partitionNum / brokerNum >= user-configured partitionsToBrokersRatio.
          * - partitionNum >= user-configured minPartitionNum
@@ -182,13 +184,13 @@ public class MultiClusterTopicManagementService implements Service {
           try {
             helper.maybeReassignPartitionAndElectLeader();
           } catch (IOException | KafkaException e) {
-            LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
+            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
       } catch (Throwable t) {
         // Need to catch throwable because there is scala API that can throw NoSuchMethodError in runtime
         // and such error is not caught by compilation
-        LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
+        LOGGER.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
         stop();
       }
     }
@@ -208,31 +210,35 @@ public class MultiClusterTopicManagementService implements Service {
           try {
             helper.maybeElectLeader();
           } catch (IOException | KafkaException e) {
-            LOG.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
+            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
           }
         }
       } catch (Throwable t) {
         /* Need to catch throwable because there is scala API that can throw NoSuchMethodError in runtime
          and such error is not caught by compilation. */
-        LOG.error(_serviceName + "/MultiClusterTopicManagementService will stop due to error.", t);
+        LOGGER.error(_serviceName
+            + "/MultiClusterTopicManagementService/PreferredLeaderElectionRunnable will stop due to an error.", t);
         stop();
       }
     }
   }
 
+  @SuppressWarnings("FieldCanBeLocal")
   static class TopicManagementHelper {
-    private final boolean _topicCreationEnabled;
-    private final String _topic;
     private final String _zkConnect;
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
     private final int _minPartitionNum;
-    private final TopicFactory _topicFactory;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private int _requestTimeoutMs;
-    private List _bootstrapServers;
-    private final AdminClient _adminClient;
+    private final int _requestTimeoutMs;
+    private final List _bootstrapServers;
+
+    // package private for unit testing
+    boolean _topicCreationEnabled;
+    AdminClient _adminClient;
+    String _topic;
+    TopicFactory _topicFactory;
 
 
     @SuppressWarnings("unchecked")
@@ -260,7 +266,7 @@ public class MultiClusterTopicManagementService implements Service {
       _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
       _adminClient = constructAdminClient(props);
-      LOG.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
+      LOGGER.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
     }
 
     @SuppressWarnings("unchecked")
@@ -270,8 +276,8 @@ public class MultiClusterTopicManagementService implements Service {
         int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
         NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
         newTopic.configs((Map) _topicProperties);
-        CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singletonList(newTopic));
-        LOG.info("CreateTopicsResult: {}.", createTopicsResult.values());
+        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
+            _topicProperties, _adminClient);
       }
     }
 
@@ -285,16 +291,16 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
-      Collection<String> topicNames = _adminClient.listTopics().names().get();
-      Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap = _adminClient.describeTopics(topicNames).values();
+      Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap =
+          _adminClient.describeTopics(Collections.singleton(_topic)).values();
       KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
       List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
+
       int partitionNum = partitions.size();
       if (partitionNum < minPartitionNum) {
-        LOG.info("{} will increase partition of the topic {} in the cluster from {}"
+        LOGGER.info("{} will increase partition of the topic {} in the cluster from {}"
             + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
         Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
-        List<List<Integer>> replicaAssignment = new ArrayList<>(new ArrayList<>());
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
           BrokerMetadata brokerMetadata = new BrokerMetadata(
@@ -306,78 +312,165 @@ public class MultiClusterTopicManagementService implements Service {
         if (!blackListedBrokers.isEmpty()) {
           brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
         }
+
+        List<List<Integer>> newPartitionAssignments = newPartitionAssignments(minPartitionNum, partitionNum, brokers, _replicationFactor);
+
+        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, newPartitionAssignments);
+
         Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
-        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, replicaAssignment);
         newPartitionsMap.put(_topic, newPartitions);
-        _adminClient.createPartitions(newPartitionsMap);
+        CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
+
       }
     }
 
+    static List<List<Integer>> newPartitionAssignments(int minPartitionNum, int partitionNum,
+        Set<BrokerMetadata> brokers, int rf) {
+
+      // The replica assignments for the new partitions, and not the old partitions.
+      // .increaseTo(6, asList(asList(1, 2),
+      //                       asList(2, 3),
+      //                       asList(3, 1)))
+      // partition 3's preferred leader will be broker 1,
+      // partition 4's preferred leader will be broker 2 and
+      // partition 5's preferred leader will be broker 3.
+      List<List<Integer>> newPartitionAssignments = new ArrayList<>();
+      int partitionDifference = minPartitionNum - partitionNum;
+
+      // leader assignments -
+      while (newPartitionAssignments.size() != partitionDifference) {
+        List replicas = new ArrayList<>();
+        // leader replica/broker -
+        int brokerMetadata = randomBroker(brokers).id();
+        replicas.add(brokerMetadata);
+
+        newPartitionAssignments.add(replicas);
+      }
+
+      // follower assignments -
+      // Regardless of the partition/replica assignments here, maybeReassignPartitionAndElectLeader()
+      // will reassign the partition as needed periodically.
+      for (List<Integer> replicas : newPartitionAssignments) {
+        for (BrokerMetadata broker : brokers) {
+          if (!replicas.contains(broker.id())) {
+            replicas.add(broker.id());
+          }
+          if (replicas.size() == rf) {
+            break;
+          }
+        }
+      }
+      return newPartitionAssignments;
+    }
+
+    private static BrokerMetadata randomBroker(Set<BrokerMetadata> brokers) {
+
+      if (brokers == null || brokers.size() == 0) {
+        throw new IllegalArgumentException("brokers object is either null or empty.");
+      }
+
+      // Using Set enforces the usage of loop which is O(n).
+      // As the list of brokers does not change in newPartitionAssignments,
+      // the acceptance of a List argument instead of a Set will be faster which is (O(1))
+      List<BrokerMetadata> brokerMetadataList = new ArrayList<>();
+
+      // convert to a list so there's no need to create a index and iterate through this set
+      brokerMetadataList.addAll(brokers);
+
+      int brokerSetSize = brokers.size();
+
+      // In practicality, the Random object should be rather more shared than this.
+      int random = new Random().nextInt(brokerSetSize);
+
+      return brokerMetadataList.get(random);
+    }
+
+    /**
+     * Exposed package-private access for testing. Get the total number of partitions for a Kafka topic.
+     * @return total number of topic partitions
+     * @throws InterruptedException when a thread is waiting, sleeping and the thread is interrupted, either before / during the activity.
+     * @throws ExecutionException when attempting to retrieve the result of a task that aborted by throwing an exception.
+     */
+    int numPartitions() throws InterruptedException, ExecutionException {
+
+      return _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get().partitions().size();
+    }
+
+
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
-      Set<Node> brokers = new HashSet<>();
-      brokers.addAll(_adminClient.describeCluster().nodes().get());
+      Set<Node> brokers = new HashSet<>(_adminClient.describeCluster().nodes().get());
       Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
       brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
       return brokers;
     }
 
     void maybeReassignPartitionAndElectLeader() throws Exception {
-      KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(),
+          com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS, com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS,
+          Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
 
-      List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-      Collection<Node> brokers = this.getAvailableBrokers();
-      boolean partitionReassigned = false;
-      if (partitionInfoList.size() == 0) {
-        throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
-      }
+        List<TopicPartitionInfo> partitionInfoList = _adminClient
+            .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+        Collection<Node> brokers = this.getAvailableBrokers();
+        boolean partitionReassigned = false;
+        if (partitionInfoList.size() == 0) {
+          throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
+        }
 
-      int currentReplicationFactor = getReplicationFactor(partitionInfoList);
-      int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
+        int currentReplicationFactor = getReplicationFactor(partitionInfoList);
+        int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
 
-      if (_replicationFactor < currentReplicationFactor)
-        LOG.debug("Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
-            _replicationFactor, currentReplicationFactor, _topic);
+        if (_replicationFactor < currentReplicationFactor)
+          LOGGER.debug(
+              "Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
+              _replicationFactor, currentReplicationFactor, _topic);
 
-      if (expectedReplicationFactor > currentReplicationFactor && !zkClient.reassignPartitionsInProgress()) {
-        LOG.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
-            + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
-        reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-        partitionReassigned = true;
-      }
+        if (expectedReplicationFactor > currentReplicationFactor && !zkClient
+            .reassignPartitionsInProgress()) {
+          LOGGER.info(
+              "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
+                  + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
+          reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(),
+              expectedReplicationFactor);
+          partitionReassigned = true;
+        }
 
-      // Update the properties of the monitor topic if any config is different from the user-specified config
-      Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
-      Properties expectedProperties = new Properties();
-      for (Object key: currentProperties.keySet())
-        expectedProperties.put(key, currentProperties.get(key));
-      for (Object key: _topicProperties.keySet())
-        expectedProperties.put(key, _topicProperties.get(key));
+        // Update the properties of the monitor topic if any config is different from the user-specified config
+        Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
+        Properties expectedProperties = new Properties();
+        for (Object key : currentProperties.keySet())
+          expectedProperties.put(key, currentProperties.get(key));
+        for (Object key : _topicProperties.keySet())
+          expectedProperties.put(key, _topicProperties.get(key));
 
-      if (!currentProperties.equals(expectedProperties)) {
-        LOG.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-            + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
-        zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
-      }
+        if (!currentProperties.equals(expectedProperties)) {
+          LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+              + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
+          zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
+        }
 
-      if (partitionInfoList.size() >= brokers.size() &&
-          someBrokerNotPreferredLeader(partitionInfoList, brokers) && !zkClient.reassignPartitionsInProgress()) {
-        LOG.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
-        reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-        partitionReassigned = true;
-      }
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotPreferredLeader(partitionInfoList, brokers) && !zkClient
+            .reassignPartitionsInProgress()) {
+          LOGGER.info("{} will reassign partitions of the topic {} in cluster.",
+              this.getClass().toString(), _topic);
+          reassignPartitions(zkClient, brokers, _topic, partitionInfoList.size(),
+              expectedReplicationFactor);
+          partitionReassigned = true;
+        }
 
-      if (partitionInfoList.size() >= brokers.size() &&
-          someBrokerNotElectedLeader(partitionInfoList, brokers)) {
-        if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
-          LOG.info(
-              "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
-                  + "cluster.", _topic
-          );
-          triggerPreferredLeaderElection(partitionInfoList, _topic);
-          _preferredLeaderElectionRequested = false;
-        } else {
-          _preferredLeaderElectionRequested = true;
+        if (partitionInfoList.size() >= brokers.size() &&
+            someBrokerNotElectedLeader(partitionInfoList, brokers)) {
+          if (!partitionReassigned || !zkClient.reassignPartitionsInProgress()) {
+            LOGGER.info(
+                "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
+                    + "cluster.", _topic
+            );
+            triggerPreferredLeaderElection(partitionInfoList, _topic);
+            _preferredLeaderElectionRequested = false;
+          } else {
+            _preferredLeaderElectionRequested = true;
+          }
         }
       }
     }
@@ -387,15 +480,17 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
-          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null);
-
-      if (!zkClient.reassignPartitionsInProgress()) {
-        List<TopicPartitionInfo> partitionInfoList = _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-        LOG.info("MultiClusterTopicManagementService will trigger requested preferred leader election for the"
-            + " topic {} in cluster.", _topic);
-        triggerPreferredLeaderElection(partitionInfoList, _topic);
-        _preferredLeaderElectionRequested = false;
+      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(), com.linkedin.kmf.common.Utils.ZK_SESSION_TIMEOUT_MS,
+          com.linkedin.kmf.common.Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM, METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+        if (!zkClient.reassignPartitionsInProgress()) {
+          List<TopicPartitionInfo> partitionInfoList = _adminClient
+              .describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+          LOGGER.info(
+              "MultiClusterTopicManagementService will trigger requested preferred leader election for the"
+                  + " topic {} in cluster.", _topic);
+          triggerPreferredLeaderElection(partitionInfoList, _topic);
+          _preferredLeaderElectionRequested = false;
+        }
       }
     }
 
@@ -407,7 +502,7 @@ public class MultiClusterTopicManagementService implements Service {
       }
       ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
-      LOG.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
+      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all().get());
     }
 
     private static void reassignPartitions(KafkaZkClient zkClient, Collection<Node> brokers, String topic, int partitionCount, int replicationFactor) {
@@ -427,13 +522,14 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       scala.collection.immutable.Set<String> topicList = new scala.collection.immutable.Set.Set1<>(topic);
-      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment = zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
-      String currentAssignmentJson = formatAsReassignmentJson(topic, currentAssignment);
-      String newAssignmentJson = formatAsReassignmentJson(topic, assignedReplicas);
+      scala.collection.Map<Object, scala.collection.Seq<Object>> currentAssignment =
+          zkClient.getPartitionAssignmentForTopics(topicList).apply(topic);
+      String currentAssignmentJson = formatAsNewReassignmentJson(topic, currentAssignment);
+      String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
 
-      LOG.info("Reassign partitions for topic " + topic);
-      LOG.info("Current partition replica assignment " + currentAssignmentJson);
-      LOG.info("New partition replica assignment " + newAssignmentJson);
+      LOGGER.info("Reassign partitions for topic " + topic);
+      LOGGER.info("Current partition replica assignment " + currentAssignmentJson);
+      LOGGER.info("New partition replica assignment " + newAssignmentJson);
       zkClient.createPartitionReassignment(newAssignment);
     }
 
@@ -444,7 +540,7 @@ public class MultiClusterTopicManagementService implements Service {
       int replicationFactor = partitionInfoList.get(0).replicas().size();
       for (TopicPartitionInfo partitionInfo : partitionInfoList) {
         if (replicationFactor != partitionInfo.replicas().size()) {
-          LOG.warn("Partitions of the topic have different replication factor.");
+          LOGGER.warn("Partitions of the topic have different replication factor.");
           return -1;
         }
       }
@@ -486,22 +582,57 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToBeReassigned) {
-      StringBuilder bldr = new StringBuilder();
-      bldr.append("{\"version\":1,\"partitions\":[\n");
-      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
-        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
-        scala.collection.Seq<Object> replicas = partitionsToBeReassigned.apply(partition);
+
+    // TODO (andrewchoi5): uncomment this method when Xinfra Monitor is upgraded to 'org.apache.kafka' 'kafka_2.12' version '2.4.1'
+//    private static String formatAsOldAssignmentJson(String topic, scala.collection.Map<Object, ReplicaAssignment> partitionsToBeReassigned) {
+//      StringBuilder bldr = new StringBuilder();
+//      bldr.append("{\"version\":1,\"partitions\":[\n");
+//      for (int partition = 0; partition < partitionsToBeReassigned.size(); partition++) {
+//        bldr.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+//        ReplicaAssignment replicas = partitionsToBeReassigned.apply(partition);
+//        for (int replicaIndex = 0; replicaIndex < replicas.replicas().size(); replicaIndex++) {
+//          Object replica = replicas.replicas().apply(replicaIndex);
+//          bldr.append(replica).append(",");
+//        }
+//        bldr.setLength(bldr.length() - 1);
+//        bldr.append("]},\n");
+//      }
+//      bldr.setLength(bldr.length() - 2);
+//      bldr.append("]}");
+//      return bldr.toString();
+//    }
+
+    /**
+     * @param topic Kafka topic
+     * @param partitionsToReassign a map from partition (int) to new replica list (int seq)
+     *
+     * @return a json string with the same format as output of kafka.utils.ZkUtils.formatAsReassignmentJson
+     *
+     * Example:
+     * <pre>
+     *   {"version":1,"partitions":[
+     *     {"topic":"kmf-topic","partition":1,"replicas":[0,1]},
+     *     {"topic":"kmf-topic","partition":2,"replicas":[1,2]},
+     *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
+     * </pre>
+     */
+    private static String formatAsNewReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToReassign) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{\"version\":1,\"partitions\":[\n");
+      for (int partition = 0; partition < partitionsToReassign.size(); partition++) {
+        builder.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+        Seq<Object> replicas = partitionsToReassign.apply(partition);
         for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
           Object replica = replicas.apply(replicaIndex);
-          bldr.append(replica).append(",");
+          builder.append(replica).append(",");
         }
-        bldr.setLength(bldr.length() - 1);
-        bldr.append("]},\n");
+        builder.setLength(builder.length() - 1);
+        builder.append("]},\n");
       }
-      bldr.setLength(bldr.length() - 2);
-      bldr.append("]}");
-      return bldr.toString();
+      builder.setLength(builder.length() - 2);
+      builder.append("]}");
+      return builder.toString();
     }
+
   }
 }

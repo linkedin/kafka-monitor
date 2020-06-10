@@ -54,17 +54,18 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("rawtypes")
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String METRIC_GROUP_NAME = "produce-service";
-  private static final String[] NONOVERRIDABLE_PROPERTIES = new String[]{
+  private static final String[] NON_OVERRIDABLE_PROPERTIES = new String[]{
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
   };
   private final String _name;
   private final ProduceMetrics _sensors;
   private KMBaseProducer _producer;
-  private KMPartitioner _partitioner;
+  private final KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
   private final ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
@@ -108,7 +109,7 @@ public class ProduceService implements Service {
     _producerPropsOverride = props.containsKey(ProduceServiceConfig.PRODUCER_PROPS_CONFIG)
       ? (Map) props.get(ProduceServiceConfig.PRODUCER_PROPS_CONFIG) : new HashMap<>();
 
-    for (String property: NONOVERRIDABLE_PROPERTIES) {
+    for (String property: NON_OVERRIDABLE_PROPERTIES) {
       if (_producerPropsOverride.containsKey(property)) {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
@@ -171,7 +172,7 @@ public class ProduceService implements Service {
         _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
         LOG.info("{}/ProduceService started", _name);
       } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
-        LOG.error("Exception occurred while starting produce service: ", e);
+        LOG.error("Exception occurred while starting produce service for topic: {}", _topic, e);
       }
     }
   }
@@ -276,8 +277,12 @@ public class ProduceService implements Service {
           double availabilitySum = 0.0;
           int partitionNum = _partitionNum.get();
           for (int partition = 0; partition < partitionNum; partition++) {
-            double recordsProduced = metrics.metrics().get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
-            double produceError = metrics.metrics().get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags)).value();
+            double recordsProduced = (double) metrics.metrics()
+                .get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
+                .metricValue();
+            double produceError = (double) metrics.metrics()
+                .get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
+                .metricValue();
             // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
             if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
               produceError = 0;
@@ -395,13 +400,14 @@ public class ProduceService implements Service {
         initializeStateForPartitions(currentPartitionNum);
         LOG.info("New partitions added to monitoring.");
       } catch (InterruptedException e) {
-        LOG.error("InterruptedException occurred {}.", e);
+        LOG.error("InterruptedException occurred.", e);
       } catch (ExecutionException e) {
-        LOG.error("ExecutionException occurred {}.", e);
+        LOG.error("ExecutionException occurred.", e);
       }
     }
   }
 
+  @SuppressWarnings("NullableProblems")
   private class ProduceServiceThreadFactory implements ThreadFactory {
 
     private final AtomicInteger _threadId = new AtomicInteger();
@@ -411,7 +417,7 @@ public class ProduceService implements Service {
   }
 
   private class HandleNewPartitionsThreadFactory implements ThreadFactory {
-    public Thread newThread(Runnable r) {
+    public Thread newThread(@SuppressWarnings("NullableProblems") Runnable r) {
       return new Thread(r, _name + "-produce-service-new-partition-handler");
     }
   }

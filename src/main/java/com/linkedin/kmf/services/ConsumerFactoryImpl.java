@@ -28,16 +28,17 @@ import org.slf4j.LoggerFactory;
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
   private final KMBaseConsumer _baseConsumer;
-  private String _topic;
+  private final String _topic;
   private static final String FALSE = "false";
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private static final String[] NON_OVERRIDABLE_PROPERTIES =
       new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
-  private int _latencySlaMs;
+  private final int _latencySlaMs;
   private static AdminClient adminClient;
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
 
+  @SuppressWarnings("rawtypes")
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
     LOG.info("Creating AdminClient.");
     adminClient = AdminClient.create(props);
@@ -80,8 +81,28 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
       props.forEach(consumerProps::putIfAbsent);
     }
 
-    _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName).getConstructor(String.class, Properties.class).newInstance(_topic, consumerProps);
+    java.lang.reflect.Constructor<?> constructor = adminClientConstructorIfExists(consumerClassName);
+    if (constructor != null) {
+      _baseConsumer = (KMBaseConsumer) constructor
+          .newInstance(_topic, consumerProps, adminClient());
+    } else {
+      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
+          .getConstructor(String.class, Properties.class)
+          .newInstance(_topic, consumerProps);
+    }
+  }
 
+  private static java.lang.reflect.Constructor<?> adminClientConstructorIfExists(String consumerClassName)
+      throws ClassNotFoundException {
+    try {
+      return Class.forName(consumerClassName).getConstructor(String.class, Properties.class, AdminClient.class);
+    } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+      LOG.info(consumerClassName
+          + " does not provide a constructor with signature (Ljava/lang/String;Ljava/util/Properties;Lorg/apache/kafka/clients/admin/AdminClient;)V - falling back to (Ljava/util/Properties;)V");
+      return null;
+    } catch (ClassNotFoundException e) {
+      throw new ClassNotFoundException("The class was not found: ", e);
+    }
   }
 
   @Override

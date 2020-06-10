@@ -31,11 +31,9 @@ public class SignalFxMetricsReporterService implements Service {
   private final ScheduledExecutorService _executor;
   private final MetricRegistry _metricRegistry;
   private final SignalFxReporter _signalfxReporter;
-  private final String _signalfxUrl;
-  private final String _signalfxToken;
 
-  private MetricMetadata _metricMetadata;
-  private Map<String, SettableDoubleGauge> _metricMap;
+  private final MetricMetadata _metricMetadata;
+  private final Map<String, SettableDoubleGauge> _metricMap;
   private Map<String, String> _dimensionsMap;
 
   public SignalFxMetricsReporterService(Map<String, Object> props, String name) throws Exception {
@@ -44,10 +42,10 @@ public class SignalFxMetricsReporterService implements Service {
     _name = name;
     _metricNames = config.getList(SignalFxMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(SignalFxMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
-    _signalfxUrl = config.getString(SignalFxMetricsReporterServiceConfig.REPORT_SIGNALFX_URL);
-    _signalfxToken = config.getString(SignalFxMetricsReporterServiceConfig.SIGNALFX_TOKEN);
+    String signalfxUrl = config.getString(SignalFxMetricsReporterServiceConfig.REPORT_SIGNALFX_URL);
+    String signalfxToken = config.getString(SignalFxMetricsReporterServiceConfig.SIGNALFX_TOKEN);
 
-    if (StringUtils.isEmpty(_signalfxToken)) {
+    if (StringUtils.isEmpty(signalfxToken)) {
       throw new IllegalArgumentException("SignalFx token is not configured");
     }
 
@@ -60,11 +58,10 @@ public class SignalFxMetricsReporterService implements Service {
     }
 
     SignalFxReporter.Builder sfxReportBuilder = new SignalFxReporter.Builder(
-        _metricRegistry,
-        _signalfxToken
+        _metricRegistry, signalfxToken
     );
-    if (!StringUtils.isEmpty(_signalfxUrl)) {
-      sfxReportBuilder.setEndpoint(getSignalFxEndpoint(_signalfxUrl));
+    if (!StringUtils.isEmpty(signalfxUrl)) {
+      sfxReportBuilder.setEndpoint(getSignalFxEndpoint(signalfxUrl));
     }
     _signalfxReporter = sfxReportBuilder.build();
 
@@ -154,7 +151,7 @@ public class SignalFxMetricsReporterService implements Service {
 
   private SettableDoubleGauge createMetric(MbeanAttributeValue attributeValue) {
     String signalFxMetricName = generateSignalFxMetricName(attributeValue.mbean(), attributeValue.attribute());
-    SettableDoubleGauge gauge = null;
+    SettableDoubleGauge gauge;
 
     if (signalFxMetricName.contains("partition")) {
       gauge = createPartitionMetric(signalFxMetricName);

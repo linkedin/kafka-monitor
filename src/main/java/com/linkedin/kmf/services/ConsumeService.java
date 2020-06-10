@@ -37,12 +37,10 @@ import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.metrics.Sensor;
-import org.apache.kafka.common.metrics.stats.CumulativeSum;
+import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.Test;
-
 
 public class ConsumeService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
@@ -52,16 +50,32 @@ public class ConsumeService implements Service {
   private static Metrics metrics;
   private final AtomicBoolean _running;
   private final KMBaseConsumer _baseConsumer;
-  private int _latencySlaMs;
+  private final int _latencySlaMs;
   private ConsumeMetrics _sensors;
   private Thread _consumeThread;
-  private AdminClient _adminClient;
+  private final AdminClient _adminClient;
   private CommitAvailabilityMetrics _commitAvailabilityMetrics;
+  private CommitLatencyMetrics _commitLatencyMetrics;
   private String _topic;
-  private String _name;
+  private final String _name;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static Map<String, String> tags;
 
+  /**
+   * Mainly contains services for three metrics:
+   * 1 - ConsumeAvailability metrics
+   * 2 - CommitOffsetAvailability metrics
+   *   2.1 - commitAvailabilityMetrics records offsets committed upon success. that is, no exception upon callback
+   *   2.2 - commitAvailabilityMetrics records offsets commit fail upon failure. that is, exception upon callback
+   * 3 - CommitOffsetLatency metrics
+   *   3.1 - commitLatencyMetrics records the latency between last successful callback and start of last recorded commit.
+   *
+   * @param name Name of the Monitor instance
+   * @param topicPartitionResult The completable future for topic partition
+   * @param consumerFactory Consumer Factory object.
+   * @throws ExecutionException when attempting to retrieve the result of a task that aborted by throwing an exception
+   * @throws InterruptedException when a thread is waiting, sleeping, or otherwise occupied and the thread is interrupted
+   */
   public ConsumeService(String name,
                         CompletableFuture<Void> topicPartitionResult,
                         ConsumerFactory consumerFactory)
@@ -72,6 +86,8 @@ public class ConsumeService implements Service {
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
 
+    // Returns a new CompletionStage (topicPartitionFuture) which
+    // executes the given action - code inside run() - when this stage (topicPartitionResult) completes normally,.
     CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
       MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
       List<MetricsReporter> reporters = new ArrayList<>();
@@ -80,7 +96,10 @@ public class ConsumeService implements Service {
       tags = new HashMap<>();
       tags.put(TAGS_NAME, name);
       _topic = consumerFactory.topic();
-      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(), consumerFactory.latencyPercentileGranularityMs());
+      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
+      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
+          consumerFactory.latencyPercentileGranularityMs());
       _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
       _consumeThread = new Thread(() -> {
         try {
@@ -92,6 +111,7 @@ public class ConsumeService implements Service {
       _consumeThread.setDaemon(true);
     });
 
+    // In a blocking fashion, waits for this topicPartitionFuture to complete, and then returns its result.
     topicPartitionFuture.get();
   }
 
@@ -109,6 +129,7 @@ public class ConsumeService implements Service {
         _sensors._consumeError.record();
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         /* Avoid busy while loop */
+        //noinspection BusyWait
         Thread.sleep(CONSUME_THREAD_SLEEP_MS);
         continue;
       }
@@ -119,7 +140,7 @@ public class ConsumeService implements Service {
       try {
         avroRecord = Utils.genericRecordFromJson(record.value());
       } catch (Exception exception) {
-        LOG.error("exception occurred while getting avro record.", exception);
+        LOG.error("An exception occurred while getting avro record.", exception);
       }
 
       if (avroRecord == null) {
@@ -127,39 +148,33 @@ public class ConsumeService implements Service {
         continue;
       }
       int partition = record.partition();
-
       /* Commit availability and commit latency service */
-      try {
-        /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-        OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
-          @Override
-          public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception kafkaException) {
-            if (kafkaException != null) {
-              LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
-              _commitAvailabilityMetrics._failedCommitOffsets.record();
-            } else {
-              _commitAvailabilityMetrics._offsetsCommitted.record();
-            }
+      /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
+      OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
+        @Override
+        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception kafkaException) {
+          if (kafkaException != null) {
+            LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+            _commitAvailabilityMetrics._failedCommitOffsets.record();
+          } else {
+            _commitAvailabilityMetrics._offsetsCommitted.record();
+            _commitLatencyMetrics.recordCommitComplete();
           }
-        };
-
-        /* Current timestamp to perform subtraction*/
-        long currTimeMillis = System.currentTimeMillis();
-
-        /* 5 seconds consumer offset commit interval. */
-        long timeDiffMillis = TimeUnit.SECONDS.toMillis(COMMIT_TIME_INTERVAL);
-
-        if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
-          /* commit the consumer offset asynchronously with a callback. */
-          _baseConsumer.commitAsync(commitCallback);
-
-          /* Record the current time for the committed consumer offset */
-          _baseConsumer.updateLastCommit();
         }
+      };
 
-      } catch (Exception exception) {
-        LOG.error("Exception while trying to perform an asynchronous commit.", exception);
-        _commitAvailabilityMetrics._failedCommitOffsets.record();
+      /* Current timestamp to perform subtraction*/
+      long currTimeMillis = System.currentTimeMillis();
+
+      /* 4 seconds consumer offset commit interval. */
+      long timeDiffMillis = TimeUnit.SECONDS.toMillis(COMMIT_TIME_INTERVAL);
+
+      if (currTimeMillis - _baseConsumer.lastCommitted() >= timeDiffMillis) {
+        /* commit the consumer offset asynchronously with a callback. */
+        _baseConsumer.commitAsync(commitCallback);
+        _commitLatencyMetrics.recordCommitStart();
+        /* Record the current time for the committed consumer offset */
+        _baseConsumer.updateLastCommit();
       }
       /* Finished consumer offset commit service. */
 
@@ -190,7 +205,7 @@ public class ConsumeService implements Service {
         nextIndexes.put(partition, index + 1);
         long numLostRecords = index - nextIndex;
         _sensors._recordsLost.record(numLostRecords);
-        LOG.info("_recordsLost recorded: Avro record current index: {} at {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
+        LOG.info("_recordsLost recorded: Avro record current index: {} at timestamp {}. Next index: {}. Lost {} records.", index, currMs, nextIndex, numLostRecords);
       }
     }
     /* end of consume() while loop */
@@ -202,8 +217,7 @@ public class ConsumeService implements Service {
     return metrics;
   }
 
-  @Test
-  public synchronized void testStart() {
+  void startConsumeThreadForTesting() {
     if (_running.compareAndSet(false, true)) {
       _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
@@ -224,12 +238,12 @@ public class ConsumeService implements Service {
       try {
         topicDescription = topicDescriptionKafkaFuture.get();
       } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture", e);
+        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture for topic: {}", _topic, e);
       }
-      int partitionCount = topicDescription.partitions().size();
+      @SuppressWarnings("ConstantConditions")
+      double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
-          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags),
-          new CumulativeSum(partitionCount));
+          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags), new Total(partitionCount));
     }
   }
 

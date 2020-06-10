@@ -25,18 +25,19 @@ import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
-import kafka.server.KafkaConfig;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * Kafka Monitoring utilities.
@@ -87,27 +88,35 @@ public class Utils {
       throws ExecutionException, InterruptedException {
     try {
       if (adminClient.listTopics().names().get().contains(topic)) {
+        LOG.info("AdminClient indicates that {} already exists in the cluster. Topic config: {}", topic, topicConfig);
         return getPartitionNumForTopic(adminClient, topic);
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
       int partitionCount = Math.max((int) Math.ceil(brokerCount * partitionToBrokerRatio), minPartitionNum);
       try {
         NewTopic newTopic = new NewTopic(topic, partitionCount, replicationFactor);
+        //noinspection rawtypes
         newTopic.configs((Map) topicConfig);
-        List topics = new ArrayList<NewTopic>();
+
+        List<NewTopic> topics = new ArrayList<>();
         topics.add(newTopic);
-        adminClient.createTopics(topics);
+        CreateTopicsResult result = adminClient.createTopics(topics);
+
+        // waits for this topic creation future to complete, and then returns its result.
+        result.values().get(topic).get();
+        LOG.info("CreateTopicsResult: {}.", result.values());
+
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
-        LOG.debug("Monitoring topic " + topic + " already exists in the cluster.", e);
+        LOG.info("Monitoring topic " + topic + " already exists in the cluster.", e);
         return getPartitionNumForTopic(adminClient, topic);
       }
-      LOG.info("Created monitoring topic " + topic + " in cluster with " + partitionCount + " partitions, min ISR of "
-        + topicConfig.get(KafkaConfig.MinInSyncReplicasProp()) + " and replication factor of " + replicationFactor + ".");
+      LOG.info("Created monitoring topic {} in cluster with {} partitions and replication factor of {}.", topic,
+          partitionCount, replicationFactor);
 
       return partitionCount;
     } finally {
-      LOG.info("Completed the topic creation if it doesn't exist.");
+      LOG.info("Completed the topic creation if it doesn't exist for {}.", topic);
     }
   }
 
@@ -121,9 +130,9 @@ public class Utils {
   /**
    * @param timestamp time in Ms when this message is generated
    * @param topic     topic this message is sent to
-   * @param idx       index is consecutive numbers used by KafkaMonitor to determine duplicate or lost messages
+   * @param idx       index is consecutive numbers used by XinfraMonitor to determine duplicate or lost messages
    * @param msgSize   size of the message
-   * @return          string that encodes the above fields
+   * @return string that encodes the above fields
    */
   public static String jsonFromFields(String topic, long idx, long timestamp, String producerId, int msgSize) {
     GenericRecord record = new GenericData.Record(DefaultTopicSchema.MESSAGE_V0);
@@ -138,7 +147,7 @@ public class Utils {
 
   /**
    * @param message kafka message in the string format
-   * @return        GenericRecord that is de-serialized from kafka message w.r.t. expected schema.
+   * @return GenericRecord that is de-serialized from kafka message w.r.t. expected schema.
    */
   public static GenericRecord genericRecordFromJson(String message) {
     GenericRecord record = new GenericData.Record(DefaultTopicSchema.MESSAGE_V0);
@@ -146,7 +155,8 @@ public class Utils {
     record.put(DefaultTopicSchema.TOPIC_FIELD.name(), jsonObject.getString(DefaultTopicSchema.TOPIC_FIELD.name()));
     record.put(DefaultTopicSchema.INDEX_FIELD.name(), jsonObject.getLong(DefaultTopicSchema.INDEX_FIELD.name()));
     record.put(DefaultTopicSchema.TIME_FIELD.name(), jsonObject.getLong(DefaultTopicSchema.TIME_FIELD.name()));
-    record.put(DefaultTopicSchema.PRODUCER_ID_FIELD.name(), jsonObject.getString(DefaultTopicSchema.PRODUCER_ID_FIELD.name()));
+    record.put(DefaultTopicSchema.PRODUCER_ID_FIELD.name(),
+        jsonObject.getString(DefaultTopicSchema.PRODUCER_ID_FIELD.name()));
     record.put(DefaultTopicSchema.CONTENT_FIELD.name(), jsonObject.getString(DefaultTopicSchema.CONTENT_FIELD.name()));
     return record;
   }
@@ -170,11 +180,12 @@ public class Utils {
     MBeanServer server = ManagementFactory.getPlatformMBeanServer();
     try {
       Set<ObjectName> mbeanNames = server.queryNames(new ObjectName(mbeanExpr), null);
-      for (ObjectName mbeanName: mbeanNames) {
+      for (ObjectName mbeanName : mbeanNames) {
         MBeanInfo mBeanInfo = server.getMBeanInfo(mbeanName);
         MBeanAttributeInfo[] attributeInfos = mBeanInfo.getAttributes();
-        for (MBeanAttributeInfo attributeInfo: attributeInfos) {
-          if (attributeInfo.getName().equals(attributeExpr) || attributeExpr.length() == 0 || attributeExpr.equals("*")) {
+        for (MBeanAttributeInfo attributeInfo : attributeInfos) {
+          if (attributeInfo.getName().equals(attributeExpr) || attributeExpr.length() == 0 || attributeExpr.equals(
+              "*")) {
             double value = (Double) server.getAttribute(mbeanName, attributeInfo.getName());
             values.add(new MbeanAttributeValue(mbeanName.getCanonicalName(), attributeInfo.getName(), value));
           }

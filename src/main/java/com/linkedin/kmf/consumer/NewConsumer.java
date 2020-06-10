@@ -10,11 +10,15 @@
 
 package com.linkedin.kmf.consumer;
 
+import com.linkedin.kmf.common.ConsumerGroupCoordinatorUtils;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -23,25 +27,42 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/*
- * Wrap around the new consumer from Apache Kafka and implement the #KMBaseConsumer interface
+
+/**
+ * Wraps around the new consumer from Apache Kafka and implements the #KMBaseConsumer interface
  */
 public class NewConsumer implements KMBaseConsumer {
 
   private final KafkaConsumer<String, String> _consumer;
   private Iterator<ConsumerRecord<String, String>> _recordIter;
-  private static final Logger LOG = LoggerFactory.getLogger(NewConsumer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(NewConsumer.class);
   private static long lastCommitted;
 
-  public NewConsumer(String topic, Properties consumerProperties) {
+  public NewConsumer(String topic, Properties consumerProperties, AdminClient adminClient)
+      throws ExecutionException, InterruptedException {
+    LOGGER.info("{} is being instantiated in the constructor..", this.getClass().getSimpleName());
+
+    NewConsumerConfig newConsumerConfig = new NewConsumerConfig(consumerProperties);
+    String targetConsumerGroupId = newConsumerConfig.getString(NewConsumerConfig.TARGET_CONSUMER_GROUP_ID_CONFIG);
+
+    if (targetConsumerGroupId != null) {
+      consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, configureGroupId(targetConsumerGroupId, adminClient));
+    }
     _consumer = new KafkaConsumer<>(consumerProperties);
     _consumer.subscribe(Collections.singletonList(topic));
   }
 
+  static String configureGroupId(String targetConsumerGroupId, AdminClient adminClient)
+      throws ExecutionException, InterruptedException {
+
+    return ConsumerGroupCoordinatorUtils.findCollision(targetConsumerGroupId, adminClient);
+  }
+
   @Override
   public BaseConsumerRecord receive() {
-    if (_recordIter == null || !_recordIter.hasNext())
+    if (_recordIter == null || !_recordIter.hasNext()) {
       _recordIter = _consumer.poll(Duration.ofMillis(Long.MAX_VALUE)).iterator();
+    }
 
     ConsumerRecord<String, String> record = _recordIter.next();
     return new BaseConsumerRecord(record.topic(), record.partition(), record.offset(), record.key(), record.value());

@@ -7,20 +7,19 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
+
 package com.linkedin.kmf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.kmf.apps.App;
-import com.linkedin.kmf.services.ConsumerFactory;
-import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.Service;
+import com.linkedin.kmf.services.ServiceFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -39,11 +38,8 @@ import org.slf4j.LoggerFactory;
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
  * applications.
  */
-public class KafkaMonitor {
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaMonitor.class);
-  public static final String CLASS_NAME_CONFIG = "class.name";
-  private static final String METRIC_GROUP_NAME = "kafka-monitor";
-  private static final String JMX_PREFIX = "kmf";
+public class XinfraMonitor {
+  private static final Logger LOG = LoggerFactory.getLogger(XinfraMonitor.class);
 
   /** This is concurrent because healthCheck() can modify this map, but awaitShutdown() can be called at any time by
    * a different thread.
@@ -52,38 +48,39 @@ public class KafkaMonitor {
   private final ConcurrentMap<String, Service> _services;
   private final ConcurrentMap<String, Object> _offlineRunnables;
   private final ScheduledExecutorService _executor;
-  /** When true start has been called on this instance of Kafka monitor. */
+  /** When true start has been called on this instance of Xinfra Monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
 
-  public KafkaMonitor(Map<String, Map> testProps) throws Exception {
+  /**
+   * XinfraMonitor constructor creates apps and services for each of the individual clusters (properties) that's passed in.
+   * For example, if there are 10 clusters to be monitored, then this Constructor will create 10 * num_apps_per_cluster
+   * and 10 * num_services_per_cluster.
+   * @param allClusterProps the properties of ALL kafka clusters for which apps and services need to be appended.
+   * @throws Exception when exception occurs while assigning Apps and Services
+   */
+
+  @SuppressWarnings({"rawtypes"})
+  public XinfraMonitor(Map<String, Map> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    for (Map.Entry<String, Map> entry : testProps.entrySet()) {
-      String name = entry.getKey();
-      Map props = entry.getValue();
-      if (!props.containsKey(CLASS_NAME_CONFIG))
-        throw new IllegalArgumentException(name + " is not configured with " + CLASS_NAME_CONFIG);
-      String className = (String) props.get(CLASS_NAME_CONFIG);
+    for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
+      String name = clusterProperty.getKey();
+      Map props = clusterProperty.getValue();
+      if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
+        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
+      String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
 
       Class<?> aClass = Class.forName(className);
       if (App.class.isAssignableFrom(aClass)) {
-        App test = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-        _apps.put(name, test);
+        App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
+        _apps.put(name, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
-        Constructor<?>[] constructors = Class.forName(className).getConstructors();
-        if (this.constructorContainsFuture(constructors)) {
-          CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-          completableFuture.complete(null);
-          ConsumerFactoryImpl consumerFactory = new ConsumerFactoryImpl(props);
-          Service service = (Service) Class.forName(className)
-              .getConstructor(String.class, CompletableFuture.class, ConsumerFactory.class)
-              .newInstance(name, completableFuture, consumerFactory);
-          _services.put(name, service);
-        } else {
-          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-          _services.put(name, service);
-        }
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
+            .getConstructor(Map.class, String.class)
+            .newInstance(props, name);
+        Service service = serviceFactory.createService();
+        _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
@@ -91,15 +88,15 @@ public class KafkaMonitor {
     _executor = Executors.newSingleThreadScheduledExecutor();
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
-    reporters.add(new JmxReporter(JMX_PREFIX));
+    reporters.add(new JmxReporter(XinfraMonitorConstants.JMX_PREFIX));
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
-    metrics.addMetric(metrics.metricName("offline-runnable-count", METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
+    metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
   }
 
-  private boolean constructorContainsFuture(Constructor<?>[] constructors) {
+  private boolean constructorContainsClass(Constructor<?>[] constructors, Class<?> classObject) {
     for (int n = 0; n < constructors[0].getParameterTypes().length; ++n) {
-      if (constructors[0].getParameterTypes()[n].equals(CompletableFuture.class)) {
+      if (constructors[0].getParameterTypes()[n].equals(classObject)) {
         return true;
       }
     }
@@ -124,7 +121,7 @@ public class KafkaMonitor {
       try {
         checkHealth();
       } catch (Exception e) {
-        LOG.error("Failed to check health of tests and services", e);
+        LOG.error("Failed to check health of apps and services", e);
       }
     }, initialDelaySecond, periodSecond, TimeUnit.SECONDS
     );
@@ -155,22 +152,23 @@ public class KafkaMonitor {
       return;
     }
     _executor.shutdownNow();
-    for (App test: _apps.values())
-      test.stop();
+    for (App app: _apps.values())
+      app.stop();
     for (Service service: _services.values())
       service.stop();
   }
 
   public void awaitShutdown() {
-    for (App test: _apps.values())
-      test.awaitShutdown();
+    for (App app: _apps.values())
+      app.awaitShutdown();
     for (Service service: _services.values())
       service.awaitShutdown();
   }
 
+  @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] " + KafkaMonitor.class.getName() + " config/kafka-monitor.properties");
+      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.properties");
       return;
     }
 
@@ -185,11 +183,11 @@ public class KafkaMonitor {
 
     @SuppressWarnings("unchecked")
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
-    KafkaMonitor kafkaMonitor = new KafkaMonitor(props);
-    kafkaMonitor.start();
-    LOG.info("KafkaMonitor started.");
+    XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
+    xinfraMonitor.start();
+    LOG.info("Xinfra Monitor has started.");
 
-    kafkaMonitor.awaitShutdown();
+    xinfraMonitor.awaitShutdown();
   }
 
 }

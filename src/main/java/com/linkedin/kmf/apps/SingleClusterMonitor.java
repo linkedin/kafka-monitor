@@ -14,7 +14,6 @@ import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
 import com.linkedin.kmf.services.DefaultMetricsReporterService;
-import com.linkedin.kmf.services.JettyService;
 import com.linkedin.kmf.services.JolokiaService;
 import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.Service;
@@ -63,12 +62,17 @@ public class SingleClusterMonitor implements App {
     _name = name;
     _topicManagementService = new TopicManagementService(props, name);
     CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+
+    // block on the MultiClusterTopicManagementService to complete.
+    topicPartitionResult.get();
+
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(_produceService);
     _allServices.add(_consumeService);
+
   }
 
   @Override
@@ -333,8 +337,15 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=produce-service,name=*:records-produced-rate",
       "kmf.services:type=produce-service,name=*:produce-error-rate",
       "kmf.services:type=consume-service,name=*:consume-error-rate",
-      "kmf.services:type=consume-service,name=*:commit-latency-avg",
-      "kmf.services:type=consume-service,name=*:commit-availability-avg"
+      "kmf.services:type=commit-availability-service,name=*:offsets-committed-total",
+      "kmf.services:type=commit-availability-service,name=*:offsets-committed-avg",
+      "kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-total",
+      "kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-avg",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-avg",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-max",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-99th",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-999th",
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th"
     );
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
@@ -343,14 +354,5 @@ public class SingleClusterMonitor implements App {
 
     JolokiaService jolokiaService = new JolokiaService(new HashMap<>(), "end-to-end");
     jolokiaService.start();
-
-    JettyService jettyService = new JettyService(new HashMap<>(), "end-to-end");
-    jettyService.start();
-
-    if (!app.isRunning()) {
-      LOG.error("Some services have stopped.");
-      System.exit(-1);
-    }
-    app.awaitShutdown();
   }
 }

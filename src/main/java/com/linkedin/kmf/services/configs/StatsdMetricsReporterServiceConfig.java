@@ -8,17 +8,16 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *
  *
- * In order to enable the StatsD metrics export, add the following section to kafka-monitor.properties file
+ * In order to enable the StatsD metrics export, add the following section to xinfra-monitor.properties file
  *
  */
 
 package com.linkedin.kmf.services.configs;
 
+import java.util.Collections;
+import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-
-import java.util.Arrays;
-import java.util.Map;
 
 public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
   private static final ConfigDef CONFIG;
@@ -40,8 +39,7 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
 
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
-                                    ConfigDef.Type.LIST,
-                                    Arrays.asList("kmf.services:*:*"),
+                                    ConfigDef.Type.LIST, Collections.singletonList("kmf.services:*:*"),
                                     ConfigDef.Importance.MEDIUM,
                                     REPORT_METRICS_DOC)
                             .define(REPORT_INTERVAL_SEC_CONFIG,
