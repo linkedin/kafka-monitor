@@ -17,6 +17,7 @@ import org.jolokia.jvmagent.JvmAgentConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * Jolokia server allows user to query jmx metric value with HTTP request.
  */
@@ -58,5 +59,4 @@ public class JolokiaService implements Service {
   public void awaitShutdown() {
 
   }
-
 }

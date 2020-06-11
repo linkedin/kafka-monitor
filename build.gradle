@@ -40,6 +40,7 @@ allprojects {
     compile 'com.signalfx.public:signalfx-codahale:0.0.47'
     compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.3.1'
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.1'
+    compile 'org.eclipse.jetty:jetty-server:8.1.19.v20160209'
     testCompile 'org.mockito:mockito-core:2.24.0'
     testCompile 'org.testng:testng:6.8.8'
   }
