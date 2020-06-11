@@ -18,39 +18,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Jolokia server allows user to query jmx metric value with HTTP request
+ * Jolokia server allows user to query jmx metric value with HTTP request.
  */
 public class JolokiaService implements Service {
-  private static final Logger LOG = LoggerFactory.getLogger(JolokiaService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JolokiaService.class);
 
   private final String _name;
   private final JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
 
-  public JolokiaService(Map<String, Object> props, String name) throws Exception {
+  public JolokiaService(Map<String, Object> unused, String name) throws Exception {
     _name = name;
     _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
     _isRunning = new AtomicBoolean(false);
   }
 
+  @Override
   public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
       _jolokiaServer.start();
-      LOG.info("{}/JolokiaService started at port 8778", _name);
+      LOGGER.info("{}/JolokiaService started at port 8778", _name);
     }
   }
 
+  @Override
   public synchronized void stop() {
     if (_isRunning.compareAndSet(true, false)) {
       _jolokiaServer.stop();
-      LOG.info("{}/JolokiaService stopped", _name);
+      LOGGER.info("{}/JolokiaService stopped", _name);
     }
   }
 
+  @Override
   public boolean isRunning() {
     return _isRunning.get();
   }
 
+  @Override
   public void awaitShutdown() {
 
   }
