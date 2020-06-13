@@ -7,8 +7,6 @@ logs/
 .project
 .settings/
 
-
-
-
-
 src/test/java/com/linkedin/kmf/RandomTests.java
+
+config/andrew-choi.properties
