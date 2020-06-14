@@ -18,6 +18,10 @@ public class XinfraMonitorConstants {
   public XinfraMonitorConstants() {
   }
 
+  public static final String KAFKA_LOG_DIRECTORY = "/tmp/kafka-logs";
+
+  public static final int TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS = 10;
+
   static final String FACTORY = "Factory";
 
   static final String CLASS_NAME_CONFIG = "class.name";
