@@ -13,6 +13,7 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
+import com.linkedin.kmf.services.metrics.CommitLatencyMetrics;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

@@ -41,6 +41,7 @@ public class ClusterTopicManipulationService implements Service {
   private volatile boolean _isOngoingTopicCreationDone;
   private String _currentlyOngoingTopic;
   private CreateTopicsResult _createTopicsResult;
+  private int _totalPartitions;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
@@ -82,13 +83,15 @@ public class ClusterTopicManipulationService implements Service {
     if (_isOngoingTopicCreationDone) {
 
       int random = ThreadLocalRandom.current().nextInt();
-      _currentlyOngoingTopic = "xinfra-monitor-cluster-topic-manipulation-service-topic-" + Math.abs(random);
+      _currentlyOngoingTopic = XinfraMonitorConstants.TOPIC_MANIPULATION_SERVICE_TOPIC + Math.abs(random);
 
       try {
         int brokerCount = _adminClient.describeCluster().nodes().get().size();
         _createTopicsResult = _adminClient.createTopics(Collections.singleton(
             new NewTopic(_currentlyOngoingTopic, XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS,
                 (short) brokerCount)));
+
+        _totalPartitions = brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
 
         _isOngoingTopicCreationDone = false;
         LOGGER.info("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
@@ -124,14 +127,12 @@ public class ClusterTopicManipulationService implements Service {
       DescribeLogDirsResponse.LogDirInfo logDirInfo = logDirInfoMap.get(XinfraMonitorConstants.KAFKA_LOG_DIRECTORY);
       Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap = logDirInfo.replicaInfos;
 
-      if (!doesBrokerContainTopic(topicPartitionReplicaInfoMap, topic, broker)) {
-        return false;
-      }
+      this.processBrokerTopicPartition(topicPartitionReplicaInfoMap, topic, broker);
     }
-    return true;
+    return _totalPartitions == 0;
   }
 
-  private boolean doesBrokerContainTopic(
+  private void processBrokerTopicPartition(
       Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap, String topic,
       Node broker) {
     for (Map.Entry<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoEntry : topicPartitionReplicaInfoMap
@@ -141,14 +142,13 @@ public class ClusterTopicManipulationService implements Service {
       DescribeLogDirsResponse.ReplicaInfo replicaInfo = topicPartitionReplicaInfoEntry.getValue();
 
       if (topicPartition.topic().equals(topic)) {
-        return true;
+        _totalPartitions--;
+        LOGGER.trace("_totalPartitions count = {}", _totalPartitions);
       }
 
       LOGGER.debug("broker information: {}", broker);
       LOGGER.trace("logDirInfo for kafka-logs: topicPartition = {}, replicaInfo = {}", topicPartition, replicaInfo);
     }
-
-    return false;
   }
 
   /**

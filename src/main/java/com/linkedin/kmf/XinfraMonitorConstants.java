@@ -18,6 +18,9 @@ public class XinfraMonitorConstants {
   public XinfraMonitorConstants() {
   }
 
+  public static final String TOPIC_MANIPULATION_SERVICE_TOPIC =
+      "xinfra-monitor-cluster-topic-manipulation-service-topic-";
+
   public static final String KAFKA_LOG_DIRECTORY = "/tmp/kafka-logs";
 
   public static final int TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS = 10;
@@ -29,6 +32,4 @@ public class XinfraMonitorConstants {
   static final String METRIC_GROUP_NAME = "kafka-monitor";
 
   static final String JMX_PREFIX = "kmf";
-
-
 }
