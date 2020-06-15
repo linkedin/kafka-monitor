@@ -23,7 +23,7 @@ public class XinfraMonitorConstants {
 
   public static final String KAFKA_LOG_DIRECTORY = "/tmp/kafka-logs";
 
-  public static final int TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS = 10;
+  public static final int TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS = 3;
 
   static final String FACTORY = "Factory";
 

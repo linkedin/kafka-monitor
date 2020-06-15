@@ -11,6 +11,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.XinfraMonitorConstants;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -41,7 +43,7 @@ public class ClusterTopicManipulationService implements Service {
   private volatile boolean _isOngoingTopicCreationDone;
   private String _currentlyOngoingTopic;
   private CreateTopicsResult _createTopicsResult;
-  private int _totalPartitions;
+  private AtomicInteger _totalPartitions = new AtomicInteger();
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
@@ -91,10 +93,10 @@ public class ClusterTopicManipulationService implements Service {
             new NewTopic(_currentlyOngoingTopic, XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS,
                 (short) brokerCount)));
 
-        _totalPartitions = brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
+        _totalPartitions.set(brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS);
 
         _isOngoingTopicCreationDone = false;
-        LOGGER.info("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
+        LOGGER.trace("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
             _currentlyOngoingTopic, brokerCount);
       } catch (InterruptedException | ExecutionException e) {
         LOGGER.error("Exception occurred while retrieving the brokers count: ", e);
@@ -103,36 +105,51 @@ public class ClusterTopicManipulationService implements Service {
 
     try {
       LOGGER.trace("cluster id: {}", _adminClient.describeCluster().clusterId().get());
-      if (_createTopicsResult.all().isDone() && doesClusterContainTopic(_currentlyOngoingTopic)) {
+      Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
+      if (_createTopicsResult.all().isDone() && doesClusterContainTopic(_currentlyOngoingTopic, brokers,
+          _adminClient)) {
         _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
-        LOGGER.info("Initiated topic deletion on {}.", _currentlyOngoingTopic);
+        LOGGER.trace("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
+            _currentlyOngoingTopic);
         _isOngoingTopicCreationDone = true;
+        LOGGER.trace("{}-clusterTopicManipulationServiceRunnable successful!", this.getClass().getSimpleName());
       }
     } catch (InterruptedException | ExecutionException e) {
       LOGGER.error("Exception occurred while creating cluster topic in {}: ", _configDefinedServiceName, e);
     }
   }
 
-  private boolean doesClusterContainTopic(String topic) throws ExecutionException, InterruptedException {
-    for (Node broker : _adminClient.describeCluster().nodes().get()) {
+  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient)
+      throws ExecutionException, InterruptedException {
+    for (Node broker : brokers) {
       LOGGER.trace("broker log directories: {}",
-          _adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get());
+          adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get());
     }
 
-    for (Node broker : _adminClient.describeCluster().nodes().get()) {
+    for (Node broker : brokers) {
       Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap =
-          _adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get();
+          adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get();
 
-      Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap = logDirectoriesResponseMap.get(broker.id());
-      DescribeLogDirsResponse.LogDirInfo logDirInfo = logDirInfoMap.get(XinfraMonitorConstants.KAFKA_LOG_DIRECTORY);
-      Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap = logDirInfo.replicaInfos;
-
-      this.processBrokerTopicPartition(topicPartitionReplicaInfoMap, topic, broker);
+      this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return _totalPartitions == 0;
+    return _totalPartitions.get() == 0;
   }
 
-  private void processBrokerTopicPartition(
+  void processBroker(Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap,
+      Node broker, String topic) {
+    LOGGER.trace("logDirectoriesResponseMap: {}", logDirectoriesResponseMap);
+    Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap = logDirectoriesResponseMap.get(broker.id());
+    String logDirectoriesKey = logDirInfoMap.keySet().iterator().next();
+    LOGGER.debug("logDirInfoMap: {}", logDirInfoMap.get(logDirectoriesKey));
+    DescribeLogDirsResponse.LogDirInfo logDirInfo = logDirInfoMap.get(logDirectoriesKey);
+
+    if (logDirInfo != null && !logDirectoriesResponseMap.isEmpty()) {
+      Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap = logDirInfo.replicaInfos;
+      this.processLogDirsWithinBroker(topicPartitionReplicaInfoMap, topic, broker);
+    }
+  }
+
+  private void processLogDirsWithinBroker(
       Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap, String topic,
       Node broker) {
     for (Map.Entry<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoEntry : topicPartitionReplicaInfoMap
@@ -142,7 +159,7 @@ public class ClusterTopicManipulationService implements Service {
       DescribeLogDirsResponse.ReplicaInfo replicaInfo = topicPartitionReplicaInfoEntry.getValue();
 
       if (topicPartition.topic().equals(topic)) {
-        _totalPartitions--;
+        _totalPartitions.getAndDecrement();
         LOGGER.trace("_totalPartitions count = {}", _totalPartitions);
       }
 
@@ -185,5 +202,18 @@ public class ClusterTopicManipulationService implements Service {
       LOGGER.info("Thread interrupted when waiting for {} to shutdown", _configDefinedServiceName);
     }
     LOGGER.info("{} shutdown completed", _configDefinedServiceName);
+  }
+
+  AtomicInteger totalPartitions() {
+    return _totalPartitions;
+  }
+
+  void setTotalPartition(AtomicInteger totalPartitions) {
+    _totalPartitions = totalPartitions;
+  }
+
+  @Override
+  public String toString() {
+    return this.getClass().getSimpleName() + "-" + _configDefinedServiceName;
   }
 }

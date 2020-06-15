@@ -8,70 +8,38 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
 package com.linkedin.kmf.services;
 
-import com.linkedin.kmf.topicfactory.TopicFactory;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.linkedin.kmf.XinfraMonitorConstants;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import kafka.admin.BrokerMetadata;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
-import org.apache.kafka.clients.admin.DescribeClusterResult;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
-import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.common.KafkaFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import scala.Option;
 
 
 /**
- * Testing methods for the Xinfra Monitor class of MultiClusterTopicManagementService.
+ * Testing methods for the Xinfra Monitor class of ClusterTopicManipulationService.
  */
-@SuppressWarnings("unchecked")
 @Test
 public class ClusterTopicManipulationServiceTest {
 
-  private static final String SERVICE_TEST_TOPIC = "xinfra-monitor-Multi-Cluster-Topic-Management-Service-Test-topic";
-  private static Set<Node> nodeSet;
-  private MultiClusterTopicManagementService.TopicManagementHelper _topicManagementHelper;
-  private CreateTopicsResult _createTopicsResult;
-  private Map<String, KafkaFuture<Void>> _kafkaFutureMap;
-  private KafkaFuture<Void> _kafkaFuture;
+  private static final String SERVICE_TEST_TOPIC = "xinfra-monitor-topic-manipulation-test-topic";
 
   @BeforeMethod
   private void startTest() {
-    _createTopicsResult = Mockito.mock(CreateTopicsResult.class);
-    _kafkaFutureMap = Mockito.mock(Map.class);
-    _kafkaFuture = Mockito.mock(KafkaFuture.class);
-
-    nodeSet = new LinkedHashSet<>();
-    nodeSet.add(new Node(1, "host-1", 2132));
-    nodeSet.add(new Node(2, "host-2", 2133));
-    nodeSet.add(new Node(3, "host-3", 2134));
-    nodeSet.add(new Node(4, "host-4", 2135));
-    nodeSet.add(new Node(5, "host-5", 2136));
-    nodeSet.add(new Node(6, "host-5", 2137));
-    nodeSet.add(new Node(7, "host-5", 2138));
-    nodeSet.add(new Node(8, "host-5", 2139));
-    nodeSet.add(new Node(9, "host-5", 2140));
-    nodeSet.add(new Node(10, "host-5", 2141));
-
-    _topicManagementHelper = Mockito.mock(MultiClusterTopicManagementService.TopicManagementHelper.class);
-    _topicManagementHelper._topic = SERVICE_TEST_TOPIC;
-    _topicManagementHelper._adminClient = Mockito.mock(AdminClient.class);
-    _topicManagementHelper._topicFactory = Mockito.mock(TopicFactory.class);
-    _topicManagementHelper._topicCreationEnabled = true;
+    System.out.println("Started " + this.getClass().getSimpleName().toLowerCase() + ".");
   }
 
   @AfterMethod
@@ -79,95 +47,70 @@ public class ClusterTopicManipulationServiceTest {
     System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
   }
 
-  @Test(invocationCount = 2)
-  void serviceStartTest() {
-    ClusterTopicManipulationService clusterTopicManipulationService = Mockito.mock(ClusterTopicManipulationService.class);
+  @Test(invocationCount = 10)
+  void serviceStartTest() throws JsonProcessingException {
+    ClusterTopicManipulationService clusterTopicManipulationService =
+        Mockito.mock(ClusterTopicManipulationService.class);
 
-  }
+    Mockito.doCallRealMethod().when(clusterTopicManipulationService).setTotalPartition(Mockito.any());
+    Mockito.doCallRealMethod().when(clusterTopicManipulationService).totalPartitions();
+    Mockito.doCallRealMethod()
+        .when(clusterTopicManipulationService)
+        .processBroker(Mockito.anyMap(), Mockito.any(), Mockito.anyString());
 
-  @Test(invocationCount = 2)
-  protected void maybeAddPartitionsTest() {
-    Set<BrokerMetadata> brokerMetadataSet = new LinkedHashSet<>();
-    for (Node broker : nodeSet) {
-      brokerMetadataSet.add(new BrokerMetadata(broker.id(), Option.apply(broker.rack())));
+    List<Node> brokers = new ArrayList<>();
+    for (int id = 1; id < 3; id++) {
+      brokers.add(new Node(id, "kafka-broker-host", 8000));
     }
 
-    int minPartitionNum = 14;
-    int partitionNum = 5;
-    int rf = 4;
+    Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap1 = new HashMap<>();
+    Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap2 = new HashMap<>();
 
-    List<List<Integer>> newPartitionAssignments =
-        MultiClusterTopicManagementService.TopicManagementHelper.newPartitionAssignments(minPartitionNum, partitionNum, brokerMetadataSet, rf);
-    Assert.assertNotNull(newPartitionAssignments);
+    Map<Node, Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>>> brokerMapHashMap = new HashMap<>();
+    brokerMapHashMap.putIfAbsent(brokers.get(0), logDirectoriesResponseMap1);
+    brokerMapHashMap.putIfAbsent(brokers.get(1), logDirectoriesResponseMap2);
 
-    System.out.println(newPartitionAssignments);
-    Assert.assertEquals(newPartitionAssignments.size(), minPartitionNum - partitionNum);
-    Assert.assertEquals(newPartitionAssignments.get(0).size(), rf);
-  }
+    Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap1 = new HashMap<>();
+    Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap2 = new HashMap<>();
 
-  @Test
-  protected void MultiClusterTopicManagementServiceTopicCreationTest() throws Exception {
+    logDirectoriesResponseMap1.put(brokers.get(0).id(), logDirInfoMap1);
+    logDirectoriesResponseMap2.put(brokers.get(1).id(), logDirInfoMap2);
 
-    Mockito.doCallRealMethod().when(_topicManagementHelper).maybeCreateTopic();
+    Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> replicaInfos1 = new HashMap<>();
+    Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> replicaInfos2 = new HashMap<>();
 
-    Mockito.when(_topicManagementHelper._adminClient.describeCluster())
-        .thenReturn(Mockito.mock(DescribeClusterResult.class));
-    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes())
-        .thenReturn(Mockito.mock(KafkaFuture.class));
-    Mockito.when(_topicManagementHelper._adminClient.describeCluster().nodes().get()).thenReturn(nodeSet);
+    for (int topicPartition = 0; topicPartition < 3; topicPartition++) {
+      replicaInfos1.put(new TopicPartition(SERVICE_TEST_TOPIC, topicPartition),
+          new DescribeLogDirsResponse.ReplicaInfo(235, 0, false));
 
-    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()))
-        .thenReturn(_createTopicsResult);
-    Mockito.when(_topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()).values())
-        .thenReturn(_kafkaFutureMap);
-    Mockito.when(
-        _topicManagementHelper._adminClient.createTopics(Mockito.anyCollection()).values().get(SERVICE_TEST_TOPIC))
-        .thenReturn(_kafkaFuture);
+      replicaInfos2.put(new TopicPartition(SERVICE_TEST_TOPIC, topicPartition),
+          new DescribeLogDirsResponse.ReplicaInfo(235, 0, false));
+    }
 
-    Answer<Object> createKafkaTopicFutureAnswer = new Answer<Object>() {
-      /**
-       * @param invocation the invocation on the mocked TopicManagementHelper.
-       * @return NULL value.
-       * @throws Throwable the throwable to be thrown when Exception occurs.
-       */
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
+    int totalPartitions = brokers.size() * replicaInfos1.size();
 
-        Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)))
-            .thenReturn(Mockito.mock(DescribeTopicsResult.class));
-        Mockito.when(
-            _topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC)).values())
-            .thenReturn(Mockito.mock(Map.class));
-        Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
-            .values()
-            .get(SERVICE_TEST_TOPIC)).thenReturn(Mockito.mock(KafkaFuture.class));
-        Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
-            .values()
-            .get(SERVICE_TEST_TOPIC)
-            .get()).thenReturn(Mockito.mock(TopicDescription.class));
-        Mockito.when(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
-            .values()
-            .get(SERVICE_TEST_TOPIC)
-            .get()
-            .name()).thenReturn(SERVICE_TEST_TOPIC);
-        return null;
-      }
-    };
+    clusterTopicManipulationService.setTotalPartition(new AtomicInteger(totalPartitions));
+    System.out.println(
+        "Updated instance variable totalPartitions: " + clusterTopicManipulationService.totalPartitions());
 
-    Mockito.when(_topicManagementHelper._topicFactory.createTopicIfNotExist(Mockito.anyString(), Mockito.anyShort(),
-        Mockito.anyDouble(), Mockito.any(), Mockito.any())).thenAnswer(createKafkaTopicFutureAnswer);
+    logDirInfoMap1.put(XinfraMonitorConstants.KAFKA_LOG_DIRECTORY + "-1",
+        new DescribeLogDirsResponse.LogDirInfo(null, replicaInfos1));
+    logDirInfoMap2.put(XinfraMonitorConstants.KAFKA_LOG_DIRECTORY + "-2",
+        new DescribeLogDirsResponse.LogDirInfo(null, replicaInfos2));
 
-    _topicManagementHelper.maybeCreateTopic();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
 
-    Assert.assertNotNull(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
-        .values()
-        .get(SERVICE_TEST_TOPIC)
-        .get());
-    Assert.assertEquals(_topicManagementHelper._adminClient.describeTopics(Collections.singleton(SERVICE_TEST_TOPIC))
-        .values()
-        .get(SERVICE_TEST_TOPIC)
-        .get()
-        .name(), SERVICE_TEST_TOPIC);
+    for (Map.Entry<Node, Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>>> nodeMapEntry : brokerMapHashMap.entrySet()) {
+      System.out.println(objectWriter.writeValueAsString(nodeMapEntry.getValue()));
+    }
+
+    for (Node broker : brokers) {
+      clusterTopicManipulationService.processBroker(brokerMapHashMap.get(broker), broker, SERVICE_TEST_TOPIC);
+    }
+
+    Assert.assertEquals(clusterTopicManipulationService.totalPartitions().get(), 0);
+    System.out.println();
   }
 }
 
