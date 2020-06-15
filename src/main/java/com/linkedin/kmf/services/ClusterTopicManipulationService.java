@@ -11,6 +11,7 @@
 package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.XinfraMonitorConstants;
+import com.linkedin.kmf.services.metrics.ClusterTopicManipulationMetrics;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -44,6 +45,8 @@ public class ClusterTopicManipulationService implements Service {
   private String _currentlyOngoingTopic;
   private CreateTopicsResult _createTopicsResult;
   private AtomicInteger _totalPartitions = new AtomicInteger();
+  // TODO -- ClusterTopicManipulationMetrics implementation in progress!
+  private ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
@@ -53,6 +56,7 @@ public class ClusterTopicManipulationService implements Service {
     _executor = Executors.newSingleThreadScheduledExecutor();
     _reportIntervalSecond = 1;
     _configDefinedServiceName = name;
+    // TODO: instantiate a new instance of ClusterTopicManipulationMetrics(..) here.
   }
 
   /**
@@ -65,19 +69,38 @@ public class ClusterTopicManipulationService implements Service {
   public void start() {
     LOGGER.info("ClusterTopicManipulationService started for {} - {}", _configDefinedServiceName,
         this.getClass().getCanonicalName());
-    Runnable clusterTopicManipulationServiceRunnable = new Runnable() {
-      @Override
-      public void run() {
-        try {
-          ClusterTopicManipulationService.this.createDeleteClusterTopic();
-        } catch (Exception e) {
-          LOGGER.error("{} {} failed to run createDeleteClusterTopic()", _configDefinedServiceName,
-              ClusterTopicManipulationService.this.getClass().getSimpleName(), e);
-        }
-      }
-    };
+    Runnable clusterTopicManipulationServiceRunnable = new ClusterTopicManipulationServiceRunnable();
+
     _executor.scheduleAtFixedRate(clusterTopicManipulationServiceRunnable, _reportIntervalSecond, _reportIntervalSecond,
         TimeUnit.SECONDS);
+  }
+
+  private class ClusterTopicManipulationServiceRunnable implements Runnable {
+
+    private ClusterTopicManipulationServiceRunnable() {
+      // unaccessed.
+    }
+
+    /**
+     * When an object implementing interface <code>Runnable</code> is used
+     * to create a thread, starting the thread causes the object's
+     * <code>run</code> method to be called in that separately executing
+     * thread.
+     * <p>
+     * The general contract of the method <code>run</code> is that it may
+     * take any action whatsoever.
+     *
+     * @see     Thread#run()
+     */
+    @Override
+    public void run() {
+      try {
+        ClusterTopicManipulationService.this.createDeleteClusterTopic();
+      } catch (Exception e) {
+        LOGGER.error("{} {} failed to run createDeleteClusterTopic()", _configDefinedServiceName,
+            ClusterTopicManipulationService.this.getClass().getSimpleName(), e);
+      }
+    }
   }
 
   private void createDeleteClusterTopic() {
