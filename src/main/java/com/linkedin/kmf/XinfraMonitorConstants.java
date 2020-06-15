@@ -32,4 +32,7 @@ public class XinfraMonitorConstants {
   static final String METRIC_GROUP_NAME = "kafka-monitor";
 
   static final String JMX_PREFIX = "kmf";
+
+  public static final String METRIC_GROUP_NAME_PRODUCE_SERVICE = "produce-service";
+
 }

@@ -10,8 +10,33 @@ system tests in a real cluster. It complements Kafka’s existing system
 tests by capturing potential bugs or regressions that are only likely to occur
 after prolonged period of time or with low probability. Moreover, it allows you to monitor Kafka
 cluster using end-to-end pipelines to obtain a number of derived vital stats
-such as end-to-end latency, service availability, consumer offset commit availability,
-as well as message loss rate. You can easily
+such as
+
+<ol>
+ <li> 
+  End-to-end latency
+ </li>
+  <li> 
+  Service availability
+</li>
+  <li> 
+  Produce and Consume availability
+    </li>
+  <li> 
+  Consumer offset commit availability
+    </li>
+  <li> 
+  Consumer offset commit latency
+    </li>
+  <li> 
+  Kafka message loss rate
+    </li>
+  <li> 
+  And many, many more.
+  </li>
+  </ol>
+  
+You can easily
 deploy Xinfra Monitor to test and monitor your Kafka cluster without requiring
 any change to your application.
 
@@ -24,6 +49,32 @@ broker without requiring users to manually manage the partition assignment of
 the monitor topic.
 
 Xinfra Monitor is used in conjunction with different middle-layer services such as li-apache-kafka-clients in order to monitor single clusters, pipeline desination clusters, and other types of clusters as done in Linkedin engineering for real-time cluster healthchecks.
+
+These are some of the metrics emitted from a Xinfra Monitor instance.
+
+```
+kmf:type=kafka-monitor:offline-runnable-count
+kmf.services:type=produce-service,name=*:produce-availability-avg
+kmf.services:type=consume-service,name=*:consume-availability-avg
+kmf.services:type=produce-service,name=*:records-produced-total
+kmf.services:type=consume-service,name=*:records-consumed-total
+kmf.services:type=produce-service,name=*:records-produced-rate
+kmf.services:type=produce-service,name=*:produce-error-rate
+kmf.services:type=consume-service,name=*:consume-error-rate
+kmf.services:type=consume-service,name=*:records-lost-total
+kmf.services:type=consume-service,name=*:records-lost-rate
+kmf.services:type=consume-service,name=*:records-duplicated-total
+kmf.services:type=consume-service,name=*:records-delay-ms-avg
+kmf.services:type=commit-availability-service,name=*:offsets-committed-avg
+kmf.services:type=commit-availability-service,name=*:offsets-committed-total
+kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-avg
+kmf.services:type=commit-availability-service,name=*:failed-commit-offsets-total
+kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-avg
+kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-max
+kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-99th
+kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-999th
+kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th
+```
 
 ## Getting Started
 
