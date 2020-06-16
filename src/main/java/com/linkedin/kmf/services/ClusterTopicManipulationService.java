@@ -12,6 +12,7 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.metrics.ClusterTopicManipulationMetrics;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -38,10 +40,11 @@ public class ClusterTopicManipulationService implements Service {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterTopicManipulationService.class);
   private final String _configDefinedServiceName;
-  private final int _reportIntervalSecond;
+  private final Duration _reportIntervalSecond;
   private final ScheduledExecutorService _executor;
   private final AdminClient _adminClient;
   private volatile boolean _isOngoingTopicCreationDone;
+  private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
   private CreateTopicsResult _createTopicsResult;
   private AtomicInteger _totalPartitions = new AtomicInteger();
@@ -54,7 +57,8 @@ public class ClusterTopicManipulationService implements Service {
     _isOngoingTopicCreationDone = true;
     _adminClient = adminClient;
     _executor = Executors.newSingleThreadScheduledExecutor();
-    _reportIntervalSecond = 1;
+    _reportIntervalSecond = Duration.ofSeconds(1);
+    _running = new AtomicBoolean(false);
     _configDefinedServiceName = name;
     // TODO: instantiate a new instance of ClusterTopicManipulationMetrics(..) here.
   }
@@ -67,12 +71,14 @@ public class ClusterTopicManipulationService implements Service {
    */
   @Override
   public void start() {
-    LOGGER.info("ClusterTopicManipulationService started for {} - {}", _configDefinedServiceName,
-        this.getClass().getCanonicalName());
-    Runnable clusterTopicManipulationServiceRunnable = new ClusterTopicManipulationServiceRunnable();
+    if (_running.compareAndSet(false, true)) {
+      LOGGER.info("ClusterTopicManipulationService started for {} - {}", _configDefinedServiceName,
+          this.getClass().getCanonicalName());
+      Runnable clusterTopicManipulationServiceRunnable = new ClusterTopicManipulationServiceRunnable();
 
-    _executor.scheduleAtFixedRate(clusterTopicManipulationServiceRunnable, _reportIntervalSecond, _reportIntervalSecond,
-        TimeUnit.SECONDS);
+      _executor.scheduleAtFixedRate(clusterTopicManipulationServiceRunnable, _reportIntervalSecond.getSeconds(),
+          _reportIntervalSecond.getSeconds(), TimeUnit.SECONDS);
+    }
   }
 
   private class ClusterTopicManipulationServiceRunnable implements Runnable {
@@ -144,12 +150,10 @@ public class ClusterTopicManipulationService implements Service {
 
   private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient)
       throws ExecutionException, InterruptedException {
+
     for (Node broker : brokers) {
       LOGGER.trace("broker log directories: {}",
           adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get());
-    }
-
-    for (Node broker : brokers) {
       Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap =
           adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get();
 
@@ -198,7 +202,9 @@ public class ClusterTopicManipulationService implements Service {
    */
   @Override
   public void stop() {
-    _executor.shutdown();
+    if (_running.compareAndSet(true, false)) {
+      _executor.shutdown();
+    }
   }
 
   /**
