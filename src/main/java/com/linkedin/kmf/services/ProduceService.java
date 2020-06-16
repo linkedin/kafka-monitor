@@ -15,6 +15,7 @@ import com.linkedin.kmf.producer.BaseProducerRecord;
 import com.linkedin.kmf.producer.KMBaseProducer;
 import com.linkedin.kmf.producer.NewProducer;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
+import com.linkedin.kmf.services.metrics.ProduceMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,20 +37,12 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaFuture;
-import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.apache.kafka.common.metrics.Sensor;
-import org.apache.kafka.common.metrics.stats.Avg;
-import org.apache.kafka.common.metrics.stats.Max;
-import org.apache.kafka.common.metrics.stats.Percentile;
-import org.apache.kafka.common.metrics.stats.Percentiles;
-import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.stats.Total;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +50,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("rawtypes")
 public class ProduceService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
-  private static final String METRIC_GROUP_NAME = "produce-service";
   private static final String[] NON_OVERRIDABLE_PROPERTIES = new String[]{
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
     ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
@@ -134,7 +126,9 @@ public class ProduceService implements Service {
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
-    _sensors = new ProduceMetrics(metrics, tags);
+    _sensors =
+        new ProduceMetrics(metrics, tags, _latencyPercentileGranularityMs, _latencyPercentileMaxMs, _partitionNum,
+            _treatZeroThroughputAsUnavailable);
   }
 
   private void initializeProducer(Map<String, Object> props) throws Exception {
@@ -232,97 +226,6 @@ public class ProduceService implements Service {
   @Override
   public boolean isRunning() {
     return _running.get() && !_handleNewPartitionsExecutor.isShutdown();
-  }
-
-  private class ProduceMetrics {
-    public final Metrics _metrics;
-    private final Sensor _recordsProduced;
-    private final Sensor _produceError;
-    private final Sensor _produceDelay;
-    private final ConcurrentMap<Integer, Sensor> _recordsProducedPerPartition;
-    private final ConcurrentMap<Integer, Sensor> _produceErrorPerPartition;
-    private final ConcurrentMap<Integer, Boolean> _produceErrorInLastSendPerPartition;
-    private final Map<String, String> _tags;
-
-    public ProduceMetrics(final Metrics metrics, final Map<String, String> tags) {
-      _metrics = metrics;
-      _tags = tags;
-
-      _recordsProducedPerPartition = new ConcurrentHashMap<>();
-      _produceErrorPerPartition = new ConcurrentHashMap<>();
-      _produceErrorInLastSendPerPartition = new ConcurrentHashMap<>();
-
-      _recordsProduced = metrics.sensor("records-produced");
-      _recordsProduced.add(new MetricName("records-produced-rate", METRIC_GROUP_NAME, "The average number of records per second that are produced", tags), new Rate());
-      _recordsProduced.add(new MetricName("records-produced-total", METRIC_GROUP_NAME, "The total number of records that are produced", tags), new Total());
-
-      _produceError = metrics.sensor("produce-error");
-      _produceError.add(new MetricName("produce-error-rate", METRIC_GROUP_NAME, "The average number of errors per second", tags), new Rate());
-      _produceError.add(new MetricName("produce-error-total", METRIC_GROUP_NAME, "The total number of errors", tags), new Total());
-
-      _produceDelay = metrics.sensor("produce-delay");
-      _produceDelay.add(new MetricName("produce-delay-ms-avg", METRIC_GROUP_NAME, "The average delay in ms for produce request", tags), new Avg());
-      _produceDelay.add(new MetricName("produce-delay-ms-max", METRIC_GROUP_NAME, "The maximum delay in ms for produce request", tags), new Max());
-
-      // There are 2 extra buckets use for values smaller than 0.0 or larger than max, respectively.
-      int bucketNum = _latencyPercentileMaxMs / _latencyPercentileGranularityMs + 2;
-      int sizeInBytes = 4 * bucketNum;
-      _produceDelay.add(new Percentiles(sizeInBytes, _latencyPercentileMaxMs, Percentiles.BucketSizing.CONSTANT,
-          new Percentile(new MetricName("produce-delay-ms-99th", METRIC_GROUP_NAME, "The 99th percentile delay in ms for produce request", tags), 99.0),
-          new Percentile(new MetricName("produce-delay-ms-999th", METRIC_GROUP_NAME, "The 99.9th percentile delay in ms for produce request", tags), 99.9),
-          new Percentile(new MetricName("produce-delay-ms-9999th", METRIC_GROUP_NAME, "The 99.99th percentile delay in ms for produce request", tags), 99.99)));
-
-      metrics.addMetric(new MetricName("produce-availability-avg", METRIC_GROUP_NAME, "The average produce availability", tags),
-        (config, now) -> {
-          double availabilitySum = 0.0;
-          int partitionNum = _partitionNum.get();
-          for (int partition = 0; partition < partitionNum; partition++) {
-            double recordsProduced = (double) metrics.metrics()
-                .get(metrics.metricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
-                .metricValue();
-            double produceError = (double) metrics.metrics()
-                .get(metrics.metricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME, tags))
-                .metricValue();
-            // If there is no error, error rate sensor may expire and the value may be NaN. Treat NaN as 0 for error rate.
-            if (Double.isNaN(produceError) || Double.isInfinite(produceError)) {
-              produceError = 0;
-            }
-            // If there is either succeeded or failed produce to a partition, consider its availability as 0.
-            if (recordsProduced + produceError > 0) {
-              availabilitySum += recordsProduced / (recordsProduced + produceError);
-            } else if (!_treatZeroThroughputAsUnavailable) {
-              // If user configures treatZeroThroughputAsUnavailable to be false, a partition's availability
-              // is 1.0 as long as there is no exception thrown from producer.
-              // This allows kafka admin to exactly monitor the availability experienced by Kafka users which
-              // will block and retry for a certain amount of time based on its configuration (e.g. retries, retry.backoff.ms).
-              // Note that if it takes a long time for messages to be retries and sent, the latency in the ConsumeService
-              // will increase and it will reduce ConsumeAvailability if the latency exceeds consume.latency.sla.ms
-              // If timeout is set to more than 60 seconds (the current samples window duration),
-              // the error sample might be expired before the next error can be produced.
-              // In order to detect offline partition with high producer timeout config, the error status during last
-              // send is also checked before declaring 1.0 availability for the partition.
-              Boolean lastSendError = _produceErrorInLastSendPerPartition.get(partition);
-              if (lastSendError == null || !lastSendError) {
-                availabilitySum += 1.0;
-              }
-            }
-          }
-          // Assign equal weight to per-partition availability when calculating overall availability
-          return availabilitySum / partitionNum;
-        });
-    }
-
-    void addPartitionSensors(int partition) {
-      Sensor recordsProducedSensor = _metrics.sensor("records-produced-partition-" + partition);
-      recordsProducedSensor.add(new MetricName("records-produced-rate-partition-" + partition, METRIC_GROUP_NAME,
-          "The average number of records per second that are produced to this partition", _tags), new Rate());
-      _recordsProducedPerPartition.put(partition, recordsProducedSensor);
-
-      Sensor errorsSensor = _metrics.sensor("produce-error-partition-" + partition);
-      errorsSensor.add(new MetricName("produce-error-rate-partition-" + partition, METRIC_GROUP_NAME,
-          "The average number of errors per second when producing to this partition", _tags), new Rate());
-      _produceErrorPerPartition.put(partition, errorsSensor);
-    }
   }
 
   /**
