@@ -8,213 +8,227 @@
   an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -->
 
-<!DOCTYPE html>
 <html>
-  
 <head>
-  <meta charset="utf-8">
-  <title>JS Bin</title>
-  <script type="text/javascript" src="/js/Chart.js"></script>
-  <script type="text/javascript" src="/js/json2.js"></script>
-  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
-  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
-  <script type="text/javascript" src="/js/jolokia-min.js"></script>
-  <script type="text/javascript" src="/js/jolokia-simple-min.js"></script>
+  <title>Web Demo</title>
 </head>
-
 <body>
+<p>Say <a href="hello">Hello</a></p>
 
-  <h1 style="text-align:center">Kafka Monitor GUI</h1>
-
-  <div id="tabs">
-    <ul>
-      <li><a href="#figureTab"><span>Metrics Figure</span></a></li>
-      <li><a href="#valueTab"><span>Metrics Table</span></a></li>
-    </ul>
-
-
-    <div id="figureTab">
-      <div style="margin-left:30px" >
-        <tr><h3>Search for figure:  <input type="text" id="search"></h3></tr>
-        <table id="figureTable" width="100%" align="center"></table>
-      </div>
-    </div>
-
-    <div id="valueTab">
-      <table id="valueTable" style="font-size:20px" align="center"></table>
-    </div>
-  </div>
+<form method="post" action="hello">
+  <h2>Name:</h2>
+  <input type="text" id="say-hello-text-input" name="name" />
+  <input type="submit" id="say-hello-button" value="Say Hello" />
+</form>
 </body>
-
-<script>
-  function createCanvas(name, cells) {
-    var div = document.createElement("div");
-    div.align = "center";
-    div.style.width = (document.body.clientWidth - 100) / 2 + "px";
-    div.style.height = "300px";
-    div.style.display = "table-cell";
-
-    if (cells.length == 0) {
-      var row = document.getElementById("figureTable").insertRow();
-      cells.push(row.insertCell());
-      cells.push(row.insertCell());
-    }
-
-    cells[0].appendChild(div);
-    cells.shift();
-
-    var canvas = document.createElement('canvas');
-    canvas.id = name;
-    canvas.width  = div.offsetWidth;
-    canvas.height = div.offsetHeight * 0.9;
-    div.appendChild(canvas);
-
-    var br = document.createElement('br');
-    div.appendChild(br);
-
-    var svg = document.createElement('svg');
-    svg.style.fontSize = "20px";
-    svg.width = div.width;
-    svg.height = div.height * 0.1;
-    div.appendChild(svg);
-
-    var text = document.createTextNode(name);
-    text.x = svg.width / 2;
-    text.y = svg.height / 2;
-    text.fill = "Black";
-    svg.appendChild(text);
-
-    return canvas
-  }
-
-  function createSearchBox(){
-    var $rows = $('#figureTable td');
-    $('#search').keyup(function() {
-      var val = '^(?=.*\\b' + $.trim($(this).val()).split(/\s+/).join('\\b)(?=.*\\b') + ').*$';
-      var reg = RegExp(val, 'i');
-
-      $rows.show().filter(function() {
-        var text = $(this).text().replace(/\s+/g, ' ');
-        return !reg.test(text);
-      }).hide();
-    });
-  }
-
-  function getDefaultLine() {
-    var startingLabel = [];
-    var startingData = [];
-    for (var i = 0; i < dataNum; i++) {
-      startingLabel.push("");
-      startingData.push(0);
-    }
-
-    return {
-      labels: startingLabel,
-      datasets: [{
-        fillColor: "rgba(220,220,220,0.2)",
-        strokeColor: "rgba(220,220,220,1)",
-        pointColor: "rgba(220,220,220,1)",
-        pointStrokeColor: "#fff",
-        data: startingData}]
-    }
-  }
-
-  function createMetricsTable(mbeans) {
-    var table = document.getElementById("valueTable");
-    var cells = {};
-    var row = table.insertRow();
-    var nameCell = row.insertCell();
-    var valueCell = row.insertCell();
-
-    nameCell.style.width = '300px';
-    nameCell.innerHTML = 'Metric Name';
-    valueCell.style.width = '300px';
-    valueCell.innerHTML = 'Value';
-
-    $(mbeans).each(function (idx, mbean) {
-      var row = table.insertRow();
-      var nameCell = row.insertCell();
-      var valueCell = row.insertCell();
-      nameCell.style.backgroundColor = "#E0E0E0";
-      valueCell.style.backgroundColor = "#E0E0E0";
-      nameCell.innerHTML = mbean.attribute;
-      cells[mbean.attribute] = valueCell;
-    });
-    return cells;
-  }
-
-  function createMetricsCharts(mbeans) {
-    var charts = {};
-    var cells = [];
-
-    $(mbeans).each(function (idx, mbean) {
-      var canvas = createCanvas(mbean.attribute, cells);
-      var ctx = document.getElementById(mbean.attribute).getContext('2d');
-      var chart = new Chart(ctx).Line(getDefaultLine(), {animationSteps: 60});
-      charts[mbean.attribute] = chart;
-    });
-    return charts;
-  }
-
-  function updateChartAndValueTable(mbeans, charts, cells) {
-    var requests = $.map(mbeans, function (mbean) {
-      return {
-        type: "read",
-        mbean: mbean.name,
-        attribute: mbean.attribute
-      };
-    });
-
-    var responses = j4p.request(requests);
-    $(responses).each(function (idx, response) {
-      var label = response.timestamp - beginTime;
-      var attribute = response.request.attribute;
-
-      $.each(response.value, function (mbean, values) {
-        if (label % 5 != 0)
-          label = "";
-        charts[attribute].addData([values[attribute]], label);
-        charts[attribute].removeData();
-        cells[attribute].innerHTML = values[attribute];
-      });
-    });
-  }
-
-  var beginTime = Math.round(new Date().getTime() / 1000);
-  var dataNum = 30;
-  var pollIntervalMs = 1000;
-  var monitoredMbeans = [
-    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-availability-avg"},
-    {name: "kmf.services:type=produce-service,name=*", attribute: "records-produced-rate"},
-    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-avg"},
-    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-99th"},
-    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-999th"},
-    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-9999th"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-lost-rate"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-duplicated-rate"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-avg"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-99th"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-999th"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-9999th"},
-    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-max"},
-  ];
-
-  var ip = location.host.split(':')[0];
-  var j4p = new Jolokia({url: "http://" + ip + ":8778/jolokia"});
-  var charts = createMetricsCharts(monitoredMbeans);
-  var cells = createMetricsTable(monitoredMbeans);
-  createSearchBox();
-
-  // Initialize tab
-  $('#tabs').tabs($.fn.tabs.tabProps);
-
-  setInterval(function () {
-    updateChartAndValueTable(monitoredMbeans, charts, cells);
-  }, pollIntervalMs);
-
-</script>
-
-
 </html>
+<!--<!DOCTYPE html>-->
+<!--<html>-->
+<!--  -->
+<!--<head>-->
+<!--  <meta charset="utf-8">-->
+<!--  <title>JS Bin</title>-->
+<!--  <script type="text/javascript" src="/js/Chart.js"></script>-->
+<!--  <script type="text/javascript" src="/js/json2.js"></script>-->
+<!--  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>-->
+<!--  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>-->
+<!--  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">-->
+<!--  <script type="text/javascript" src="/js/jolokia-min.js"></script>-->
+<!--  <script type="text/javascript" src="/js/jolokia-simple-min.js"></script>-->
+<!--</head>-->
+
+<!--<body>-->
+
+<!--  <h1 style="text-align:center">Kafka Monitor GUI</h1>-->
+
+<!--  <div id="tabs">-->
+<!--    <ul>-->
+<!--      <li><a href="#figureTab"><span>Metrics Figure</span></a></li>-->
+<!--      <li><a href="#valueTab"><span>Metrics Table</span></a></li>-->
+<!--    </ul>-->
+
+
+<!--    <div id="figureTab">-->
+<!--      <div style="margin-left:30px" >-->
+<!--        <tr><h3>Search for figure:  <input type="text" id="search"></h3></tr>-->
+<!--        <table id="figureTable" width="100%" align="center"></table>-->
+<!--      </div>-->
+<!--    </div>-->
+
+<!--    <div id="valueTab">-->
+<!--      <table id="valueTable" style="font-size:20px" align="center"></table>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</body>-->
+
+<!--<script>-->
+<!--  function createCanvas(name, cells) {-->
+<!--    var div = document.createElement("div");-->
+<!--    div.align = "center";-->
+<!--    div.style.width = (document.body.clientWidth - 100) / 2 + "px";-->
+<!--    div.style.height = "300px";-->
+<!--    div.style.display = "table-cell";-->
+
+<!--    if (cells.length == 0) {-->
+<!--      var row = document.getElementById("figureTable").insertRow();-->
+<!--      cells.push(row.insertCell());-->
+<!--      cells.push(row.insertCell());-->
+<!--    }-->
+
+<!--    cells[0].appendChild(div);-->
+<!--    cells.shift();-->
+
+<!--    var canvas = document.createElement('canvas');-->
+<!--    canvas.id = name;-->
+<!--    canvas.width  = div.offsetWidth;-->
+<!--    canvas.height = div.offsetHeight * 0.9;-->
+<!--    div.appendChild(canvas);-->
+
+<!--    var br = document.createElement('br');-->
+<!--    div.appendChild(br);-->
+
+<!--    var svg = document.createElement('svg');-->
+<!--    svg.style.fontSize = "20px";-->
+<!--    svg.width = div.width;-->
+<!--    svg.height = div.height * 0.1;-->
+<!--    div.appendChild(svg);-->
+
+<!--    var text = document.createTextNode(name);-->
+<!--    text.x = svg.width / 2;-->
+<!--    text.y = svg.height / 2;-->
+<!--    text.fill = "Black";-->
+<!--    svg.appendChild(text);-->
+
+<!--    return canvas-->
+<!--  }-->
+
+<!--  function createSearchBox(){-->
+<!--    var $rows = $('#figureTable td');-->
+<!--    $('#search').keyup(function() {-->
+<!--      var val = '^(?=.*\\b' + $.trim($(this).val()).split(/\s+/).join('\\b)(?=.*\\b') + ').*$';-->
+<!--      var reg = RegExp(val, 'i');-->
+
+<!--      $rows.show().filter(function() {-->
+<!--        var text = $(this).text().replace(/\s+/g, ' ');-->
+<!--        return !reg.test(text);-->
+<!--      }).hide();-->
+<!--    });-->
+<!--  }-->
+
+<!--  function getDefaultLine() {-->
+<!--    var startingLabel = [];-->
+<!--    var startingData = [];-->
+<!--    for (var i = 0; i < dataNum; i++) {-->
+<!--      startingLabel.push("");-->
+<!--      startingData.push(0);-->
+<!--    }-->
+
+<!--    return {-->
+<!--      labels: startingLabel,-->
+<!--      datasets: [{-->
+<!--        fillColor: "rgba(220,220,220,0.2)",-->
+<!--        strokeColor: "rgba(220,220,220,1)",-->
+<!--        pointColor: "rgba(220,220,220,1)",-->
+<!--        pointStrokeColor: "#fff",-->
+<!--        data: startingData}]-->
+<!--    }-->
+<!--  }-->
+
+<!--  function createMetricsTable(mbeans) {-->
+<!--    var table = document.getElementById("valueTable");-->
+<!--    var cells = {};-->
+<!--    var row = table.insertRow();-->
+<!--    var nameCell = row.insertCell();-->
+<!--    var valueCell = row.insertCell();-->
+
+<!--    nameCell.style.width = '300px';-->
+<!--    nameCell.innerHTML = 'Metric Name';-->
+<!--    valueCell.style.width = '300px';-->
+<!--    valueCell.innerHTML = 'Value';-->
+
+<!--    $(mbeans).each(function (idx, mbean) {-->
+<!--      var row = table.insertRow();-->
+<!--      var nameCell = row.insertCell();-->
+<!--      var valueCell = row.insertCell();-->
+<!--      nameCell.style.backgroundColor = "#E0E0E0";-->
+<!--      valueCell.style.backgroundColor = "#E0E0E0";-->
+<!--      nameCell.innerHTML = mbean.attribute;-->
+<!--      cells[mbean.attribute] = valueCell;-->
+<!--    });-->
+<!--    return cells;-->
+<!--  }-->
+
+<!--  function createMetricsCharts(mbeans) {-->
+<!--    var charts = {};-->
+<!--    var cells = [];-->
+
+<!--    $(mbeans).each(function (idx, mbean) {-->
+<!--      var canvas = createCanvas(mbean.attribute, cells);-->
+<!--      var ctx = document.getElementById(mbean.attribute).getContext('2d');-->
+<!--      var chart = new Chart(ctx).Line(getDefaultLine(), {animationSteps: 60});-->
+<!--      charts[mbean.attribute] = chart;-->
+<!--    });-->
+<!--    return charts;-->
+<!--  }-->
+
+<!--  function updateChartAndValueTable(mbeans, charts, cells) {-->
+<!--    var requests = $.map(mbeans, function (mbean) {-->
+<!--      return {-->
+<!--        type: "read",-->
+<!--        mbean: mbean.name,-->
+<!--        attribute: mbean.attribute-->
+<!--      };-->
+<!--    });-->
+
+<!--    var responses = j4p.request(requests);-->
+<!--    $(responses).each(function (idx, response) {-->
+<!--      var label = response.timestamp - beginTime;-->
+<!--      var attribute = response.request.attribute;-->
+
+<!--      $.each(response.value, function (mbean, values) {-->
+<!--        if (label % 5 != 0)-->
+<!--          label = "";-->
+<!--        charts[attribute].addData([values[attribute]], label);-->
+<!--        charts[attribute].removeData();-->
+<!--        cells[attribute].innerHTML = values[attribute];-->
+<!--      });-->
+<!--    });-->
+<!--  }-->
+
+<!--  var beginTime = Math.round(new Date().getTime() / 1000);-->
+<!--  var dataNum = 30;-->
+<!--  var pollIntervalMs = 1000;-->
+<!--  var monitoredMbeans = [-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-availability-avg"},-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "records-produced-rate"},-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-avg"},-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-99th"},-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-999th"},-->
+<!--    {name: "kmf.services:type=produce-service,name=*", attribute: "produce-delay-ms-9999th"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-lost-rate"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-duplicated-rate"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-avg"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-99th"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-999th"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-9999th"},-->
+<!--    {name: "kmf.services:type=consume-service,name=*", attribute: "records-delay-ms-max"},-->
+<!--  ];-->
+
+<!--  var ip = location.host.split(':')[0];-->
+<!--  var j4p = new Jolokia({url: "http://" + ip + ":8778/jolokia"});-->
+<!--  var charts = createMetricsCharts(monitoredMbeans);-->
+<!--  var cells = createMetricsTable(monitoredMbeans);-->
+<!--  createSearchBox();-->
+
+<!--  // Initialize tab-->
+<!--  $('#tabs').tabs($.fn.tabs.tabProps);-->
+
+<!--  setInterval(function () {-->
+<!--    updateChartAndValueTable(monitoredMbeans, charts, cells);-->
+<!--  }, pollIntervalMs);-->
+
+<!--</script>-->
+
+
+<!--</html>-->
 
