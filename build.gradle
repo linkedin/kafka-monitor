@@ -8,7 +8,8 @@ buildscript {
 }
 plugins {
   id 'war'
-  id 'org.gretty' version '2.2.0'
+  id "org.gretty" version "3.0.1"
+
 }
 
 def configDocDir = "${buildDir}/configDocs"

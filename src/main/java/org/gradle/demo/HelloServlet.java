@@ -8,20 +8,36 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-import java.io.IOException;
+package org.gradle.demo;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 
 @WebServlet(name = "HelloServlet", urlPatterns = {"hello"}, loadOnStartup = 1)
 public class HelloServlet extends HttpServlet {
+
+  /**
+   * doGet call.
+   * @param request HTTP Servlet Request
+   * @param response HTTP Servlet Response
+   * @throws IOException Input Output Exception
+   */
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     response.getWriter().print("Hello, World!");
   }
 
+  /**
+   *
+   * @param request
+   * @param response
+   * @throws ServletException
+   * @throws IOException
+   */
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     String name = request.getParameter("name");
     if (name == null) {
