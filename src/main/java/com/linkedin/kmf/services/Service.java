@@ -10,6 +10,9 @@
 
 package com.linkedin.kmf.services;
 
+import java.util.concurrent.TimeUnit;
+
+
 /**
  * Services are components of a monitoring application that are expected to be running continuously in order to perform
  * monitoring.
@@ -44,7 +47,7 @@ public interface Service {
   /**
    * Implementations of this method must be thread safe and must be blocking.
    */
-  void awaitShutdown();
+  void awaitShutdown(long timeout, TimeUnit unit);
 
   default String getServiceName() {
     return this.getClass().getSimpleName();

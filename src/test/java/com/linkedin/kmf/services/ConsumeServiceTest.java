@@ -181,7 +181,7 @@ public class ConsumeServiceTest {
       @Override
       public void run() {
         try {
-          consumeService.awaitShutdown();
+          consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
           error.set(t);
         }
@@ -234,8 +234,8 @@ public class ConsumeServiceTest {
     Assert.assertFalse(consumeService.isRunning());
 
     /* Should be allowed to shutdown more than once. */
-    consumeService.awaitShutdown();
-    consumeService.awaitShutdown();
+    consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     Assert.assertFalse(consumeService.isRunning());
   }
 

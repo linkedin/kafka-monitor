@@ -261,7 +261,7 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit unit) {
     LOG.info("{}/ConsumeService shutdown completed.", _name);
   }
 

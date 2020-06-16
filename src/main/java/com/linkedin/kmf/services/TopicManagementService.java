@@ -15,6 +15,7 @@ import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -79,8 +80,8 @@ public class TopicManagementService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
-    _multiClusterTopicManagementService.awaitShutdown();
+  public void awaitShutdown(long timeout, TimeUnit unit) {
+    _multiClusterTopicManagementService.awaitShutdown(timeout, unit);
   }
 
 }

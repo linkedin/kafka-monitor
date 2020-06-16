@@ -223,14 +223,14 @@ public class ClusterTopicManipulationService implements Service {
    * Implementations of this method must be thread safe and must be blocking.
    */
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit timeUnit) {
 
     try {
       _executor.awaitTermination(3, TimeUnit.MINUTES);
+      LOGGER.info("{} shutdown completed", _configDefinedServiceName);
     } catch (InterruptedException e) {
       LOGGER.info("Thread interrupted when waiting for {} to shutdown", _configDefinedServiceName);
     }
-    LOGGER.info("{} shutdown completed", _configDefinedServiceName);
   }
 
   AtomicInteger totalPartitions() {
