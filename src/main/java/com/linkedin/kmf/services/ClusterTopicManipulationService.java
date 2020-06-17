@@ -22,7 +22,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -43,11 +42,11 @@ public class ClusterTopicManipulationService implements Service {
   private final Duration _reportIntervalSecond;
   private final ScheduledExecutorService _executor;
   private final AdminClient _adminClient;
-  private volatile boolean _isOngoingTopicCreationDone;
+  private boolean _isOngoingTopicCreationDone;
   private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
+  int _expectedPartitionsCount;
   private CreateTopicsResult _createTopicsResult;
-  private AtomicInteger _totalPartitions = new AtomicInteger();
   // TODO -- ClusterTopicManipulationMetrics implementation in progress!
   private ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
@@ -109,6 +108,11 @@ public class ClusterTopicManipulationService implements Service {
     }
   }
 
+  /**
+   * 1 - Iterates through all the brokers in the cluster.
+   * 2 - checks the individual log directories of each broker
+   * 3 - checks how many topic partition of the ongoing topic there are and compares it against the expected value
+   */
   private void createDeleteClusterTopic() {
 
     if (_isOngoingTopicCreationDone) {
@@ -121,11 +125,9 @@ public class ClusterTopicManipulationService implements Service {
         _createTopicsResult = _adminClient.createTopics(Collections.singleton(
             new NewTopic(_currentlyOngoingTopic, XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS,
                 (short) brokerCount)));
-
-        _totalPartitions.set(brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS);
-
+        _expectedPartitionsCount = brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
         _isOngoingTopicCreationDone = false;
-        LOGGER.trace("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
+        LOGGER.debug("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
             _currentlyOngoingTopic, brokerCount);
       } catch (InterruptedException | ExecutionException e) {
         LOGGER.error("Exception occurred while retrieving the brokers count: ", e);
@@ -135,10 +137,10 @@ public class ClusterTopicManipulationService implements Service {
     try {
       LOGGER.trace("cluster id: {}", _adminClient.describeCluster().clusterId().get());
       Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
-      if (_createTopicsResult.all().isDone() && doesClusterContainTopic(_currentlyOngoingTopic, brokers,
-          _adminClient)) {
+      if (_createTopicsResult.all().isDone() && doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient,
+          _expectedPartitionsCount)) {
         _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
-        LOGGER.trace("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
+        LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
             _currentlyOngoingTopic);
         _isOngoingTopicCreationDone = true;
         LOGGER.trace("{}-clusterTopicManipulationServiceRunnable successful!", this.getClass().getSimpleName());
@@ -148,22 +150,38 @@ public class ClusterTopicManipulationService implements Service {
     }
   }
 
-  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient)
+  /**
+   * for all brokers, checks if the topic exists in the cluster by iterating through the log dirs of individual brokers.
+   * @param topic current ongoing topic
+   * @param brokers brokers to check log dirs from
+   * @param adminClient Admin Client
+   * @return true if the cluster contains the topic.
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient, int expected)
       throws ExecutionException, InterruptedException {
-
+    int totalPartitionsInCluster = 0;
     for (Node broker : brokers) {
       LOGGER.trace("broker log directories: {}",
           adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get());
       Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap =
           adminClient.describeLogDirs(Collections.singleton(broker.id())).all().get();
 
-      this.processBroker(logDirectoriesResponseMap, broker, topic);
+      totalPartitionsInCluster += this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return _totalPartitions.get() == 0;
+    return totalPartitionsInCluster == expected;
   }
 
-  void processBroker(Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap,
+  /**
+   * iterates through the broker's log directories and checks for the ongoing topic partitions and replica's existence.
+   * @param logDirectoriesResponseMap map of log directories response in the broker
+   * @param broker broker to process the log dirs in
+   * @param topic ongoing kmf manipulation topic
+   */
+  int processBroker(Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> logDirectoriesResponseMap,
       Node broker, String topic) {
+    int totalPartitionsInBroker = 0;
     LOGGER.trace("logDirectoriesResponseMap: {}", logDirectoriesResponseMap);
     Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap = logDirectoriesResponseMap.get(broker.id());
     String logDirectoriesKey = logDirInfoMap.keySet().iterator().next();
@@ -172,13 +190,16 @@ public class ClusterTopicManipulationService implements Service {
 
     if (logDirInfo != null && !logDirectoriesResponseMap.isEmpty()) {
       Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap = logDirInfo.replicaInfos;
-      this.processLogDirsWithinBroker(topicPartitionReplicaInfoMap, topic, broker);
+      totalPartitionsInBroker += this.processLogDirsWithinBroker(topicPartitionReplicaInfoMap, topic, broker);
     }
+
+    return totalPartitionsInBroker;
   }
 
-  private void processLogDirsWithinBroker(
+  private int processLogDirsWithinBroker(
       Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoMap, String topic,
       Node broker) {
+    int totalPartitionsInBroker = 0;
     for (Map.Entry<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> topicPartitionReplicaInfoEntry : topicPartitionReplicaInfoMap
         .entrySet()) {
 
@@ -186,13 +207,15 @@ public class ClusterTopicManipulationService implements Service {
       DescribeLogDirsResponse.ReplicaInfo replicaInfo = topicPartitionReplicaInfoEntry.getValue();
 
       if (topicPartition.topic().equals(topic)) {
-        _totalPartitions.getAndDecrement();
-        LOGGER.trace("_totalPartitions count = {}", _totalPartitions);
+        totalPartitionsInBroker++;
+        LOGGER.trace("totalPartitions In The Broker = {}", totalPartitionsInBroker);
       }
 
       LOGGER.debug("broker information: {}", broker);
       LOGGER.trace("logDirInfo for kafka-logs: topicPartition = {}, replicaInfo = {}", topicPartition, replicaInfo);
     }
+
+    return totalPartitionsInBroker;
   }
 
   /**
@@ -233,16 +256,16 @@ public class ClusterTopicManipulationService implements Service {
     }
   }
 
-  AtomicInteger totalPartitions() {
-    return _totalPartitions;
-  }
-
-  void setTotalPartition(AtomicInteger totalPartitions) {
-    _totalPartitions = totalPartitions;
-  }
-
   @Override
   public String toString() {
     return this.getClass().getSimpleName() + "-" + _configDefinedServiceName;
+  }
+
+  void setExpectedPartitionsCount(int count) {
+    _expectedPartitionsCount = count;
+  }
+
+  int expectedPartitionsCount() {
+    return _expectedPartitionsCount;
   }
 }

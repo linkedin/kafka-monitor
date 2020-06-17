@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
@@ -47,16 +46,22 @@ public class ClusterTopicManipulationServiceTest {
     System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
   }
 
-  @Test(invocationCount = 10)
+  @Test(invocationCount = 2)
   void serviceStartTest() throws JsonProcessingException {
     ClusterTopicManipulationService clusterTopicManipulationService =
         Mockito.mock(ClusterTopicManipulationService.class);
 
-    Mockito.doCallRealMethod().when(clusterTopicManipulationService).setTotalPartition(Mockito.any());
-    Mockito.doCallRealMethod().when(clusterTopicManipulationService).totalPartitions();
     Mockito.doCallRealMethod()
         .when(clusterTopicManipulationService)
         .processBroker(Mockito.anyMap(), Mockito.any(), Mockito.anyString());
+
+    Mockito.doCallRealMethod()
+        .when(clusterTopicManipulationService)
+        .setExpectedPartitionsCount(Mockito.anyInt());
+
+    Mockito.doCallRealMethod()
+        .when(clusterTopicManipulationService)
+        .expectedPartitionsCount();
 
     List<Node> brokers = new ArrayList<>();
     for (int id = 1; id < 3; id++) {
@@ -88,10 +93,9 @@ public class ClusterTopicManipulationServiceTest {
     }
 
     int totalPartitions = brokers.size() * replicaInfos1.size();
-
-    clusterTopicManipulationService.setTotalPartition(new AtomicInteger(totalPartitions));
-    System.out.println(
-        "Updated instance variable totalPartitions: " + clusterTopicManipulationService.totalPartitions());
+    System.out.println(totalPartitions);
+    clusterTopicManipulationService.setExpectedPartitionsCount(totalPartitions);
+    System.out.println(clusterTopicManipulationService.expectedPartitionsCount());
 
     logDirInfoMap1.put(XinfraMonitorConstants.KAFKA_LOG_DIRECTORY + "-1",
         new DescribeLogDirsResponse.LogDirInfo(null, replicaInfos1));
@@ -109,7 +113,7 @@ public class ClusterTopicManipulationServiceTest {
       clusterTopicManipulationService.processBroker(brokerMapHashMap.get(broker), broker, SERVICE_TEST_TOPIC);
     }
 
-    Assert.assertEquals(clusterTopicManipulationService.totalPartitions().get(), 0);
+    Assert.assertEquals(totalPartitions, clusterTopicManipulationService.expectedPartitionsCount());
     System.out.println();
   }
 }
