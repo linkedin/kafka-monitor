@@ -6,7 +6,7 @@ logs/
 .idea/
 .project
 .settings/
-
 src/test/java/com/linkedin/kmf/RandomTests.java
 
 config/andrew-choi.properties
+config/andrew-multi-cluster-monitor.properties
