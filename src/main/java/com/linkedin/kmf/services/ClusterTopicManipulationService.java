@@ -46,7 +46,6 @@ public class ClusterTopicManipulationService implements Service {
   private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
-  private CreateTopicsResult _createTopicsResult;
   // TODO -- ClusterTopicManipulationMetrics implementation in progress!
   private ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
@@ -122,9 +121,10 @@ public class ClusterTopicManipulationService implements Service {
 
       try {
         int brokerCount = _adminClient.describeCluster().nodes().get().size();
-        _createTopicsResult = _adminClient.createTopics(Collections.singleton(
+        CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singleton(
             new NewTopic(_currentlyOngoingTopic, XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS,
                 (short) brokerCount)));
+        createTopicsResult.all().get();
         _expectedPartitionsCount = brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
         _isOngoingTopicCreationDone = false;
         LOGGER.debug("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
@@ -137,8 +137,7 @@ public class ClusterTopicManipulationService implements Service {
     try {
       LOGGER.trace("cluster id: {}", _adminClient.describeCluster().clusterId().get());
       Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
-      if (_createTopicsResult.all().isDone() && doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient,
-          _expectedPartitionsCount)) {
+      if (this.doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient, _expectedPartitionsCount)) {
         _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
         LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
             _currentlyOngoingTopic);
