@@ -18,11 +18,10 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 
-@WebServlet(name = "HelloServlet", urlPatterns = {"hello"}, loadOnStartup = 1)
-public class HelloServlet extends HttpServlet {
+@WebServlet(name = "XinfraMonitorHttpServlet", urlPatterns = {"hello"}, loadOnStartup = 1)
+public class XinfraMonitorHttpServlet extends HttpServlet {
 
   /**
-   * doGet call.
    * @param request HTTP Servlet Request
    * @param response HTTP Servlet Response
    * @throws IOException Input Output Exception
@@ -32,9 +31,9 @@ public class HelloServlet extends HttpServlet {
   }
 
   /**
-   *
-   * @param request
-   * @param response
+   * POST method
+   * @param request HTTP Servlet Request
+   * @param response HTTP Servlet Response
    * @throws ServletException
    * @throws IOException
    */
