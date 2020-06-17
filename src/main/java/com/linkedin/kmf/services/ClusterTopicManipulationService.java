@@ -111,6 +111,8 @@ public class ClusterTopicManipulationService implements Service {
    * 1 - Iterates through all the brokers in the cluster.
    * 2 - checks the individual log directories of each broker
    * 3 - checks how many topic partition of the ongoing topic there are and compares it against the expected value
+   * The RF is set to the brokerCount currently to enable maximize assigning the many
+   * partitions and replicas across all the brokers in the clusters as possible.
    */
   private void createDeleteClusterTopic() {
 
