@@ -195,11 +195,11 @@ public class ClusterTopicManipulationService implements Service {
   }
 
   /**
-   * Waits if necessary for this future to complete
-   * returns true if the future succeeds, which occurs only if all the topic descriptions are successful.
+   * Waits if necessary for this future to complete and gets the future in a blocking fashion.
+   * returns Map<String, TopicDescription> if the future succeeds, which occurs only if all the topic descriptions are successful.
    * @param adminClient administrative client for Kafka, supporting managing and inspecting topics, brokers, configurations and ACLs.
    * @param topicNames Collection of topic names
-   * @return boolean value if describe topic succeeds.
+   * @return Map<String, TopicDescription> if describe topic succeeds.
    */
   private static Map<String, TopicDescription> describeTopics(AdminClient adminClient, Collection<String> topicNames)
       throws InterruptedException, ExecutionException {
