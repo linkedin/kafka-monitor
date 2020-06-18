@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
@@ -157,11 +159,13 @@ public class ClusterTopicManipulationService implements Service {
    * @param brokers brokers to check log dirs from
    * @param adminClient Admin Client
    * @return true if the cluster contains the topic.
-   * @throws ExecutionException
-   * @throws InterruptedException
+   * @throws ExecutionException when attempting to retrieve the result of a task
+   * that aborted by throwing an exception.
+   * @throws InterruptedException when a thread is waiting, sleeping, or occupied,
+   * and the thread is interrupted, either before or during the activity.
    */
-  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient, int expected)
-      throws ExecutionException, InterruptedException {
+  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient,
+      int expectedTotalPartitionsInCluster) throws ExecutionException, InterruptedException {
     int totalPartitionsInCluster = 0;
     for (Node broker : brokers) {
       LOGGER.trace("broker log directories: {}",
@@ -171,7 +175,36 @@ public class ClusterTopicManipulationService implements Service {
 
       totalPartitionsInCluster += this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return totalPartitionsInCluster == expected;
+
+    if (totalPartitionsInCluster != expectedTotalPartitionsInCluster) {
+      return false;
+    }
+
+    boolean isDescribeSuccessful = true;
+    try {
+      Map<String, TopicDescription> topicDescriptions =
+          ClusterTopicManipulationService.describeTopics(adminClient, Collections.singleton(topic));
+      LOGGER.trace("topicDescriptionMap = {}", topicDescriptions);
+    } catch (InterruptedException | ExecutionException e) {
+      isDescribeSuccessful = false;
+      LOGGER.error("Exception occurred within describeTopicsFinished method for topics {}",
+          Collections.singleton(topic), e);
+    }
+
+    return !isDescribeSuccessful;
+  }
+
+  /**
+   * Waits if necessary for this future to complete and gets the future in a blocking fashion.
+   * returns Map<String, TopicDescription> if the future succeeds, which occurs only if all the topic descriptions are successful.
+   * @param adminClient administrative client for Kafka, supporting managing and inspecting topics, brokers, configurations and ACLs.
+   * @param topicNames Collection of topic names
+   * @return Map<String, TopicDescription> if describe topic succeeds.
+   */
+  private static Map<String, TopicDescription> describeTopics(AdminClient adminClient, Collection<String> topicNames)
+      throws InterruptedException, ExecutionException {
+    KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
+    return mapKafkaFuture.get();
   }
 
   /**
@@ -186,7 +219,7 @@ public class ClusterTopicManipulationService implements Service {
     LOGGER.trace("logDirectoriesResponseMap: {}", logDirectoriesResponseMap);
     Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap = logDirectoriesResponseMap.get(broker.id());
     String logDirectoriesKey = logDirInfoMap.keySet().iterator().next();
-    LOGGER.debug("logDirInfoMap: {}", logDirInfoMap.get(logDirectoriesKey));
+    LOGGER.trace("logDirInfoMap: {}", logDirInfoMap.get(logDirectoriesKey));
     DescribeLogDirsResponse.LogDirInfo logDirInfo = logDirInfoMap.get(logDirectoriesKey);
 
     if (logDirInfo != null && !logDirectoriesResponseMap.isEmpty()) {
@@ -212,7 +245,7 @@ public class ClusterTopicManipulationService implements Service {
         LOGGER.trace("totalPartitions In The Broker = {}", totalPartitionsInBroker);
       }
 
-      LOGGER.debug("broker information: {}", broker);
+      LOGGER.trace("broker information: {}", broker);
       LOGGER.trace("logDirInfo for kafka-logs: topicPartition = {}, replicaInfo = {}", topicPartition, replicaInfo);
     }
 
