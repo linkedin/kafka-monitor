@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("rawtypes")
 public class MultiClusterMonitor implements App {
-  private static final Logger LOG = LoggerFactory.getLogger(MultiClusterMonitor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MultiClusterMonitor.class);
 
   private final MultiClusterTopicManagementService _multiClusterTopicManagementService;
   private final ProduceService _produceService;
@@ -82,7 +82,7 @@ public class MultiClusterMonitor implements App {
       _produceService.start();
       _consumeService.start();
     });
-    LOG.info(_name + "/MultiClusterMonitor started.");
+    LOGGER.info(_name + "/MultiClusterMonitor started.");
   }
 
   @Override
@@ -90,7 +90,7 @@ public class MultiClusterMonitor implements App {
     _multiClusterTopicManagementService.stop();
     _produceService.stop();
     _consumeService.stop();
-    LOG.info(_name + "/MultiClusterMonitor stopped");
+    LOGGER.info(_name + "/MultiClusterMonitor stopped");
   }
 
   @Override
