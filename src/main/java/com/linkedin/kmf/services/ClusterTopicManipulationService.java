@@ -175,8 +175,23 @@ public class ClusterTopicManipulationService implements Service {
 
       totalPartitionsInCluster += this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return totalPartitionsInCluster == expectedTotalPartitionsInCluster
-        && ClusterTopicManipulationService.isTopicDescribeSuccessful(adminClient, Collections.singleton(topic));
+
+    if (totalPartitionsInCluster != expectedTotalPartitionsInCluster) {
+      return false;
+    }
+
+    boolean isDescribeSuccessful = true;
+    try {
+      Map<String, TopicDescription> topicDescriptions =
+          ClusterTopicManipulationService.describeTopics(adminClient, Collections.singleton(topic));
+      LOGGER.trace("topicDescriptionMap = {}", topicDescriptions);
+    } catch (InterruptedException | ExecutionException e) {
+      isDescribeSuccessful = false;
+      LOGGER.error("Exception occurred within describeTopicsFinished method for topics {}",
+          Collections.singleton(topic), e);
+    }
+
+    return !isDescribeSuccessful;
   }
 
   /**
@@ -190,22 +205,6 @@ public class ClusterTopicManipulationService implements Service {
       throws InterruptedException, ExecutionException {
     KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
     return mapKafkaFuture.get();
-  }
-
-  /**
-   * Returns the result of topic describe as a boolean value.
-   */
-  private static boolean isTopicDescribeSuccessful(AdminClient adminClient, Collection<String> topicNames) {
-    Map<String, TopicDescription> topicDescriptions;
-    try {
-      topicDescriptions = ClusterTopicManipulationService.describeTopics(adminClient, topicNames);
-      LOGGER.trace("topicDescriptionMap = {}", topicDescriptions);
-    } catch (InterruptedException | ExecutionException e) {
-      LOGGER.error("Exception occurred within describeTopicsFinished method for topics {}", topicNames, e);
-      return false;
-    }
-
-    return true;
   }
 
   /**
