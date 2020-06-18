@@ -211,7 +211,7 @@ public class ClusterTopicManipulationService implements Service {
     LOGGER.trace("logDirectoriesResponseMap: {}", logDirectoriesResponseMap);
     Map<String, DescribeLogDirsResponse.LogDirInfo> logDirInfoMap = logDirectoriesResponseMap.get(broker.id());
     String logDirectoriesKey = logDirInfoMap.keySet().iterator().next();
-    LOGGER.debug("logDirInfoMap: {}", logDirInfoMap.get(logDirectoriesKey));
+    LOGGER.trace("logDirInfoMap: {}", logDirInfoMap.get(logDirectoriesKey));
     DescribeLogDirsResponse.LogDirInfo logDirInfo = logDirInfoMap.get(logDirectoriesKey);
 
     if (logDirInfo != null && !logDirectoriesResponseMap.isEmpty()) {
@@ -237,7 +237,7 @@ public class ClusterTopicManipulationService implements Service {
         LOGGER.trace("totalPartitions In The Broker = {}", totalPartitionsInBroker);
       }
 
-      LOGGER.debug("broker information: {}", broker);
+      LOGGER.trace("broker information: {}", broker);
       LOGGER.trace("logDirInfo for kafka-logs: topicPartition = {}, replicaInfo = {}", topicPartition, replicaInfo);
     }
 
