@@ -164,8 +164,8 @@ public class ClusterTopicManipulationService implements Service {
    * @throws InterruptedException when a thread is waiting, sleeping, or occupied,
    * and the thread is interrupted, either before or during the activity.
    */
-  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient, int expected)
-      throws ExecutionException, InterruptedException {
+  private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient,
+      int expectedTotalPartitionsInCluster) throws ExecutionException, InterruptedException {
     int totalPartitionsInCluster = 0;
     for (Node broker : brokers) {
       LOGGER.trace("broker log directories: {}",
@@ -175,22 +175,31 @@ public class ClusterTopicManipulationService implements Service {
 
       totalPartitionsInCluster += this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return totalPartitionsInCluster == expected && ClusterTopicManipulationService.isTopicDescribeSuccessful(
-        adminClient, Collections.singleton(topic));
+    return totalPartitionsInCluster == expectedTotalPartitionsInCluster
+        && ClusterTopicManipulationService.isTopicDescribeSuccessful(adminClient, Collections.singleton(topic));
   }
 
   /**
-   * Waits if necessary for this future to complete, and then returns its result.
+   * Waits if necessary for this future to complete
    * returns true if the future succeeds, which occurs only if all the topic descriptions are successful.
    * @param adminClient administrative client for Kafka, supporting managing and inspecting topics, brokers, configurations and ACLs.
    * @param topicNames Collection of topic names
    * @return boolean value if describe topic succeeds.
    */
-  private static boolean isTopicDescribeSuccessful(AdminClient adminClient, Collection<String> topicNames) {
+  private static Map<String, TopicDescription> describeTopics(AdminClient adminClient, Collection<String> topicNames)
+      throws InterruptedException, ExecutionException {
     KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
+    return mapKafkaFuture.get();
+  }
+
+  /**
+   * Returns the result of topic describe as a boolean value.
+   */
+  private static boolean isTopicDescribeSuccessful(AdminClient adminClient, Collection<String> topicNames) {
+    Map<String, TopicDescription> topicDescriptions;
     try {
-      Map<String, TopicDescription> topicDescriptionMap = mapKafkaFuture.get();
-      LOGGER.trace("topicDescriptionMap = {}", topicDescriptionMap);
+      topicDescriptions = ClusterTopicManipulationService.describeTopics(adminClient, topicNames);
+      LOGGER.trace("topicDescriptionMap = {}", topicDescriptions);
     } catch (InterruptedException | ExecutionException e) {
       LOGGER.error("Exception occurred within describeTopicsFinished method for topics {}", topicNames, e);
       return false;
