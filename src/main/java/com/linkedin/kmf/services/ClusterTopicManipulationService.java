@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
@@ -157,8 +159,10 @@ public class ClusterTopicManipulationService implements Service {
    * @param brokers brokers to check log dirs from
    * @param adminClient Admin Client
    * @return true if the cluster contains the topic.
-   * @throws ExecutionException
-   * @throws InterruptedException
+   * @throws ExecutionException when attempting to retrieve the result of a task
+   * that aborted by throwing an exception.
+   * @throws InterruptedException when a thread is waiting, sleeping, or occupied,
+   * and the thread is interrupted, either before or during the activity.
    */
   private boolean doesClusterContainTopic(String topic, Collection<Node> brokers, AdminClient adminClient, int expected)
       throws ExecutionException, InterruptedException {
@@ -171,7 +175,28 @@ public class ClusterTopicManipulationService implements Service {
 
       totalPartitionsInCluster += this.processBroker(logDirectoriesResponseMap, broker, topic);
     }
-    return totalPartitionsInCluster == expected;
+    return totalPartitionsInCluster == expected && ClusterTopicManipulationService.isTopicDescribeSuccessful(
+        adminClient, Collections.singleton(topic));
+  }
+
+  /**
+   * Waits if necessary for this future to complete, and then returns its result.
+   * returns true if the future succeeds, which occurs only if all the topic descriptions are successful.
+   * @param adminClient administrative client for Kafka, supporting managing and inspecting topics, brokers, configurations and ACLs.
+   * @param topicNames Collection of topic names
+   * @return boolean value if describe topic succeeds.
+   */
+  private static boolean isTopicDescribeSuccessful(AdminClient adminClient, Collection<String> topicNames) {
+    KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
+    try {
+      Map<String, TopicDescription> topicDescriptionMap = mapKafkaFuture.get();
+      LOGGER.trace("topicDescriptionMap = {}", topicDescriptionMap);
+    } catch (InterruptedException | ExecutionException e) {
+      LOGGER.error("Exception occurred within describeTopicsFinished method for topics {}", topicNames, e);
+      return false;
+    }
+
+    return true;
   }
 
   /**
