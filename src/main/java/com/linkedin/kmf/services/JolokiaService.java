@@ -11,6 +11,7 @@
 package com.linkedin.kmf.services;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jolokia.jvmagent.JolokiaServer;
 import org.jolokia.jvmagent.JvmAgentConfig;
@@ -51,7 +52,7 @@ public class JolokiaService implements Service {
     return _isRunning.get();
   }
 
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit timeUnit) {
 
   }
 

@@ -131,7 +131,7 @@ public class SingleClusterMonitor implements App {
   @Override
   public void awaitShutdown() {
     for (Service service : _allServices) {
-      service.awaitShutdown();
+      service.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
   }
 

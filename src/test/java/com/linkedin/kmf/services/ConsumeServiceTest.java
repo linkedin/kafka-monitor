@@ -13,6 +13,7 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
+import com.linkedin.kmf.services.metrics.CommitLatencyMetrics;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -180,7 +181,7 @@ public class ConsumeServiceTest {
       @Override
       public void run() {
         try {
-          consumeService.awaitShutdown();
+          consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
           error.set(t);
         }
@@ -233,8 +234,8 @@ public class ConsumeServiceTest {
     Assert.assertFalse(consumeService.isRunning());
 
     /* Should be allowed to shutdown more than once. */
-    consumeService.awaitShutdown();
-    consumeService.awaitShutdown();
+    consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     Assert.assertFalse(consumeService.isRunning());
   }
 

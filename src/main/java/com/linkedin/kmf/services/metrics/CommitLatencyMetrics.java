@@ -8,7 +8,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.kmf.services;
+package com.linkedin.kmf.services.metrics;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
@@ -38,7 +38,8 @@ public class CommitLatencyMetrics {
    * @param metrics the commit offset metrics
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
-  CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs, int latencyPercentileGranularityMs) {
+  public CommitLatencyMetrics(Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs,
+      int latencyPercentileGranularityMs) {
     _inProgressCommit = false;
     _commitOffsetLatency = metrics.sensor("commit-offset-latency");
     _commitOffsetLatency.add(new MetricName("commit-offset-latency-ms-avg", METRIC_GROUP_NAME, "The average latency in ms of committing offset", tags), new Avg());

@@ -8,7 +8,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.kmf.services;
+package com.linkedin.kmf.services.metrics;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
@@ -25,19 +25,17 @@ import org.slf4j.LoggerFactory;
 
 
 public class ConsumeMetrics {
-  final Sensor _consumeError;
-  final Sensor _bytesConsumed;
-  final Sensor _recordsConsumed;
-  final Sensor _recordsDuplicated;
-  final Sensor _recordsLost;
-  final Sensor _recordsDelay;
-  final Sensor _recordsDelayed;
+  public final Sensor _consumeError;
+  public final Sensor _bytesConsumed;
+  public final Sensor _recordsConsumed;
+  public final Sensor _recordsDuplicated;
+  public final Sensor _recordsLost;
+  public final Sensor _recordsDelay;
+  public final Sensor _recordsDelayed;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeMetrics.class);
 
-  ConsumeMetrics(final Metrics metrics,
-      Map<String, String> tags,
-      int latencyPercentileMaxMs,
+  public ConsumeMetrics(final Metrics metrics, Map<String, String> tags, int latencyPercentileMaxMs,
       int latencyPercentileGranularityMs) {
 
     _bytesConsumed = metrics.sensor("bytes-consumed");

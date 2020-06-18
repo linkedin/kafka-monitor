@@ -94,7 +94,7 @@ public class SignalFxMetricsReporterService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit unit) {
     try {
       _executor.awaitTermination(5, TimeUnit.MINUTES);
     } catch (InterruptedException e) {

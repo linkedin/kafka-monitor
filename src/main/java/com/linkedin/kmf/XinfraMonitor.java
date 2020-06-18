@@ -162,7 +162,7 @@ public class XinfraMonitor {
     for (App app: _apps.values())
       app.awaitShutdown();
     for (Service service: _services.values())
-      service.awaitShutdown();
+      service.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 
   @SuppressWarnings("rawtypes")

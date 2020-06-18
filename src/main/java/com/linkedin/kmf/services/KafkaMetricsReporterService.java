@@ -7,6 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
+
 package com.linkedin.kmf.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -86,7 +87,7 @@ public class KafkaMetricsReporterService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit timeUnit) {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
