@@ -13,8 +13,11 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.metrics.ClusterTopicManipulationMetrics;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -29,7 +32,12 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
+import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +57,7 @@ public class ClusterTopicManipulationService implements Service {
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
   // TODO -- ClusterTopicManipulationMetrics implementation in progress!
-  private ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
+  private final ClusterTopicManipulationMetrics _clusterTopicManipulationSensors;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
@@ -61,6 +69,15 @@ public class ClusterTopicManipulationService implements Service {
     _running = new AtomicBoolean(false);
     _configDefinedServiceName = name;
     // TODO: instantiate a new instance of ClusterTopicManipulationMetrics(..) here.
+
+    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(Service.JMX_PREFIX));
+    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", name);
+    _clusterTopicManipulationSensors = new ClusterTopicManipulationMetrics(metrics, tags);
   }
 
   /**
@@ -133,6 +150,7 @@ public class ClusterTopicManipulationService implements Service {
         _isOngoingTopicCreationDone = false;
         LOGGER.debug("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
             _currentlyOngoingTopic, brokerCount);
+        _clusterTopicManipulationSensors.startTopicCreationMeasurement();
       } catch (InterruptedException | ExecutionException e) {
         LOGGER.error("Exception occurred while retrieving the brokers count: ", e);
       }
@@ -145,6 +163,7 @@ public class ClusterTopicManipulationService implements Service {
         _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
         LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
             _currentlyOngoingTopic);
+        _clusterTopicManipulationSensors.finishTopicCreationMeasurement();
         _isOngoingTopicCreationDone = true;
         LOGGER.trace("{}-clusterTopicManipulationServiceRunnable successful!", this.getClass().getSimpleName());
       }

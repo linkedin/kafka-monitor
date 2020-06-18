@@ -74,9 +74,6 @@ public class ProduceService implements Service {
   private final Map _producerPropsOverride;
   private final String _producerClassName;
   private final int _threadsNum;
-  private final boolean _treatZeroThroughputAsUnavailable;
-  private final int _latencyPercentileMaxMs;
-  private final int _latencyPercentileGranularityMs;
   private final AdminClient _adminClient;
   private static final String KEY_SERIALIZER_CLASS = "org.apache.kafka.common.serialization.StringSerializer";
 
@@ -85,8 +82,8 @@ public class ProduceService implements Service {
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String producerClass = config.getString(ProduceServiceConfig.PRODUCER_CLASS_CONFIG);
-    _latencyPercentileMaxMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
-    _latencyPercentileGranularityMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
+    int latencyPercentileMaxMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
+    int latencyPercentileGranularityMs = config.getInt(ProduceServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
     _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
@@ -94,7 +91,8 @@ public class ProduceService implements Service {
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
-    _treatZeroThroughputAsUnavailable = config.getBoolean(ProduceServiceConfig.PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_CONFIG);
+    boolean treatZeroThroughputAsUnavailable =
+        config.getBoolean(ProduceServiceConfig.PRODUCER_TREAT_ZERO_THROUGHPUT_AS_UNAVAILABLE_CONFIG);
     _partitionNum = new AtomicInteger(0);
     _running = new AtomicBoolean(false);
     _nextIndexPerPartition = new ConcurrentHashMap<>();
@@ -127,8 +125,8 @@ public class ProduceService implements Service {
     Map<String, String> tags = new HashMap<>();
     tags.put("name", _name);
     _sensors =
-        new ProduceMetrics(metrics, tags, _latencyPercentileGranularityMs, _latencyPercentileMaxMs, _partitionNum,
-            _treatZeroThroughputAsUnavailable);
+        new ProduceMetrics(metrics, tags, latencyPercentileGranularityMs, latencyPercentileMaxMs, _partitionNum,
+            treatZeroThroughputAsUnavailable);
   }
 
   private void initializeProducer(Map<String, Object> props) throws Exception {
