@@ -67,7 +67,6 @@ public class ClusterTopicManipulationMetrics extends XinfraMonitorMetrics {
 
   public void startTopicDeletionMeasurement() {
     this.setTopicDeletionStartTimeMs(System.currentTimeMillis());
-
     LOGGER.debug("Started measuring the cluster topic deletion process.");
   }
 
@@ -103,7 +102,7 @@ public class ClusterTopicManipulationMetrics extends XinfraMonitorMetrics {
     long startMs = this.topicDeletionStartTimeMs();
     this._topicDeletionSensor.record(completeMs - startMs);
 
-    LOGGER.debug("Finished measuring cluster topic deletion");
+    LOGGER.debug("Finished measuring topic deletion");
   }
 
   /**

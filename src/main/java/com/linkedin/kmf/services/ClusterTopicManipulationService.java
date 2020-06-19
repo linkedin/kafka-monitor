@@ -58,7 +58,7 @@ public class ClusterTopicManipulationService implements Service {
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
   // TODO -- ClusterTopicManipulationMetrics implementation in progress!
-  private final ClusterTopicManipulationMetrics _clusterTopicManipulationSensors;
+  private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
@@ -79,7 +79,7 @@ public class ClusterTopicManipulationService implements Service {
 
     Map<String, String> tags = new HashMap<>();
     tags.put("name", name);
-    _clusterTopicManipulationSensors = new ClusterTopicManipulationMetrics(metrics, tags);
+    _clusterTopicManipulationMetrics = new ClusterTopicManipulationMetrics(metrics, tags);
   }
 
   /**
@@ -152,7 +152,7 @@ public class ClusterTopicManipulationService implements Service {
         _isOngoingTopicCreationDone = false;
         LOGGER.debug("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
             _currentlyOngoingTopic, brokerCount);
-        _clusterTopicManipulationSensors.startTopicCreationMeasurement();
+        _clusterTopicManipulationMetrics.startTopicCreationMeasurement();
       } catch (InterruptedException | ExecutionException e) {
         LOGGER.error("Exception occurred while retrieving the brokers count: ", e);
       }
@@ -163,7 +163,7 @@ public class ClusterTopicManipulationService implements Service {
       Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
 
       if (this.doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient, _expectedPartitionsCount)) {
-        _clusterTopicManipulationSensors.finishTopicCreationMeasurement();
+        _clusterTopicManipulationMetrics.finishTopicCreationMeasurement();
         _isOngoingTopicCreationDone = true;
 
         if (_isOngoingTopicDeletionDone) {
@@ -171,7 +171,7 @@ public class ClusterTopicManipulationService implements Service {
               _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
 
           _isOngoingTopicDeletionDone = false;
-          _clusterTopicManipulationSensors.startTopicDeletionMeasurement();
+          _clusterTopicManipulationMetrics.startTopicDeletionMeasurement();
           LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
               _currentlyOngoingTopic);
 
@@ -186,7 +186,7 @@ public class ClusterTopicManipulationService implements Service {
 
     if (!_isOngoingTopicDeletionDone) {
 
-      _clusterTopicManipulationSensors.finishTopicDeletionMeasurement();
+      _clusterTopicManipulationMetrics.finishTopicDeletionMeasurement();
       LOGGER.debug("Finished measuring deleting the topic.");
 
       _isOngoingTopicDeletionDone = true;
