@@ -53,6 +53,7 @@ public class ClusterTopicManipulationService implements Service {
   private final ScheduledExecutorService _executor;
   private final AdminClient _adminClient;
   private boolean _isOngoingTopicCreationDone;
+  private boolean _isOngoingTopicDeletionDone;
   private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
@@ -63,6 +64,7 @@ public class ClusterTopicManipulationService implements Service {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
 
     _isOngoingTopicCreationDone = true;
+    _isOngoingTopicDeletionDone = true;
     _adminClient = adminClient;
     _executor = Executors.newSingleThreadScheduledExecutor();
     _reportIntervalSecond = Duration.ofSeconds(1);
@@ -159,16 +161,35 @@ public class ClusterTopicManipulationService implements Service {
     try {
       LOGGER.trace("cluster id: {}", _adminClient.describeCluster().clusterId().get());
       Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
+
       if (this.doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient, _expectedPartitionsCount)) {
-        _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
-        LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
-            _currentlyOngoingTopic);
         _clusterTopicManipulationSensors.finishTopicCreationMeasurement();
         _isOngoingTopicCreationDone = true;
+
+        if (_isOngoingTopicDeletionDone) {
+          KafkaFuture<Void> deleteTopicFuture =
+              _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
+
+          _isOngoingTopicDeletionDone = false;
+          _clusterTopicManipulationSensors.startTopicDeletionMeasurement();
+          LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
+              _currentlyOngoingTopic);
+
+          deleteTopicFuture.get();
+        }
+
         LOGGER.trace("{}-clusterTopicManipulationServiceRunnable successful!", this.getClass().getSimpleName());
       }
     } catch (InterruptedException | ExecutionException e) {
       LOGGER.error("Exception occurred while creating cluster topic in {}: ", _configDefinedServiceName, e);
+    }
+
+    if (!_isOngoingTopicDeletionDone) {
+
+      _clusterTopicManipulationSensors.finishTopicDeletionMeasurement();
+      LOGGER.debug("Finished measuring deleting the topic.");
+
+      _isOngoingTopicDeletionDone = true;
     }
   }
 
@@ -196,6 +217,8 @@ public class ClusterTopicManipulationService implements Service {
     }
 
     if (totalPartitionsInCluster != expectedTotalPartitionsInCluster) {
+      LOGGER.debug("totalPartitionsInCluster {} does not equal expectedTotalPartitionsInCluster {}",
+          totalPartitionsInCluster, expectedTotalPartitionsInCluster);
       return false;
     }
 
@@ -210,7 +233,8 @@ public class ClusterTopicManipulationService implements Service {
           Collections.singleton(topic), e);
     }
 
-    return !isDescribeSuccessful;
+    LOGGER.trace("isDescribeSuccessful: {}", isDescribeSuccessful);
+    return isDescribeSuccessful;
   }
 
   /**
@@ -223,6 +247,9 @@ public class ClusterTopicManipulationService implements Service {
   private static Map<String, TopicDescription> describeTopics(AdminClient adminClient, Collection<String> topicNames)
       throws InterruptedException, ExecutionException {
     KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
+    LOGGER.debug("describeTopics future: {}", mapKafkaFuture);
+    LOGGER.debug("describeTopics: {}", mapKafkaFuture.get());
+
     return mapKafkaFuture.get();
   }
 
@@ -292,7 +319,7 @@ public class ClusterTopicManipulationService implements Service {
   @Override
   public boolean isRunning() {
 
-    return !_executor.isShutdown();
+    return _running.get() && !_executor.isShutdown();
   }
 
   /**

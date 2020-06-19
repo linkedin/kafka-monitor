@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.ClusterTopicManipulationServiceFactory;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
@@ -23,6 +24,7 @@ import com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig;
 import com.linkedin.kmf.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.kmf.services.configs.ProduceServiceConfig;
 import com.linkedin.kmf.services.configs.TopicManagementServiceConfig;
+import com.linkedin.kmf.services.metrics.ClusterTopicManipulationMetrics;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,6 +56,7 @@ public class SingleClusterMonitor implements App {
   private final TopicManagementService _topicManagementService;
   private final ProduceService _produceService;
   private final ConsumeService _consumeService;
+  private final Service _clusterTopicManipulationService;
   private final String _name;
   private final List<Service> _allServices;
 
@@ -68,11 +71,13 @@ public class SingleClusterMonitor implements App {
 
     _produceService = new ProduceService(props, name);
     _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
+    _clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
+
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(_produceService);
     _allServices.add(_consumeService);
-
+    _allServices.add(_clusterTopicManipulationService);
   }
 
   @Override
@@ -88,8 +93,12 @@ public class SingleClusterMonitor implements App {
       throw new Exception("Interrupted while sleeping the thread", e);
     }
     CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
-      _produceService.start();
-      _consumeService.start();
+      for (Service service : _allServices) {
+        if (!service.isRunning()) {
+          LOG.debug("Now starting {}", service.getServiceName());
+          service.start();
+        }
+      }
     });
 
     try {
@@ -124,6 +133,10 @@ public class SingleClusterMonitor implements App {
     if (!_consumeService.isRunning()) {
       isRunning = false;
       LOG.info("_consumeService not Running.");
+    }
+    if (!_clusterTopicManipulationService.isRunning()) {
+      isRunning = false;
+      LOG.info("_clusterTopicManipulationService is not running.");
     }
     return isRunning;
   }
@@ -345,8 +358,18 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-max",
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-99th",
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-999th",
-      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th"
+      "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th",
+
+      "kmf.services:type=" + ClusterTopicManipulationMetrics.METRIC_GROUP_NAME
+          + ",name=*:topic-creation-metadata-propagation-ms-avg",
+      "kmf.services:type=" + ClusterTopicManipulationMetrics.METRIC_GROUP_NAME
+          + ",name=*:topic-creation-metadata-propagation-ms-max",
+      "kmf.services:type=" + ClusterTopicManipulationMetrics.METRIC_GROUP_NAME
+          + ",name=*:topic-deletion-metadata-propagation-ms-avg",
+      "kmf.services:type=" + ClusterTopicManipulationMetrics.METRIC_GROUP_NAME
+          + ",name=*:topic-deletion-metadata-propagation-ms-max"
     );
+
     props.put(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG, metrics);
 
     DefaultMetricsReporterService metricsReporterService = new DefaultMetricsReporterService(props, "end-to-end");
