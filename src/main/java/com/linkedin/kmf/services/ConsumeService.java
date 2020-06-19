@@ -14,6 +14,9 @@ import com.linkedin.kmf.common.DefaultTopicSchema;
 import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.consumer.BaseConsumerRecord;
 import com.linkedin.kmf.consumer.KMBaseConsumer;
+import com.linkedin.kmf.services.metrics.CommitAvailabilityMetrics;
+import com.linkedin.kmf.services.metrics.CommitLatencyMetrics;
+import com.linkedin.kmf.services.metrics.ConsumeMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -258,7 +261,7 @@ public class ConsumeService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit unit) {
     LOG.info("{}/ConsumeService shutdown completed.", _name);
   }
 

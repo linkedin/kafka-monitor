@@ -212,7 +212,7 @@ public class ProduceService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit unit) {
     try {
       _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
       _handleNewPartitionsExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);

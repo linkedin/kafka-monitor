@@ -10,8 +10,24 @@
 
 package com.linkedin.kmf.services;
 
+/**
+ * Factory that instantiates an instance of Xinfra Monitor Service.
+ *
+ * INFORMATION:
+ * "Class 'ClusterTopicManipulationServiceFactory' is never used" and
+ * "Constructor 'ClusterTopicManipulationServiceFactory(java.util.Map, java.lang.String)' is never used"
+ * shown as warnings in Intellij IDEA are not true.
+ * XinfraMonitor class uses (ServiceFactory) Class.forName(..)
+ * .getConstructor(...).newInstance(...) to return Class that's associated
+ * with the class or interface with the given string name
+ */
 public interface ServiceFactory {
 
+  /**
+   * This method creates a Xinfra Montior Service.
+   * @return a Xinrfa Monitor service object
+   * @throws Exception that occurs while creating a XM Service
+   */
   Service createService() throws Exception;
 
 }
