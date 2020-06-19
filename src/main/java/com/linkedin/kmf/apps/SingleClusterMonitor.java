@@ -122,22 +122,13 @@ public class SingleClusterMonitor implements App {
   public boolean isRunning() {
     boolean isRunning = true;
 
-    if (!_topicManagementService.isRunning()) {
-      isRunning = false;
-      LOG.info("_topicManagementService not running.");
+    for (Service service : _allServices) {
+      if (!service.isRunning()) {
+        isRunning = false;
+        LOG.info("{} is not running.", service.getServiceName());
+      }
     }
-    if (!_produceService.isRunning()) {
-      isRunning = false;
-      LOG.info("_produceService not running.");
-    }
-    if (!_consumeService.isRunning()) {
-      isRunning = false;
-      LOG.info("_consumeService not Running.");
-    }
-    if (!_clusterTopicManipulationService.isRunning()) {
-      isRunning = false;
-      LOG.info("_clusterTopicManipulationService is not running.");
-    }
+
     return isRunning;
   }
 
