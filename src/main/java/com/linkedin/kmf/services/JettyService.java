@@ -12,6 +12,7 @@ package com.linkedin.kmf.services;
 
 import com.linkedin.kmf.services.configs.JettyServiceConfig;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
@@ -68,7 +69,7 @@ public class JettyService implements Service {
   }
 
   @Override
-  public void awaitShutdown() {
+  public void awaitShutdown(long timeout, TimeUnit timeUnit) {
 
   }
 }
