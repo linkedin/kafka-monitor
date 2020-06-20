@@ -13,8 +13,11 @@ package com.linkedin.kmf.services;
 import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.metrics.ClusterTopicManipulationMetrics;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -29,7 +32,12 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
+import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,22 +53,33 @@ public class ClusterTopicManipulationService implements Service {
   private final ScheduledExecutorService _executor;
   private final AdminClient _adminClient;
   private boolean _isOngoingTopicCreationDone;
+  private boolean _isOngoingTopicDeletionDone;
   private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
   // TODO -- ClusterTopicManipulationMetrics implementation in progress!
-  private ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
+  private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
 
     _isOngoingTopicCreationDone = true;
+    _isOngoingTopicDeletionDone = true;
     _adminClient = adminClient;
     _executor = Executors.newSingleThreadScheduledExecutor();
     _reportIntervalSecond = Duration.ofSeconds(1);
     _running = new AtomicBoolean(false);
     _configDefinedServiceName = name;
     // TODO: instantiate a new instance of ClusterTopicManipulationMetrics(..) here.
+
+    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(Service.JMX_PREFIX));
+    Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
+
+    Map<String, String> tags = new HashMap<>();
+    tags.put("name", name);
+    _clusterTopicManipulationMetrics = new ClusterTopicManipulationMetrics(metrics, tags);
   }
 
   /**
@@ -133,6 +152,7 @@ public class ClusterTopicManipulationService implements Service {
         _isOngoingTopicCreationDone = false;
         LOGGER.debug("Initiated a new topic creation. topic information - topic: {}, cluster broker count: {}",
             _currentlyOngoingTopic, brokerCount);
+        _clusterTopicManipulationMetrics.startTopicCreationMeasurement();
       } catch (InterruptedException | ExecutionException e) {
         LOGGER.error("Exception occurred while retrieving the brokers count: ", e);
       }
@@ -141,15 +161,35 @@ public class ClusterTopicManipulationService implements Service {
     try {
       LOGGER.trace("cluster id: {}", _adminClient.describeCluster().clusterId().get());
       Collection<Node> brokers = _adminClient.describeCluster().nodes().get();
+
       if (this.doesClusterContainTopic(_currentlyOngoingTopic, brokers, _adminClient, _expectedPartitionsCount)) {
-        _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
-        LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
-            _currentlyOngoingTopic);
+        _clusterTopicManipulationMetrics.finishTopicCreationMeasurement();
         _isOngoingTopicCreationDone = true;
+
+        if (_isOngoingTopicDeletionDone) {
+          KafkaFuture<Void> deleteTopicFuture =
+              _adminClient.deleteTopics(Collections.singleton(_currentlyOngoingTopic)).all();
+
+          _isOngoingTopicDeletionDone = false;
+          _clusterTopicManipulationMetrics.startTopicDeletionMeasurement();
+          LOGGER.debug("clusterTopicManipulationServiceRunnable: Initiated topic deletion on {}.",
+              _currentlyOngoingTopic);
+
+          deleteTopicFuture.get();
+        }
+
         LOGGER.trace("{}-clusterTopicManipulationServiceRunnable successful!", this.getClass().getSimpleName());
       }
     } catch (InterruptedException | ExecutionException e) {
       LOGGER.error("Exception occurred while creating cluster topic in {}: ", _configDefinedServiceName, e);
+    }
+
+    if (!_isOngoingTopicDeletionDone) {
+
+      _clusterTopicManipulationMetrics.finishTopicDeletionMeasurement();
+      LOGGER.debug("Finished measuring deleting the topic.");
+
+      _isOngoingTopicDeletionDone = true;
     }
   }
 
@@ -177,6 +217,8 @@ public class ClusterTopicManipulationService implements Service {
     }
 
     if (totalPartitionsInCluster != expectedTotalPartitionsInCluster) {
+      LOGGER.debug("totalPartitionsInCluster {} does not equal expectedTotalPartitionsInCluster {}",
+          totalPartitionsInCluster, expectedTotalPartitionsInCluster);
       return false;
     }
 
@@ -191,7 +233,8 @@ public class ClusterTopicManipulationService implements Service {
           Collections.singleton(topic), e);
     }
 
-    return !isDescribeSuccessful;
+    LOGGER.trace("isDescribeSuccessful: {}", isDescribeSuccessful);
+    return isDescribeSuccessful;
   }
 
   /**
@@ -204,6 +247,9 @@ public class ClusterTopicManipulationService implements Service {
   private static Map<String, TopicDescription> describeTopics(AdminClient adminClient, Collection<String> topicNames)
       throws InterruptedException, ExecutionException {
     KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = adminClient.describeTopics(topicNames).all();
+    LOGGER.debug("describeTopics future: {}", mapKafkaFuture);
+    LOGGER.debug("describeTopics: {}", mapKafkaFuture.get());
+
     return mapKafkaFuture.get();
   }
 
@@ -273,7 +319,7 @@ public class ClusterTopicManipulationService implements Service {
   @Override
   public boolean isRunning() {
 
-    return !_executor.isShutdown();
+    return _running.get() && !_executor.isShutdown();
   }
 
   /**
