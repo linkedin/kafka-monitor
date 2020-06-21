@@ -1,11 +1,5 @@
-name: "Pull Request Labeler"
-on:
-  - pull_request
 
-jobs:
-  triage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/labeler@v1-preview
-        with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
+# Add label to any changes within the folder or any subfolders
+xinfra-monitor:
+  - src/main/java/com/linkedin/kmf/**/*
