@@ -4,6 +4,9 @@
 
 # Xinfra Monitor
 [![Build Status](https://travis-ci.org/linkedin/kafka-monitor.svg?branch=master)](https://travis-ci.org/linkedin/kafka-monitor)
+![Greetings](https://github.com/linkedin/kafka-monitor/workflows/Greetings/badge.svg)
+![Mark stale issues and pull requests](https://github.com/linkedin/kafka-monitor/workflows/Mark%20stale%20issues%20and%20pull%20requests/badge.svg)
+![Pull Request Labeler](https://github.com/linkedin/kafka-monitor/workflows/Pull%20Request%20Labeler/badge.svg)
 
 Xinfra Monitor (formerly Kafka Monitor) is a framework to implement and execute long-running kafka
 system tests in a real cluster. It complements Kafka’s existing system
