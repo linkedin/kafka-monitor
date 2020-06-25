@@ -10,16 +10,38 @@
 
 package com.linkedin.kmf.services;
 
+import java.util.HashMap;
+import org.apache.kafka.clients.ApiVersions;
+import org.apache.kafka.clients.ClientDnsLookup;
+import org.apache.kafka.clients.ClientResponse;
+import org.apache.kafka.clients.KafkaClient;
+import org.apache.kafka.clients.Metadata;
+import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient;
+import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.internals.ClusterResourceListeners;
+import org.apache.kafka.common.memory.MemoryPool;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.network.ListenerName;
+import org.apache.kafka.common.network.Mode;
+import org.apache.kafka.common.network.Selector;
+import org.apache.kafka.common.network.SslChannelBuilder;
+import org.apache.kafka.common.requests.OffsetCommitRequest;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.LogContext;
-import org.apache.kafka.common.utils.SystemTime;
+import org.apache.kafka.common.utils.Time;
 
 
 /**
  * Service that monitors the commit offset availability of a partiular Consumer Group.
  */
 public class OffsetCommitService implements Service {
+
+  OffsetCommitService() {
+
+  }
 
   /**
    * The start logic must only execute once.  If an error occurs then the implementer of this class must assume that
@@ -29,9 +51,38 @@ public class OffsetCommitService implements Service {
    */
   @Override
   public void start() {
+    ListenerName listenerName = ListenerName.forSecurityProtocol(SecurityProtocol.SSL);
+    SslChannelBuilder sslChannelBuilder = new SslChannelBuilder(Mode.CLIENT, listenerName, true);
+    Metrics metrics = new Metrics();
+    LogContext context = new LogContext();
+    ClusterResourceListeners listeners = new ClusterResourceListeners();
+    Time time = Time.SYSTEM;
+
+    Selector selector =
+        new Selector(1, 2, 3, metrics, time, "", new HashMap<>(), true, true, sslChannelBuilder, MemoryPool.NONE,
+            context);
+
+    Metadata metadata = new Metadata(1, 2, context, listeners);
+
+    KafkaClient kafkaClient =
+        new NetworkClient(selector, metadata, "", 2, 3, 4, 5, 6, 7, ClientDnsLookup.DEFAULT, Time.SYSTEM, true,
+            new ApiVersions(), context);
+
     ConsumerNetworkClient consumerNetworkClient =
-        new ConsumerNetworkClient(new LogContext(), null, null, new SystemTime(), 3, 3, 3);
-    consumerNetworkClient.send(new Node(1, "", 3), null);
+        new ConsumerNetworkClient(context, kafkaClient, metadata, Time.SYSTEM, 3, 3, 3);
+
+    this.startConsumerNetworkClient(consumerNetworkClient);
+  }
+
+  private void startConsumerNetworkClient(ConsumerNetworkClient consumerNetworkClient) {
+    RequestFuture<ClientResponse> clientResponseRequestFuture = consumerNetworkClient.send(new Node(1, "host", 3),
+        new OffsetCommitRequest.Builder(new OffsetCommitRequestData()));
+
+    if (clientResponseRequestFuture.isDone()) {
+      ClientResponse clientResponse = clientResponseRequestFuture.value();
+
+      clientResponse.onComplete();
+    }
   }
 
   /**
