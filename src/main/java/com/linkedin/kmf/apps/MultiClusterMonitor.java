@@ -18,6 +18,7 @@ import com.linkedin.kmf.services.ProduceService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,8 +100,8 @@ public class MultiClusterMonitor implements App {
 
   @Override
   public void awaitShutdown() {
-    _multiClusterTopicManagementService.awaitShutdown();
-    _produceService.awaitShutdown();
-    _consumeService.awaitShutdown();
+    _multiClusterTopicManagementService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    _produceService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    _consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 }

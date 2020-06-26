@@ -17,6 +17,7 @@ import com.linkedin.kmf.services.ProduceService;
 import com.linkedin.kmf.services.TopicManagementService;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,9 +82,9 @@ public class BasicEndToEndTest implements Test {
 
   @Override
   public void awaitShutdown() {
-    _topicManagementService.awaitShutdown();
-    _produceService.awaitShutdown();
-    _consumeService.awaitShutdown();
+    _topicManagementService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    _produceService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+    _consumeService.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 
   public static void main(String[] args) throws Exception {

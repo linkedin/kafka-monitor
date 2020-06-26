@@ -8,7 +8,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.kmf.services;
+package com.linkedin.kmf.services.metrics;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
@@ -21,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-class CommitAvailabilityMetrics {
+public class CommitAvailabilityMetrics {
 
   private static final String METRIC_GROUP_NAME = "commit-availability-service";
   private static final Logger LOG = LoggerFactory.getLogger(CommitAvailabilityMetrics.class);
@@ -33,7 +33,7 @@ class CommitAvailabilityMetrics {
    * @param metrics the commit offset metrics
    * @param tags the tags associated, i.e) kmf.services:name=single-cluster-monitor
    */
-  CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
+  public CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
     LOG.info("{} called.", this.getClass().getSimpleName());
     _offsetsCommitted = metrics.sensor("offsets-committed");
     _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,

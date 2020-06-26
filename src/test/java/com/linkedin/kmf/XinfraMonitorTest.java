@@ -14,6 +14,7 @@ import com.linkedin.kmf.services.Service;
 import com.linkedin.kmf.services.ServiceFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -147,7 +148,7 @@ public class XinfraMonitorTest {
     }
 
     @Override
-    public synchronized void awaitShutdown() {
+    public synchronized void awaitShutdown(long timeout, TimeUnit timeUnit) {
       try {
         if (STOP_COUNT.get() == 0) {
           wait(3_000);
