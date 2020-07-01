@@ -10,7 +10,6 @@
 
 package com.linkedin.kmf.apps;
 
-import com.linkedin.kmf.services.ClusterTopicManipulationServiceFactory;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
@@ -54,9 +53,6 @@ public class SingleClusterMonitor implements App {
 
   private static final int SERVICES_INITIAL_CAPACITY = 4;
   private final TopicManagementService _topicManagementService;
-  private final ProduceService _produceService;
-  private final ConsumeService _consumeService;
-  private final Service _clusterTopicManipulationService;
   private final String _name;
   private final List<Service> _allServices;
 
@@ -69,15 +65,15 @@ public class SingleClusterMonitor implements App {
     // block on the MultiClusterTopicManagementService to complete.
     topicPartitionResult.get();
 
-    _produceService = new ProduceService(props, name);
-    _consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-    _clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
+    ProduceService produceService = new ProduceService(props, name);
+    ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
+//    Service clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
 
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
-    _allServices.add(_produceService);
-    _allServices.add(_consumeService);
-    _allServices.add(_clusterTopicManipulationService);
+    _allServices.add(produceService);
+    _allServices.add(consumeService);
+//    _allServices.add(clusterTopicManipulationService);
   }
 
   @Override

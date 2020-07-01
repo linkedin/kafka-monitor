@@ -18,6 +18,10 @@ public class XinfraMonitorConstants {
   public XinfraMonitorConstants() {
   }
 
+  public static final String FALSE = "false";
+
+  public static final String XINFRA_MONITOR_PREFIX = "xinfra-monitor-";
+
   public static final String TOPIC_MANIPULATION_SERVICE_TOPIC =
       "xinfra-monitor-cluster-topic-manipulation-service-topic-";
 

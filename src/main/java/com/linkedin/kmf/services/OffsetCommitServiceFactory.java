@@ -10,9 +10,11 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
@@ -35,10 +37,21 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
     _serviceName = serviceName;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public Service createService() throws Exception {
+  public Service createService() {
     LOGGER.info("Creating OffsetCommitService...");
-    return new OffsetCommitService(new ConsumerConfig(prepareConfigs(_properties)), _serviceName);
+    AdminClient adminClient = AdminClient.create(_properties);
+    LOGGER.info("1- {}", _properties.values());
+
+    Properties preparedProps = this.prepareConfigs(_properties);
+    LOGGER.info("2- {}", preparedProps.values());
+    ConsumerConfig consumerConfig = new ConsumerConfig(preparedProps);
+    LOGGER.info("3- {}", consumerConfig.values().toString());
+
+//    OffsetCommitServiceConfig offsetCommitServiceConfig =
+//        new OffsetCommitServiceConfig(preparedProps);
+    return new OffsetCommitService(consumerConfig, _serviceName, adminClient);
   }
 
   /**
@@ -51,17 +64,16 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
 
     String zkConnect = (String) props.get(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = (String) props.get(CommonServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    Map<String, String> customProps = (Map<String, String>) props.get(CommonServiceConfig.CONSUMER_PROPS_CONFIG);
 
     Properties consumerProps = new Properties();
-
-    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-    consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "xinfra-monitor-" + _serviceName);
+    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, XinfraMonitorConstants.FALSE);
+    consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, XinfraMonitorConstants.XINFRA_MONITOR_PREFIX + _serviceName);
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-    consumerProps.put("zookeeper.connect", zkConnect);
+    consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
 
+    Map<String, String> customProps = (Map<String, String>) props.get(CommonServiceConfig.CONSUMER_PROPS_CONFIG);
     if (customProps != null) {
       for (Map.Entry<String, String> entry : customProps.entrySet()) {
         consumerProps.put(entry.getKey(), entry.getValue());
