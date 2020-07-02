@@ -86,6 +86,7 @@ public class ConsumeMetrics {
 
         return recordsConsumedRate + recordsLostRate > 0
             ? (recordsConsumedRate - recordsDelayedRate) / (recordsConsumedRate + recordsLostRate) : 0;
-      });
+      }
+    );
   }
 }
