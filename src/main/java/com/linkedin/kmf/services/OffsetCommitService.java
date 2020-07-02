@@ -204,7 +204,8 @@ public class OffsetCommitService implements Service {
         if (future.succeeded() && future.isDone() && consumerNetworkClientPollResult) {
 
           ClientResponse clientResponse = future.value();
-          LOGGER.info("ClientResponseRequestFuture value {} for coordinator {} ", clientResponse, groupCoordinator);
+          LOGGER.info("ClientResponseRequestFuture value {} for coordinator {} and consumer group {}", clientResponse,
+              groupCoordinator, consumerGroup);
         }
       }
     }
