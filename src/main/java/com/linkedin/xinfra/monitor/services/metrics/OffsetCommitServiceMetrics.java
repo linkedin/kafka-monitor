@@ -56,6 +56,8 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
     _offsetCommitFailSensor.add(new MetricName(FAILURE_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator unsuccessfully receiving consumer offset commit requests.", tags),
         new Total());
+    LOGGER.trace("Initializing the offset-commit-service-failure value to 0 to avoid NaN being reported.");
+    _offsetCommitFailSensor.record(0);
 
     Measurable measurable = new Measurable() {
       @Override
