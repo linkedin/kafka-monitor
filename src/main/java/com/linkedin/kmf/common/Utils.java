@@ -10,6 +10,9 @@
 
 package com.linkedin.kmf.common;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -40,12 +43,19 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Kafka Monitoring utilities.
+ * Xinfra Monitor utilities.
  */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
   public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
+
+  public static void prettyPrint(Object value) throws JsonProcessingException {
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+    String written = objectWriter.writeValueAsString(value);
+    LOG.info("pretty printed: {}", written);
+  }
 
   /**
    * Read number of partitions for the given topic on the specified ZooKeeper

@@ -38,7 +38,8 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
 
   /**
    *
-   * @param metrics a named, numerical measurement. sensor is a handle to record numerical measurements as they occur.
+   * @param metrics a named, numerical measurement.
+   *                Sensor is a handle to record numerical measurements as they occur.
    * @param tags metrics/sensor's tags
    */
   public OffsetCommitServiceMetrics(final Metrics metrics, final Map<String, String> tags) {
@@ -80,9 +81,8 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
       }
     };
 
-    metrics.addMetric(
-        new MetricName("offset-commit-availability-avg", METRIC_GROUP_NAME, "The average offset commit availability",
-            tags), measurable);
+//    metrics.addMetric(new MetricName("offset-commit-availability-avg", METRIC_GROUP_NAME,
+//        "The average offset commit availability with respect to the group coordinator.", tags), measurable);
   }
 
   /**
@@ -95,7 +95,7 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
 
   public void recordFailed() {
     _offsetCommitFailSensor.record();
-    LOGGER.error("The offset commit failed due to the respones future failing and the future NOT being retriable.");
+    LOGGER.error("The offset commit failed due to the response future failing and the future NOT being retriable.");
   }
 
   public void recordUnavailable() {

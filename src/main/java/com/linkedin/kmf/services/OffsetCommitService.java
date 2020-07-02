@@ -65,7 +65,6 @@ public class OffsetCommitService implements Service {
   private static final String SERVICE_SUFFIX = "-consumer-offset-commit-service";
   private final AtomicBoolean _isRunning;
   private final ScheduledExecutorService _scheduledExecutorService;
-  //  private final ConsumerNetworkClient _consumerNetworkClient;
   private final String _serviceName;
   private final AdminClient _adminClient;
   private final String _consumerGroup;
