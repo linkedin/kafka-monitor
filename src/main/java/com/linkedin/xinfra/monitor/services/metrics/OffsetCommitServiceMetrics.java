@@ -75,7 +75,7 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
           offsetCommitFailureRate = 0;
         }
 
-        return offsetCommitSuccessRate + offsetCommitFailureRate > 0 ? (offsetCommitSuccessRate) / (
+        return offsetCommitSuccessRate + offsetCommitFailureRate > 0 ? offsetCommitSuccessRate / (
             offsetCommitSuccessRate + offsetCommitFailureRate) : 0;
       }
     };
