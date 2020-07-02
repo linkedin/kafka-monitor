@@ -14,6 +14,9 @@ import org.apache.kafka.clients.CommonClientConfigs;
 
 public class CommonServiceConfig {
 
+  public static final String CONSUMER_PROPS_CONFIG = "consumer.props";
+  public static final String CONSUMER_PROPS_DOC = "consumer props";
+
   public static final String ZOOKEEPER_CONNECT_CONFIG = "zookeeper.connect";
   public static final String ZOOKEEPER_CONNECT_DOC = "Zookeeper connect string.";
 
