@@ -10,7 +10,6 @@
 
 package com.linkedin.kmf.services.metrics;
 
-import com.linkedin.kmf.services.OffsetCommitService;
 import java.util.Map;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Measurable;
@@ -45,16 +44,16 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
   public OffsetCommitServiceMetrics(final Metrics metrics, final Map<String, String> tags) {
     super(metrics, tags);
     _offsetCommittedSensor = metrics.sensor(SUCCESS_SENSOR_NAME);
-    _offsetCommittedSensor.add(new MetricName(SUCCESS_RATE_METRIC, OffsetCommitService.METRIC_GRP_PREFIX,
+    _offsetCommittedSensor.add(new MetricName(SUCCESS_RATE_METRIC, METRIC_GROUP_NAME,
         "The success rate of group coordinator accepting consumer offset commit requests.", tags), new Avg());
-    _offsetCommittedSensor.add(new MetricName(SUCCESS_METRIC_TOTAL, OffsetCommitService.METRIC_GRP_PREFIX,
+    _offsetCommittedSensor.add(new MetricName(SUCCESS_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator successfully accepting consumer offset commit requests.", tags),
-        new Avg());
+        new Total());
 
     _offsetCommitFailSensor = metrics.sensor(FAILURE_SENSOR_NAME);
-    _offsetCommitFailSensor.add(new MetricName(FAILURE_RATE_METRIC, OffsetCommitService.METRIC_GRP_PREFIX,
+    _offsetCommitFailSensor.add(new MetricName(FAILURE_RATE_METRIC, METRIC_GROUP_NAME,
         "The failure rate of group coordinator accepting consumer offset commit requests.", tags), new Avg());
-    _offsetCommitFailSensor.add(new MetricName(FAILURE_METRIC_TOTAL, OffsetCommitService.METRIC_GRP_PREFIX,
+    _offsetCommitFailSensor.add(new MetricName(FAILURE_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator unsuccessfully receiving consumer offset commit requests.", tags),
         new Total());
 
@@ -81,8 +80,8 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
       }
     };
 
-//    metrics.addMetric(new MetricName("offset-commit-availability-avg", METRIC_GROUP_NAME,
-//        "The average offset commit availability with respect to the group coordinator.", tags), measurable);
+    metrics.addMetric(new MetricName("offset-commit-availability-avg", METRIC_GROUP_NAME,
+        "The average offset commit availability with respect to the group coordinator.", tags), measurable);
   }
 
   /**

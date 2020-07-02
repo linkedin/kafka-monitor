@@ -50,11 +50,13 @@ public class Utils {
   public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
 
-  public static void prettyPrint(Object value) throws JsonProcessingException {
+  public static String prettyPrint(Object value) throws JsonProcessingException {
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
     String written = objectWriter.writeValueAsString(value);
-    LOG.info("pretty printed: {}", written);
+    LOG.trace("pretty printed: {}", written);
+
+    return written;
   }
 
   /**

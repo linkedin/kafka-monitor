@@ -10,7 +10,9 @@
 
 package com.linkedin.kmf.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.linkedin.kmf.XinfraMonitorConstants;
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import java.util.Map;
 import java.util.Properties;
@@ -39,13 +41,13 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Service createService() {
+  public Service createService() throws JsonProcessingException {
     LOGGER.info("Creating OffsetCommitService...");
     AdminClient adminClient = AdminClient.create(_properties);
 
     Properties preparedProps = this.prepareConfigs(_properties);
     ConsumerConfig consumerConfig = new ConsumerConfig(preparedProps);
-    LOGGER.info("OffsetCommitServiceFactory consumer config {}", consumerConfig.values().toString());
+    LOGGER.info("OffsetCommitServiceFactory consumer config {}", Utils.prettyPrint(consumerConfig.values()));
 
     return new OffsetCommitService(consumerConfig, _serviceName, adminClient);
   }

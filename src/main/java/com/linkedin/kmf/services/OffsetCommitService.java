@@ -10,7 +10,9 @@
 
 package com.linkedin.kmf.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.linkedin.kmf.XinfraMonitorConstants;
+import com.linkedin.kmf.common.Utils;
 import com.linkedin.kmf.services.metrics.OffsetCommitServiceMetrics;
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -80,7 +82,8 @@ public class OffsetCommitService implements Service {
    * @param serviceName name of the xinfra monitor service
    * @param adminClient Administrative client for Kafka, which supports managing and inspecting topics, brokers, configurations and ACLs.
    */
-  OffsetCommitService(ConsumerConfig config, String serviceName, AdminClient adminClient) {
+  OffsetCommitService(ConsumerConfig config, String serviceName, AdminClient adminClient)
+      throws JsonProcessingException {
 
     _time = Time.SYSTEM;
     _consumerGroup = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
@@ -140,7 +143,7 @@ public class OffsetCommitService implements Service {
     };
     _scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
 
-    LOGGER.info("OffsetCommitService's ConsumerConfig - {}", config.values());
+    LOGGER.info("OffsetCommitService's ConsumerConfig - {}", Utils.prettyPrint(config.values()));
   }
 
   /**
@@ -183,7 +186,6 @@ public class OffsetCommitService implements Service {
   private void sendOffsetCommitRequest(ConsumerNetworkClient consumerNetworkClient, AdminClient adminClient,
       String consumerGroup) throws ExecutionException, InterruptedException, RuntimeException {
 
-    // TODO (@andrewchoi5): add metrics emission using Sensors
 
     LOGGER.trace("Consumer groups available: {}", adminClient.listConsumerGroups().all().get());
 

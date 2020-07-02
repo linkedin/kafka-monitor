@@ -347,6 +347,11 @@ public class SingleClusterMonitor implements App {
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-99th",
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-999th",
       "kmf.services:type=commit-latency-service,name=*:commit-offset-latency-ms-9999th",
+      "kmf.services:type=offset-commit-service,name=*:offset-commit-availability-avg",
+      "kmf.services:type=offset-commit-service,name=*:offset-commit-service-success-rate",
+      "kmf.services:type=offset-commit-service,name=*:offset-commit-service-success-total",
+      "kmf.services:type=offset-commit-service,name=*:offset-commit-service-failure-rate",
+      "kmf.services:type=offset-commit-service,name=*:offset-commit-service-failure-total",
 
       "kmf.services:type=" + ClusterTopicManipulationMetrics.METRIC_GROUP_NAME
           + ",name=*:topic-creation-metadata-propagation-ms-avg",
