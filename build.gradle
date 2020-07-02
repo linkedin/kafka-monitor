@@ -132,14 +132,14 @@ allprojects {
   task createConfigDocs( dependsOn : compileJava, type : JavaExec) {
     outputs.dir configDocDir
     classpath sourceSets.main.runtimeClasspath
-    main = 'com.linkedin.kmf.common.ConfigDocumentationGenerator'
+    main = 'com.linkedin.xinfra.monitor.common.ConfigDocumentationGenerator'
     args = [configDocDir,
-            'com.linkedin.kmf.services.configs.ConsumeServiceConfig',
-            'com.linkedin.kmf.services.configs.DefaultMetricsReporterServiceConfig',
-            'com.linkedin.kmf.services.configs.JettyServiceConfig',
-            'com.linkedin.kmf.services.configs.ProduceServiceConfig',
-            'com.linkedin.kmf.services.configs.TopicManagementServiceConfig',
-            'com.linkedin.kmf.apps.configs.MultiClusterMonitorConfig']
+            'com.linkedin.xinfra.monitor.services.configs.ConsumeServiceConfig',
+            'com.linkedin.xinfra.monitor.services.configs.DefaultMetricsReporterServiceConfig',
+            'com.linkedin.xinfra.monitor.services.configs.JettyServiceConfig',
+            'com.linkedin.xinfra.monitor.services.configs.ProduceServiceConfig',
+            'com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig',
+            'com.linkedin.xinfra.monitor.apps.configs.MultiClusterMonitorConfig']
   }
 
   build.dependsOn createConfigDocs
