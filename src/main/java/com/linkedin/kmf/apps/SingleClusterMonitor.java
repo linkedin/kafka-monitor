@@ -10,6 +10,7 @@
 
 package com.linkedin.kmf.apps;
 
+import com.linkedin.kmf.services.ClusterTopicManipulationServiceFactory;
 import com.linkedin.kmf.services.ConsumeService;
 import com.linkedin.kmf.services.ConsumerFactory;
 import com.linkedin.kmf.services.ConsumerFactoryImpl;
@@ -67,13 +68,13 @@ public class SingleClusterMonitor implements App {
 
     ProduceService produceService = new ProduceService(props, name);
     ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-//    Service clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
+    Service clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
 
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(produceService);
     _allServices.add(consumeService);
-//    _allServices.add(clusterTopicManipulationService);
+    _allServices.add(clusterTopicManipulationService);
   }
 
   @Override

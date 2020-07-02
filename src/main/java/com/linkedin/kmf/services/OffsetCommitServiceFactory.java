@@ -14,7 +14,6 @@ import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -23,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- *
+ * Factory for OffsetCommitService
  */
 @SuppressWarnings("rawtypes")
 public class OffsetCommitServiceFactory implements ServiceFactory {
@@ -40,18 +39,14 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Service createService() throws ExecutionException, InterruptedException {
+  public Service createService() {
     LOGGER.info("Creating OffsetCommitService...");
     AdminClient adminClient = AdminClient.create(_properties);
-    LOGGER.info("1- {}", _properties.values());
 
     Properties preparedProps = this.prepareConfigs(_properties);
-    LOGGER.info("2- {}", preparedProps.values());
     ConsumerConfig consumerConfig = new ConsumerConfig(preparedProps);
-    LOGGER.info("3- {}", consumerConfig.values().toString());
+    LOGGER.info("OffsetCommitServiceFactory consumer config {}", consumerConfig.values().toString());
 
-//    OffsetCommitServiceConfig offsetCommitServiceConfig =
-//        new OffsetCommitServiceConfig(preparedProps);
     return new OffsetCommitService(consumerConfig, _serviceName, adminClient);
   }
 
