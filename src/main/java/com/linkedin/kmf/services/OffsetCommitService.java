@@ -87,7 +87,7 @@ public class OffsetCommitService implements Service {
     LogContext logContext = new LogContext("[Consumer clientId=" + clientId + "] ");
     List<String> bootstrapServers = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
     List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(bootstrapServers,
-        ClientDnsLookup.RESOLVE_CANONICAL_BOOTSTRAP_SERVERS_ONLY);
+        ClientDnsLookup.DEFAULT);
     ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time);
 
     LOGGER.info("Bootstrap servers config: {} | broker addresses: {}", bootstrapServers, addresses);
@@ -106,7 +106,7 @@ public class OffsetCommitService implements Service {
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
         config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
         config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG),
-        ClientDnsLookup.RESOLVE_CANONICAL_BOOTSTRAP_SERVERS_ONLY, _time, true, new ApiVersions(), logContext);
+        ClientDnsLookup.DEFAULT, _time, true, new ApiVersions(), logContext);
 
     LOGGER.debug("The network client active: {}", kafkaClient.active());
     LOGGER.debug("The network client has in flight requests: {}", kafkaClient.hasInFlightRequests());
