@@ -57,7 +57,7 @@ public class ClusterTopicManipulationService implements Service {
   private final AtomicBoolean _running;
   private String _currentlyOngoingTopic;
   int _expectedPartitionsCount;
-  // TODO -- ClusterTopicManipulationMetrics implementation in progress!
+
   private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient) {
@@ -70,7 +70,6 @@ public class ClusterTopicManipulationService implements Service {
     _reportIntervalSecond = Duration.ofSeconds(1);
     _running = new AtomicBoolean(false);
     _configDefinedServiceName = name;
-    // TODO: instantiate a new instance of ClusterTopicManipulationMetrics(..) here.
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();

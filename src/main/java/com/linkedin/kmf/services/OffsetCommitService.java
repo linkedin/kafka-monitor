@@ -10,10 +10,15 @@
 
 package com.linkedin.kmf.services;
 
+import com.linkedin.kmf.XinfraMonitorConstants;
+import com.linkedin.kmf.services.metrics.OffsetCommitServiceMetrics;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +39,10 @@ import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.internals.ClusterResourceListeners;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
 import org.apache.kafka.common.requests.AbstractRequest;
@@ -51,9 +59,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("NullableProblems")
 public class OffsetCommitService implements Service {
 
+  public static final String METRIC_GRP_PREFIX = "xm-offset-commit-service";
   private static final int MAX_INFLIGHT_REQUESTS_PER_CONNECTION = 100;
   private static final Logger LOGGER = LoggerFactory.getLogger(OffsetCommitService.class);
-  private static final String METRIC_GRP_PREFIX = "xm-offset-commit-service";
   private static final String SERVICE_SUFFIX = "-consumer-offset-commit-service";
   private final AtomicBoolean _isRunning;
   private final ScheduledExecutorService _scheduledExecutorService;
@@ -65,6 +73,7 @@ public class OffsetCommitService implements Service {
   // the consumer network client that communicates with kafka cluster brokers.
   private final ConsumerNetworkClient _consumerNetworkClient;
   private final Time _time;
+  private final OffsetCommitServiceMetrics _offsetCommitServiceMetrics;
 
   /**
    *
@@ -80,14 +89,23 @@ public class OffsetCommitService implements Service {
     _isRunning = new AtomicBoolean(false);
     _serviceName = serviceName;
 
+    List<MetricsReporter> reporters = new ArrayList<>();
+    reporters.add(new JmxReporter(Service.JMX_PREFIX));
+    MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+    Metrics metrics = new Metrics(metricConfig, reporters, _time);
+    Map<String, String> tags = new HashMap<>();
+    tags.put(XinfraMonitorConstants.TAGS_NAME, serviceName);
+
+    _offsetCommitServiceMetrics = new OffsetCommitServiceMetrics(metrics, tags);
+
     long retryBackoffMs = config.getLong(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG);
     int heartbeatIntervalMs = config.getInt(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG);
 
     String clientId = config.getString(ConsumerConfig.CLIENT_ID_CONFIG);
     LogContext logContext = new LogContext("[Consumer clientId=" + clientId + "] ");
     List<String> bootstrapServers = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-    List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(bootstrapServers,
-        ClientDnsLookup.DEFAULT);
+    List<InetSocketAddress> addresses =
+        ClientUtils.parseAndValidateAddresses(bootstrapServers, ClientDnsLookup.DEFAULT);
     ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time);
 
     LOGGER.info("Bootstrap servers config: {} | broker addresses: {}", bootstrapServers, addresses);
@@ -105,8 +123,8 @@ public class OffsetCommitService implements Service {
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG),
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
         config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
-        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG),
-        ClientDnsLookup.DEFAULT, _time, true, new ApiVersions(), logContext);
+        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), ClientDnsLookup.DEFAULT, _time, true,
+        new ApiVersions(), logContext);
 
     LOGGER.debug("The network client active: {}", kafkaClient.active());
     LOGGER.debug("The network client has in flight requests: {}", kafkaClient.hasInFlightRequests());
@@ -188,6 +206,7 @@ public class OffsetCommitService implements Service {
     RequestFuture<ClientResponse> future = consumerNetworkClient.send(groupCoordinator, offsetCommitRequestBuilder);
 
     if (consumerNetworkClient.isUnavailable(groupCoordinator)) {
+      _offsetCommitServiceMetrics.recordUnavailable();
       throw new RuntimeException("Unavailable consumerNetworkClient for " + groupCoordinator);
     } else {
       LOGGER.trace("The consumerNetworkClient is available for {}", groupCoordinator);
@@ -198,6 +217,7 @@ public class OffsetCommitService implements Service {
         LOGGER.debug("result of poll {}", consumerNetworkClientPollResult);
 
         if (future.failed() && !future.isRetriable()) {
+          _offsetCommitServiceMetrics.recordFailed();
           throw future.exception();
         }
 
@@ -205,6 +225,7 @@ public class OffsetCommitService implements Service {
 
           ClientResponse clientResponse = future.value();
           LOGGER.info("ClientResponseRequestFuture value {} for coordinator {} ", clientResponse, groupCoordinator);
+          _offsetCommitServiceMetrics.recordSuccessful();
         }
       }
     }

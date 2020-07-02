@@ -18,6 +18,8 @@ public class XinfraMonitorConstants {
   public XinfraMonitorConstants() {
   }
 
+  public static final String TAGS_NAME = "name";
+
   public static final String FALSE = "false";
 
   public static final String XINFRA_MONITOR_PREFIX = "xinfra-monitor-";
