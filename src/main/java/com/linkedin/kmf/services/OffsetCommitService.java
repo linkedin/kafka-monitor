@@ -11,9 +11,9 @@
 package com.linkedin.kmf.services;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,20 +24,21 @@ import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.ClientDnsLookup;
 import org.apache.kafka.clients.ClientResponse;
 import org.apache.kafka.clients.ClientUtils;
+import org.apache.kafka.clients.KafkaClient;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.internals.ClusterResourceListeners;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.network.ChannelBuilder;
 import org.apache.kafka.common.network.Selector;
-import org.apache.kafka.common.requests.IsolationLevel;
-import org.apache.kafka.common.requests.MetadataRequest;
+import org.apache.kafka.common.requests.AbstractRequest;
+import org.apache.kafka.common.requests.OffsetCommitRequest;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
@@ -61,13 +62,9 @@ public class OffsetCommitService implements Service {
   private final AdminClient _adminClient;
   private final String _consumerGroup;
 
-  // the actual network client that talks to kafka brokers
-  private final ConsumerNetworkClient _client;
-  private final Metadata _metadata;
-  private final long _retryBackoffMs;
-  private final long _requestTimeoutMs;
+  // the consumer network client that communicates with kafka cluster brokers.
+  private final ConsumerNetworkClient _consumerNetworkClient;
   private final Time _time;
-  private final IsolationLevel _isolationLevel;
 
   /**
    *
@@ -76,45 +73,48 @@ public class OffsetCommitService implements Service {
    * @param adminClient Administrative client for Kafka, which supports managing and inspecting topics, brokers, configurations and ACLs.
    */
   OffsetCommitService(ConsumerConfig config, String serviceName, AdminClient adminClient) {
-    this._retryBackoffMs = config.getLong(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG);
-    this._requestTimeoutMs = config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
-    String clientId = config.getString(ConsumerConfig.CLIENT_ID_CONFIG);
-    LogContext logContext = new LogContext("[Consumer clientId=" + clientId + "] ");
-    this._metadata = new Metadata(_retryBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG), logContext,
-        new ClusterResourceListeners());
 
-    this._time = Time.SYSTEM;
-
-    List<InetSocketAddress> addresses =
-        ClientUtils.parseAndValidateAddresses(config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
-            config.getString(AdminClientConfig.CLIENT_DNS_LOOKUP_CONFIG));
-
-//    this._metadata.update(Cluster.bootstrap(addresses), Collections.emptySet(), _time.milliseconds());
-    ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time);
-    String metricGrpPrefix = "kcc";
-
-    int heartbeatIntervalMs = config.getInt(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG);
-    this._isolationLevel =
-        IsolationLevel.valueOf(config.getString(ConsumerConfig.ISOLATION_LEVEL_CONFIG).toUpperCase(Locale.ROOT));
-
-    Selector selector =
-        new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), new Metrics(), _time,
-            metricGrpPrefix, channelBuilder, logContext);
-
-    NetworkClient netClient = new NetworkClient(selector, this._metadata, clientId, 100,
-        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG),
-        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
-        config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
-        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), ClientDnsLookup.USE_ALL_DNS_IPS, _time, false,
-        new ApiVersions(), null, new LogContext());
-    this._client = new ConsumerNetworkClient(logContext, netClient, _metadata, _time, _retryBackoffMs,
-        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), heartbeatIntervalMs);
-
+    _time = Time.SYSTEM;
+    _consumerGroup = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
     _adminClient = adminClient;
     _isRunning = new AtomicBoolean(false);
     _serviceName = serviceName;
-    _consumerGroup = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
-//
+
+    long retryBackoffMs = config.getLong(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG);
+    int heartbeatIntervalMs = config.getInt(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG);
+
+    String clientId = config.getString(ConsumerConfig.CLIENT_ID_CONFIG);
+    LogContext logContext = new LogContext("[Consumer clientId=" + clientId + "] ");
+    List<String> bootstrapServers = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+    List<InetSocketAddress> addresses = ClientUtils.parseAndValidateAddresses(bootstrapServers,
+        ClientDnsLookup.RESOLVE_CANONICAL_BOOTSTRAP_SERVERS_ONLY);
+    ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time);
+
+    LOGGER.info("Bootstrap servers config: {} | broker addresses: {}", bootstrapServers, addresses);
+
+    Metadata metadata = new Metadata(retryBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG), logContext,
+        new ClusterResourceListeners());
+
+    metadata.bootstrap(addresses, _time.milliseconds());
+
+    Selector selector =
+        new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), new Metrics(), _time,
+            METRIC_GRP_PREFIX, channelBuilder, logContext);
+
+    KafkaClient kafkaClient = new NetworkClient(selector, metadata, clientId, MAX_INFLIGHT_REQUESTS_PER_CONNECTION,
+        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG),
+        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
+        config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
+        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG),
+        ClientDnsLookup.RESOLVE_CANONICAL_BOOTSTRAP_SERVERS_ONLY, _time, true, new ApiVersions(), logContext);
+
+    LOGGER.debug("The network client active: {}", kafkaClient.active());
+    LOGGER.debug("The network client has in flight requests: {}", kafkaClient.hasInFlightRequests());
+    LOGGER.debug("The network client in flight request count: {}", kafkaClient.inFlightRequestCount());
+
+    _consumerNetworkClient = new ConsumerNetworkClient(logContext, kafkaClient, metadata, _time, retryBackoffMs,
+        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), heartbeatIntervalMs);
+
     ThreadFactory threadFactory = new ThreadFactory() {
       @Override
       public Thread newThread(Runnable runnable) {
@@ -122,47 +122,8 @@ public class OffsetCommitService implements Service {
       }
     };
     _scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
-//
-//    Time time = Time.SYSTEM;
-//    ClientDnsLookup clientDnsLookup = ClientDnsLookup.DEFAULT;
-//    ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, time);
-//
-//    int requestTimeoutMs = config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
-//    int heartbeatIntervalMs = config.getInt(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG);
-//    long refreshBackoffMs = config.getLong(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG);
-//    String clientId = config.getString(ConsumerConfig.CLIENT_ID_CONFIG);
-//
-//    Metrics metrics = new Metrics();
-//    LogContext logContext = new LogContext();
-//    ClusterResourceListeners clusterResourceListeners = new ClusterResourceListeners();
-//
-//    Selector selector = new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), metrics, time,
-//        OffsetCommitService.METRIC_GRP_PREFIX, channelBuilder, logContext);
-//
-//    Metadata metadata =
-//        new Metadata(refreshBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG), logContext,
-//            clusterResourceListeners);
-//
-////    metadata.update(MetadataResponse);
-//
-////    List<InetSocketAddress> addresses =
-////        ClientUtils.parseAndValidateAddresses(config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
-////            config.getString(AdminClientConfig.CLIENT_DNS_LOOKUP_CONFIG));
-////    metadata.update(2, MetadataResponse.prepareResponse(null, "", 3, new ArrayList<>()), time.milliseconds());
-//    ApiVersions apiVersions = new ApiVersions();
-//
-//    // Fixed, large enough value will suffice for a max in-flight requests.
-//    KafkaClient kafkaClient = new NetworkClient(selector, metadata, clientId, MAX_INFLIGHT_REQUESTS_PER_CONNECTION,
-//        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG),
-//        config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
-//        config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
-//        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), clientDnsLookup, time, true, apiVersions, logContext);
-//
-//    _consumerNetworkClient =
-//        new ConsumerNetworkClient(logContext, kafkaClient, metadata, time, refreshBackoffMs, requestTimeoutMs,
-//            heartbeatIntervalMs);
-//
-//    LOGGER.info("OffsetCommitService's ConsumerConfig - {}", config.values());
+
+    LOGGER.info("OffsetCommitService's ConsumerConfig - {}", config.values());
   }
 
   /**
@@ -185,7 +146,7 @@ public class OffsetCommitService implements Service {
     @Override
     public void run() {
       try {
-        sendOffsetCommitRequest(_client, _adminClient, _consumerGroup);
+        sendOffsetCommitRequest(_consumerNetworkClient, _adminClient, _consumerGroup);
       } catch (ExecutionException | InterruptedException e) {
         LOGGER.error("OffsetCommitServiceRunnable class encountered an exception: ", e);
       }
@@ -203,54 +164,49 @@ public class OffsetCommitService implements Service {
    *                              and the thread is interrupted, either before or during the activity.
    */
   private void sendOffsetCommitRequest(ConsumerNetworkClient consumerNetworkClient, AdminClient adminClient,
-      String consumerGroup) throws ExecutionException, InterruptedException {
+      String consumerGroup) throws ExecutionException, InterruptedException, RuntimeException {
 
-    LOGGER.info("Sending Offset Commit Request to get RequestFuture<ClientResponse>.");
-    LOGGER.info("consumer groups available: {}", adminClient.listConsumerGroups().all().get());
+    // TODO (@andrewchoi5): add metrics emission using Sensors
+
+    LOGGER.trace("Consumer groups available: {}", adminClient.listConsumerGroups().all().get());
 
     Node groupCoordinator = adminClient.describeConsumerGroups(Collections.singleton(consumerGroup))
         .all()
         .get()
         .get(consumerGroup)
         .coordinator();
+    LOGGER.trace("Consumer group {} coordinator {}, consumer group {}", consumerGroup, groupCoordinator, consumerGroup);
 
-    LOGGER.info("CG coordinator {}", groupCoordinator);
-
-//    Readable readable = new ByteBufferAccessor(ByteBuffer.allocate(50));
-//    OffsetCommitRequestData data = new OffsetCommitRequestData(readable, (short) 7);
-
-//    OffsetCommitRequestData offsetCommitRequestData = new OffsetCommitRequestData();
-//    AbstractRequest.Builder<?> offsetCommitRequestBuilder = new OffsetCommitRequest.Builder(offsetCommitRequestData);
-//    RequestFuture<ClientResponse> clientResponseRequestFuture =
-//        consumerNetworkClient.send(coordinator, offsetCommitRequestBuilder);
-
-//    Node node = consumerNetworkClient.leastLoadedNode();
-//    LOGGER.info("consumer network client least loaded node, {}", node);
-//    if (node == null)
-//      return RequestFuture.noBrokersAvailable();
-//    else
-    RequestFuture<ClientResponse> clientResponseRequestFuture =
-        consumerNetworkClient.send(groupCoordinator, MetadataRequest.Builder.allTopics());
-//    LOGGER.info("{}", consumerNetworkClient.leastLoadedNode());
-    LOGGER.info("{}", consumerNetworkClient.isUnavailable(groupCoordinator));
-    LOGGER.info("{}", consumerNetworkClient.hasReadyNodes(2));
-    LOGGER.info("{}", consumerNetworkClient.hasPendingRequests());
-    LOGGER.info("{}", consumerNetworkClient.pendingRequestCount());
+    consumerNetworkClient.tryConnect(groupCoordinator);
     consumerNetworkClient.maybeTriggerWakeup();
 
-//    _client.poll(clientResponseRequestFuture, _time.timer(_requestTimeoutMs));
-    LOGGER.info("value: {}", clientResponseRequestFuture.value()); // blocking
+    OffsetCommitRequestData offsetCommitRequestData = new OffsetCommitRequestData();
+    AbstractRequest.Builder<?> offsetCommitRequestBuilder = new OffsetCommitRequest.Builder(offsetCommitRequestData);
 
-    if (clientResponseRequestFuture.succeeded()) {
-      LOGGER.info("value: {}", clientResponseRequestFuture.value()); // blocking
-    }
+    LOGGER.debug("pending request count: {}", consumerNetworkClient.pendingRequestCount());
 
-    if (clientResponseRequestFuture.isDone()) {
-      LOGGER.info("ClientResponseRequestFuture value {} ", clientResponseRequestFuture.value());
-      ClientResponse clientResponse = clientResponseRequestFuture.value();
+    RequestFuture<ClientResponse> future = consumerNetworkClient.send(groupCoordinator, offsetCommitRequestBuilder);
 
-      clientResponse.onComplete();
-      LOGGER.info("RequestFuture<ClientResponse> is complete.");
+    if (consumerNetworkClient.isUnavailable(groupCoordinator)) {
+      throw new RuntimeException("Unavailable consumerNetworkClient for " + groupCoordinator);
+    } else {
+      LOGGER.trace("The consumerNetworkClient is available for {}", groupCoordinator);
+      if (consumerNetworkClient.hasPendingRequests()) {
+
+        boolean consumerNetworkClientPollResult =
+            consumerNetworkClient.poll(future, _time.timer(Duration.ofSeconds(5).toMillis()));
+        LOGGER.debug("result of poll {}", consumerNetworkClientPollResult);
+
+        if (future.failed() && !future.isRetriable()) {
+          throw future.exception();
+        }
+
+        if (future.succeeded() && future.isDone() && consumerNetworkClientPollResult) {
+
+          ClientResponse clientResponse = future.value();
+          LOGGER.info("ClientResponseRequestFuture value {} for coordinator {} ", clientResponse, groupCoordinator);
+        }
+      }
     }
   }
 

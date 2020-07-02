@@ -14,6 +14,7 @@ import com.linkedin.kmf.XinfraMonitorConstants;
 import com.linkedin.kmf.services.configs.CommonServiceConfig;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -39,7 +40,7 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Service createService() {
+  public Service createService() throws ExecutionException, InterruptedException {
     LOGGER.info("Creating OffsetCommitService...");
     AdminClient adminClient = AdminClient.create(_properties);
     LOGGER.info("1- {}", _properties.values());
@@ -55,7 +56,7 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
   }
 
   /**
-   * // populate configs for kafka client
+   * populate configs for kafka client
    * @param props Map of String to Object
    * @return Properties
    */

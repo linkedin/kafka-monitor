@@ -10,7 +10,29 @@
 
 package com.linkedin.kmf.services;
 
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+
+@Test
 public class OffsetCommitServiceTest {
 
+  @BeforeMethod
+  private void startTest() {
+    System.out.println("Started " + this.getClass().getSimpleName().toLowerCase() + ".");
+  }
+
+  @AfterMethod
+  private void finishTest() {
+    System.out.println("Finished " + this.getClass().getCanonicalName().toLowerCase() + ".");
+  }
+
+  @Test(invocationCount = 2)
+  void serviceStartTest() {
+
+    // TODO (@andrewchoi5): implement offset commit service test
+
+  }
 }
 
