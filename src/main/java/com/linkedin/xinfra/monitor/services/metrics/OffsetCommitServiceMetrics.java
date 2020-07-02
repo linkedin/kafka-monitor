@@ -8,7 +8,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.kmf.services.metrics;
+package com.linkedin.xinfra.monitor.services.metrics;
 
 import java.util.Map;
 import org.apache.kafka.common.MetricName;

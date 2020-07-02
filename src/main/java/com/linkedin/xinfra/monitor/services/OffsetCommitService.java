@@ -11,9 +11,9 @@
 package com.linkedin.xinfra.monitor.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.linkedin.kmf.XinfraMonitorConstants;
-import com.linkedin.kmf.common.Utils;
-import com.linkedin.kmf.services.metrics.OffsetCommitServiceMetrics;
+import com.linkedin.xinfra.monitor.XinfraMonitorConstants;
+import com.linkedin.xinfra.monitor.common.Utils;
+import com.linkedin.xinfra.monitor.services.metrics.OffsetCommitServiceMetrics;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
