@@ -51,13 +51,13 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
         new Total());
 
     _offsetCommitFailSensor = metrics.sensor(FAILURE_SENSOR_NAME);
+    /* NaN will persist as long as no record is submitted to the failure sensor.
+       we'll continue with NaN for now since we'd rather that the Sensor itself is a true and unaltered record of what values it recorded. */
     _offsetCommitFailSensor.add(new MetricName(FAILURE_RATE_METRIC, METRIC_GROUP_NAME,
         "The failure rate of group coordinator accepting consumer offset commit requests.", tags), new Avg());
     _offsetCommitFailSensor.add(new MetricName(FAILURE_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator unsuccessfully receiving consumer offset commit requests.", tags),
         new Total());
-    LOGGER.trace("Initializing the offset-commit-service-failure value to 0 to avoid NaN being reported.");
-    _offsetCommitFailSensor.record(0);
 
     Measurable measurable = new Measurable() {
       @Override
