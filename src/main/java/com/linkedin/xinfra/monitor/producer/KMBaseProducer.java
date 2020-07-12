@@ -1,0 +1,27 @@
+/**
+ * Copyright 2020 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package com.linkedin.xinfra.monitor.producer;
+
+import org.apache.kafka.clients.producer.RecordMetadata;
+
+/**
+ * A base producer used to abstract different producer classes.
+ *
+ * Implementations of this class must have constructor with the following signature:
+ *   Constructor(java.util.Properties properties).
+ */
+public interface KMBaseProducer {
+
+  RecordMetadata send(BaseProducerRecord record, boolean sync) throws Exception;
+
+  void close();
+
+}
