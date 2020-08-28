@@ -45,6 +45,6 @@ public class ClusterTopicManipulationServiceFactory implements ServiceFactory {
 
     AdminClient adminClient = AdminClient.create(_properties);
 
-    return new ClusterTopicManipulationService(_serviceName, adminClient);
+    return new ClusterTopicManipulationService(_serviceName, adminClient, _properties);
   }
 }
