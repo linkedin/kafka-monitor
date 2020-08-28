@@ -22,12 +22,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import kafka.admin.BrokerMetadata;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -57,6 +59,29 @@ public class Utils {
     LOG.trace("pretty printed: {}", written);
 
     return written;
+  }
+
+  public static List<Integer> replicaIdentifiers(Set<BrokerMetadata> brokers) {
+    if (brokers == null || brokers.size() == 0) {
+      throw new IllegalArgumentException("brokers are either null or empty.");
+    }
+
+    List<BrokerMetadata> brokerMetadataList = new ArrayList<>(brokers);
+
+    int brokerSetSize = brokers.size();
+
+    List<Integer> replicaList = new ArrayList<>();
+    while (replicaList.size() < brokerSetSize) {
+
+      // Regardless of the replica assignments here, maybeReassignPartitionAndElectLeader()
+      // will periodically reassign the partition as needed.
+      int random = new Random().nextInt(brokerSetSize);
+      BrokerMetadata brokerMetadata = brokerMetadataList.get(random);
+      int id = brokerMetadata.id();
+      replicaList.add(id);
+    }
+
+    return replicaList;
   }
 
   /**
@@ -117,7 +142,6 @@ public class Utils {
         // waits for this topic creation future to complete, and then returns its result.
         result.values().get(topic).get();
         LOG.info("CreateTopicsResult: {}.", result.values());
-
       } catch (TopicExistsException e) {
         /* There is a race condition with the consumer. */
         LOG.info("Monitoring topic " + topic + " already exists in the cluster.", e);

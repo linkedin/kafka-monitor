@@ -11,20 +11,27 @@
 package com.linkedin.xinfra.monitor.services;
 
 import com.linkedin.xinfra.monitor.XinfraMonitorConstants;
+import com.linkedin.xinfra.monitor.common.Utils;
+import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.metrics.ClusterTopicManipulationMetrics;
+import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -59,8 +66,12 @@ public class ClusterTopicManipulationService implements Service {
   int _expectedPartitionsCount;
 
   private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
+  private final TopicFactory _topicFactory;
+  private final String _zkConnect;
 
-  public ClusterTopicManipulationService(String name, AdminClient adminClient) {
+  public ClusterTopicManipulationService(String name, AdminClient adminClient, Map<String, Object> props)
+      throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+             InstantiationException {
     LOGGER.info("ClusterTopicManipulationService constructor initiated {}", this.getClass().getName());
 
     _isOngoingTopicCreationDone = true;
@@ -75,10 +86,18 @@ public class ClusterTopicManipulationService implements Service {
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(Service.JMX_PREFIX));
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
-
     Map<String, String> tags = new HashMap<>();
     tags.put("name", name);
+    TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
+    String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+    Map topicFactoryConfig =
+        props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ? (Map) props.get(
+            TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
+
     _clusterTopicManipulationMetrics = new ClusterTopicManipulationMetrics(metrics, tags);
+    _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
+    _topicFactory =
+        (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
   }
 
   /**
@@ -143,9 +162,30 @@ public class ClusterTopicManipulationService implements Service {
 
       try {
         int brokerCount = _adminClient.describeCluster().nodes().get().size();
-        CreateTopicsResult createTopicsResult = _adminClient.createTopics(Collections.singleton(
-            new NewTopic(_currentlyOngoingTopic, XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS,
-                (short) brokerCount)));
+
+        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
+        Set<BrokerMetadata> brokers = new HashSet<>();
+        for (Node broker : _adminClient.describeCluster().nodes().get()) {
+          BrokerMetadata brokerMetadata = new BrokerMetadata(broker.id(), null);
+          brokers.add(brokerMetadata);
+        }
+        if (!blackListedBrokers.isEmpty()) {
+          brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
+        }
+
+        // map from partition id to replica ids (i.e. broker ids).
+        // good idea for all partitions to have the same number of replicas.
+        Map<Integer, List<Integer>> replicasAssignments = new HashMap<>();
+        for (int partition = 0; partition < XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
+            partition++) {
+
+          // Regardless of the replica assignments here, maybeReassignPartitionAndElectLeader()
+          // will periodically reassign the partition as needed.
+          replicasAssignments.putIfAbsent(partition, Utils.replicaIdentifiers(brokers));
+        }
+
+        CreateTopicsResult createTopicsResult =
+            _adminClient.createTopics(Collections.singleton(new NewTopic(_currentlyOngoingTopic, replicasAssignments)));
         createTopicsResult.all().get();
         _expectedPartitionsCount = brokerCount * XinfraMonitorConstants.TOPIC_MANIPULATION_TOPIC_NUM_PARTITIONS;
         _isOngoingTopicCreationDone = false;
