@@ -10,7 +10,6 @@
 
 package com.linkedin.xinfra.monitor.apps;
 
-import com.linkedin.xinfra.monitor.services.ClusterTopicManipulationServiceFactory;
 import com.linkedin.xinfra.monitor.services.ConsumeService;
 import com.linkedin.xinfra.monitor.services.ConsumerFactory;
 import com.linkedin.xinfra.monitor.services.ConsumerFactoryImpl;
@@ -68,13 +67,11 @@ public class SingleClusterMonitor implements App {
 
     ProduceService produceService = new ProduceService(props, name);
     ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-    Service clusterTopicManipulationService = new ClusterTopicManipulationServiceFactory(props, name).createService();
 
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     _allServices.add(_topicManagementService);
     _allServices.add(produceService);
     _allServices.add(consumeService);
-    _allServices.add(clusterTopicManipulationService);
   }
 
   @Override
