@@ -9,4 +9,4 @@
 
 base_dir=$(dirname $0)
 
-exec $base_dir/kmf-run-class.sh com/linkedin/kmf/apps/SingleClusterMonitor $@
+exec $base_dir/kmf-run-class.sh com/linkedin/xinfra/monitor/apps/SingleClusterMonitor $@
