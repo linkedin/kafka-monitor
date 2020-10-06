@@ -181,21 +181,6 @@ the full jmx path for these metrics.
 $ ./bin/xinfra-monitor-start.sh config/multi-cluster-monitor.properties
 ```
 
-### Get metric values (e.g. service availability, message loss rate) in real-time as time series graphs
-Open ```localhost:8000/index.html``` in your web browser.
-
-You can edit webapp/index.html to easily add new metrics to be displayed.
-
-### Query metric value (e.g. produce availability and consume availability) via HTTP request
-```
-curl localhost:8778/jolokia/read/kmf.services:type=produce-service,name=*/produce-availability-avg
-
-curl localhost:8778/jolokia/read/kmf.services:type=consume-service,name=*/consume-availability-avg
-```
-
-You can query other JMX metric value as well by substituting object-name and
-attribute-name of the JMX metric in the query above.
-
 ### Run checkstyle on the java code
 ```
 ./gradlew checkstyleMain checkstyleTest
