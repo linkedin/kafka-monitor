@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import kafka.server.ConfigType;
 import kafka.zk.KafkaZkClient;
@@ -56,6 +57,8 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option$;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 
@@ -433,7 +436,7 @@ public class MultiClusterTopicManagementService implements Service {
           LOGGER.info(
               "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
                   + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
-          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size());
+          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
           partitionReassigned = true;
         }
 
@@ -454,7 +457,7 @@ public class MultiClusterTopicManagementService implements Service {
         if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
             && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
           LOGGER.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
-          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size());
+          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
           partitionReassigned = true;
         }
 
@@ -503,33 +506,54 @@ public class MultiClusterTopicManagementService implements Service {
       LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all());
     }
 
-    private static void reassignPartitions(AdminClient adminClient, Collection<Node> brokers, String topicName,
-        int partitionCount) {
+    private static void reassignPartitions(AdminClient adminClient, Collection<Node> brokers, String topic,
+        int partitionCount, int replicationFactor) {
 
-      Map<TopicPartition, Optional<NewPartitionReassignment>> reassignments = new HashMap<>();
-      List<Integer> targetReplicas = new ArrayList<>();
+      scala.collection.mutable.ArrayBuffer<BrokerMetadata> brokersMetadata =
+          new scala.collection.mutable.ArrayBuffer<>(brokers.size());
       for (Node broker : brokers) {
-        targetReplicas.add(broker.id());
+        brokersMetadata.$plus$eq(new BrokerMetadata(broker.id(), Option$.MODULE$.apply(broker.rack())));
+      }
+      scala.collection.Map<Object, Seq<Object>> assignedReplicas =
+          AdminUtils.assignReplicasToBrokers(brokersMetadata, partitionCount, replicationFactor, 0, 0);
+      scala.collection.immutable.Map<TopicPartition, Seq<Object>> newAssignment =
+          new scala.collection.immutable.HashMap<>();
+      scala.collection.Iterator<scala.Tuple2<Object, scala.collection.Seq<Object>>> it = assignedReplicas.iterator();
+      while (it.hasNext()) {
+        scala.Tuple2<Object, scala.collection.Seq<Object>> scalaTuple = it.next();
+        TopicPartition tp = new TopicPartition(topic, (Integer) scalaTuple._1);
+        newAssignment = newAssignment.$plus(new scala.Tuple2<>(tp, scalaTuple._2));
       }
 
-      for (int partitionNumber = 0; partitionNumber < partitionCount; partitionNumber++) {
-        reassignments.put(new TopicPartition(topicName, partitionNumber),
-            Optional.of(new NewPartitionReassignment(targetReplicas)));
-      }
+      String newAssignmentJson = formatAsNewReassignmentJson(topic, assignedReplicas);
+      LOGGER.info("Reassign partitions for topic " + topic);
+      LOGGER.info("New topic partition replica assignments: {}", newAssignmentJson);
 
-      LOGGER.info("Reassign partitions for topic " + topicName);
+      Set<Map.Entry<TopicPartition, Seq<Object>>> newAssignmentMap =
+          scala.collection.JavaConverters.mapAsJavaMap(newAssignment).entrySet();
+      Map<TopicPartition, Optional<NewPartitionReassignment>> reassignments = new HashMap<>();
+      for (Map.Entry<TopicPartition, Seq<Object>> topicPartitionSeqEntry : newAssignmentMap) {
+        List<Integer> targetReplicas = new ArrayList<>();
+        List<Object> replicas = JavaConverters.seqAsJavaList(topicPartitionSeqEntry.getValue());
+        for (Object replica : replicas) {
+          targetReplicas.add((int) replica);
+        }
+        NewPartitionReassignment newPartitionReassignment = new NewPartitionReassignment(targetReplicas);
+        reassignments.put(topicPartitionSeqEntry.getKey(), Optional.of(newPartitionReassignment));
+      }
       AlterPartitionReassignmentsResult alterPartitionReassignmentsResult =
           adminClient.alterPartitionReassignments(reassignments);
       try {
         alterPartitionReassignmentsResult.all().get();
       } catch (InterruptedException | ExecutionException e) {
-        LOGGER.error("exception occurred while altering the partition reassignments for {}", topicName, e);
+        LOGGER.error("An exception occurred while altering the partition reassignments for {}", topic, e);
       }
     }
 
     static int getReplicationFactor(List<TopicPartitionInfo> partitionInfoList) {
-      if (partitionInfoList.isEmpty())
+      if (partitionInfoList.isEmpty()) {
         throw new RuntimeException("Partition list is empty.");
+      }
 
       int replicationFactor = partitionInfoList.get(0).replicas().size();
       for (TopicPartitionInfo partitionInfo : partitionInfoList) {
