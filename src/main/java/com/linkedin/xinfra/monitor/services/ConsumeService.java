@@ -11,12 +11,12 @@
 package com.linkedin.xinfra.monitor.services;
 
 import com.linkedin.xinfra.monitor.common.DefaultTopicSchema;
-import com.linkedin.xinfra.monitor.services.metrics.CommitAvailabilityMetrics;
-import com.linkedin.xinfra.monitor.services.metrics.CommitLatencyMetrics;
-import com.linkedin.xinfra.monitor.services.metrics.ConsumeMetrics;
 import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.consumer.BaseConsumerRecord;
 import com.linkedin.xinfra.monitor.consumer.KMBaseConsumer;
+import com.linkedin.xinfra.monitor.services.metrics.CommitAvailabilityMetrics;
+import com.linkedin.xinfra.monitor.services.metrics.CommitLatencyMetrics;
+import com.linkedin.xinfra.monitor.services.metrics.ConsumeMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,7 +40,7 @@ import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
 import org.apache.kafka.common.metrics.Sensor;
-import org.apache.kafka.common.metrics.stats.Total;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -244,7 +244,8 @@ public class ConsumeService implements Service {
       @SuppressWarnings("ConstantConditions")
       double partitionCount = topicDescription.partitions().size();
       topicPartitionCount.add(
-          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.", tags), new Total(partitionCount));
+          new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.",
+              tags), new CumulativeSum(partitionCount));
     }
   }
 

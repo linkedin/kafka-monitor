@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
@@ -37,7 +39,10 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.ListPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.PartitionReassignment;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -51,6 +56,10 @@ public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
   public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
   public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
+  private static final long LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS = 60000L;
+  private static final int LIST_PARTITION_REASSIGNMENTS_MAX_ATTEMPTS = 3;
+  private static final String LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS_CONFIG = "list.partition.reassignment.timeout.ms";
+  private static final int DEFAULT_RETRY_BACKOFF_BASE = 2;
 
   public static String prettyPrint(Object value) throws JsonProcessingException {
     ObjectMapper objectMapper = new ObjectMapper();
@@ -59,6 +68,41 @@ public class Utils {
     LOG.trace("pretty printed: {}", written);
 
     return written;
+  }
+
+  /**
+   * Retrieve the map of {@link PartitionReassignment reassignment} by {@link TopicPartition partitions}.
+   *
+   * If the response times out, the method retries up to {@link #LIST_PARTITION_REASSIGNMENTS_MAX_ATTEMPTS} times.
+   * The max time to wait for the {@link AdminClient adminClient} response is computed.
+   *
+   * @param adminClient The {@link AdminClient adminClient} to ask for ongoing partition reassignments
+   * @return The map of {@link PartitionReassignment reassignment} by {@link TopicPartition partitions}
+   */
+  public static Map<TopicPartition, PartitionReassignment> ongoingPartitionReassignments(AdminClient adminClient)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    Map<TopicPartition, PartitionReassignment> partitionReassignments = null;
+    int attempts = 0;
+    long timeoutMs = LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS;
+    do {
+      ListPartitionReassignmentsResult responseResult = adminClient.listPartitionReassignments();
+      try {
+        // A successful response is expected to be non-null.
+        partitionReassignments = responseResult.reassignments().get(timeoutMs, TimeUnit.MILLISECONDS);
+      } catch (TimeoutException timeoutException) {
+        LOG.info(
+            "Xinfra Monitor has failed to list partition reassignments in {}ms (attempt={}). "
+                + "Please consider increasing the value of {} config.",
+            timeoutMs, 1 + attempts, LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS_CONFIG);
+        attempts++;
+        if (attempts == LIST_PARTITION_REASSIGNMENTS_MAX_ATTEMPTS) {
+          throw timeoutException;
+        }
+        timeoutMs *= DEFAULT_RETRY_BACKOFF_BASE;
+      }
+    } while (partitionReassignments == null);
+
+    return partitionReassignments;
   }
 
   public static List<Integer> replicaIdentifiers(Set<BrokerMetadata> brokers) {
