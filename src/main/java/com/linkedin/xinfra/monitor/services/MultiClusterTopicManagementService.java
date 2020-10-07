@@ -15,6 +15,9 @@ import com.linkedin.xinfra.monitor.services.configs.CommonServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
+
+import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,9 +40,13 @@ import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.Config;
+
+import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
+
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
@@ -411,6 +418,7 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
 
+
       List<TopicPartitionInfo> partitionInfoList =
           _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
       Collection<Node> brokers = this.getAvailableBrokers();
@@ -455,6 +463,7 @@ public class MultiClusterTopicManagementService implements Service {
         expectedProperties.put(key, _topicProperties.get(key));
       }
 
+
       if (!currentProperties.equals(expectedProperties)) {
         LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
             + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
@@ -462,9 +471,11 @@ public class MultiClusterTopicManagementService implements Service {
         Map<ConfigResource, Collection<AlterConfigOp>> newConfigs = new HashMap<>();
         for (Map.Entry<Object, Object> entry : expectedProperties.entrySet()) {
           newConfigs.put((ConfigResource) entry.getKey(), (Collection) entry.getValue());
+
         }
         _adminClient.incrementalAlterConfigs(newConfigs);
       }
+
 
       if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
           && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
@@ -481,6 +492,7 @@ public class MultiClusterTopicManagementService implements Service {
           _preferredLeaderElectionRequested = false;
         } else {
           _preferredLeaderElectionRequested = true;
+
         }
       }
     }
@@ -490,6 +502,7 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
+
       if (Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
         List<TopicPartitionInfo> partitionInfoList =
             _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -497,6 +510,7 @@ public class MultiClusterTopicManagementService implements Service {
             + " topic {} in cluster.", _topic);
         triggerPreferredLeaderElection(partitionInfoList, _topic);
         _preferredLeaderElectionRequested = false;
+
       }
 
     }
