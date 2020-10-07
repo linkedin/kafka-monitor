@@ -441,7 +441,6 @@ public class MultiClusterTopicManagementService implements Service {
       }
 
       // Update the properties of the monitor topic if any config is different from the user-specified config
-//        Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
       Properties currentProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
       Properties expectedProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
       DescribeConfigsResult describeConfigsResult =
@@ -462,7 +461,6 @@ public class MultiClusterTopicManagementService implements Service {
       if (!currentProperties.equals(expectedProperties)) {
         LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
             + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
-//          zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
         Map<ConfigResource, Collection<AlterConfigOp>> newConfigs = new HashMap<>();
         for (Map.Entry<Object, Object> entry : expectedProperties.entrySet()) {
           newConfigs.put((ConfigResource) entry.getKey(), (Collection) entry.getValue());
