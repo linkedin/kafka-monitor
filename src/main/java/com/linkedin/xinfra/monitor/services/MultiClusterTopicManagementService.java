@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import kafka.admin.AdminUtils;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,7 +37,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -94,19 +94,20 @@ public class MultiClusterTopicManagementService implements Service {
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
 
-
   @SuppressWarnings("unchecked")
   public MultiClusterTopicManagementService(Map<String, Object> props, String serviceName) throws Exception {
     _serviceName = serviceName;
     MultiClusterTopicManagementServiceConfig config = new MultiClusterTopicManagementServiceConfig(props);
     String topic = config.getString(CommonServiceConfig.TOPIC_CONFIG);
-    Map<String, Map> propsByCluster = props.containsKey(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG)
-        ? (Map) props.get(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
+    Map<String, Map> propsByCluster =
+        props.containsKey(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) ? (Map) props.get(
+            MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
     _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
-    _preferredLeaderElectionIntervalMs = config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
+    _preferredLeaderElectionIntervalMs =
+        config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor(
-      r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
+        r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
     _topicPartitionResult.complete(null);
   }
 
@@ -114,14 +115,16 @@ public class MultiClusterTopicManagementService implements Service {
     return _topicPartitionResult;
   }
 
-  private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster, String topic) throws Exception {
+  private Map<String, TopicManagementHelper> initializeTopicManagementHelper(Map<String, Map> propsByCluster,
+      String topic) throws Exception {
     Map<String, TopicManagementHelper> topicManagementByCluster = new HashMap<>();
-    for (Map.Entry<String, Map> entry: propsByCluster.entrySet()) {
+    for (Map.Entry<String, Map> entry : propsByCluster.entrySet()) {
       String clusterName = entry.getKey();
       Map serviceProps = entry.getValue();
-      if (serviceProps.containsKey(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG))
-        throw new ConfigException("The raw per-cluster config for MultiClusterTopicManagementService must not contain " +
-            MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG);
+      if (serviceProps.containsKey(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG)) {
+        throw new ConfigException("The raw per-cluster config for MultiClusterTopicManagementService must not contain "
+            + MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG);
+      }
       serviceProps.put(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG, topic);
       topicManagementByCluster.put(clusterName, new TopicManagementHelper(serviceProps));
     }
@@ -135,8 +138,8 @@ public class MultiClusterTopicManagementService implements Service {
       _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
 
       Runnable pleRunnable = new PreferredLeaderElectionRunnable();
-      _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs,
-          TimeUnit.MILLISECONDS);
+      _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs,
+          _preferredLeaderElectionIntervalMs, TimeUnit.MILLISECONDS);
       LOGGER.info("{}/MultiClusterTopicManagementService started.", _serviceName);
     }
   }
@@ -159,12 +162,11 @@ public class MultiClusterTopicManagementService implements Service {
     try {
       _executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
-      LOGGER.info("Thread interrupted when waiting for {}/MultiClusterTopicManagementService to shutdown", _serviceName);
+      LOGGER.info("Thread interrupted when waiting for {}/MultiClusterTopicManagementService to shutdown",
+          _serviceName);
     }
     LOGGER.info("{}/MultiClusterTopicManagementService shutdown completed", _serviceName);
   }
-
-
 
   private class TopicManagementRunnable implements Runnable {
 
@@ -196,7 +198,8 @@ public class MultiClusterTopicManagementService implements Service {
           try {
             helper.maybeReassignPartitionAndElectLeader();
           } catch (KafkaException e) {
-            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
+            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName,
+                e);
           }
         }
       } catch (Throwable t) {
@@ -221,8 +224,9 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeElectLeader();
-          } catch (KafkaException e) {
-            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName, e);
+          } catch (IOException | KafkaException e) {
+            LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName,
+                e);
           }
         }
       } catch (Throwable t) {
@@ -252,7 +256,6 @@ public class MultiClusterTopicManagementService implements Service {
     String _topic;
     TopicFactory _topicFactory;
 
-
     @SuppressWarnings("unchecked")
     TopicManagementHelper(Map<String, Object> props) throws Exception {
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
@@ -269,13 +272,17 @@ public class MultiClusterTopicManagementService implements Service {
       _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
-        for (Map.Entry<String, Object> entry: ((Map<String, Object>) props.get(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet())
+        for (Map.Entry<String, Object> entry : ((Map<String, Object>) props.get(
+            TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)).entrySet()) {
           _topicProperties.put(entry.getKey(), entry.getValue().toString());
+        }
       }
 
-      Map topicFactoryConfig = props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ?
-          (Map) props.get(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
-      _topicFactory = (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
+      Map topicFactoryConfig =
+          props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ? (Map) props.get(
+              TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
+      _topicFactory =
+          (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
 
       _adminClient = constructAdminClient(props);
       LOGGER.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
@@ -310,14 +317,12 @@ public class MultiClusterTopicManagementService implements Service {
 
       int partitionNum = partitions.size();
       if (partitionNum < minPartitionNum) {
-        LOGGER.info("{} will increase partition of the topic {} in the cluster from {}"
-            + " to {}.", this.getClass().toString(), _topic, partitionNum, minPartitionNum);
+        LOGGER.info("{} will increase partition of the topic {} in the cluster from {}" + " to {}.",
+            this.getClass().toString(), _topic, partitionNum, minPartitionNum);
         Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
-          BrokerMetadata brokerMetadata = new BrokerMetadata(
-              broker.id(), null
-          );
+          BrokerMetadata brokerMetadata = new BrokerMetadata(broker.id(), null);
           brokers.add(brokerMetadata);
         }
 
@@ -325,14 +330,14 @@ public class MultiClusterTopicManagementService implements Service {
           brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
         }
 
-        List<List<Integer>> newPartitionAssignments = newPartitionAssignments(minPartitionNum, partitionNum, brokers, _replicationFactor);
+        List<List<Integer>> newPartitionAssignments =
+            newPartitionAssignments(minPartitionNum, partitionNum, brokers, _replicationFactor);
 
         NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, newPartitionAssignments);
 
         Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
         newPartitionsMap.put(_topic, newPartitions);
         CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
-
       }
     }
 
@@ -408,7 +413,6 @@ public class MultiClusterTopicManagementService implements Service {
       return _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get().partitions().size();
     }
 
-
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
       Set<Node> brokers = new HashSet<>(_adminClient.describeCluster().nodes().get());
       Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
@@ -417,7 +421,6 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
-
 
       List<TopicPartitionInfo> partitionInfoList =
           _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -463,7 +466,6 @@ public class MultiClusterTopicManagementService implements Service {
         expectedProperties.put(key, _topicProperties.get(key));
       }
 
-
       if (!currentProperties.equals(expectedProperties)) {
         LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
             + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
@@ -471,11 +473,9 @@ public class MultiClusterTopicManagementService implements Service {
         Map<ConfigResource, Collection<AlterConfigOp>> newConfigs = new HashMap<>();
         for (Map.Entry<Object, Object> entry : expectedProperties.entrySet()) {
           newConfigs.put((ConfigResource) entry.getKey(), (Collection) entry.getValue());
-
         }
         _adminClient.incrementalAlterConfigs(newConfigs);
       }
-
 
       if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
           && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
@@ -493,6 +493,17 @@ public class MultiClusterTopicManagementService implements Service {
         } else {
           _preferredLeaderElectionRequested = true;
 
+          if (partitionInfoList.size() >= brokers.size() && someBrokerNotElectedLeader(partitionInfoList, brokers)) {
+            if (!partitionReassigned || Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
+              LOGGER.info(
+                  "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
+                      + "cluster.", _topic);
+              triggerPreferredLeaderElection(partitionInfoList, _topic);
+              _preferredLeaderElectionRequested = false;
+            } else {
+              _preferredLeaderElectionRequested = true;
+            }
+          }
         }
       }
     }
@@ -502,7 +513,6 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-
       if (Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
         List<TopicPartitionInfo> partitionInfoList =
             _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
@@ -510,9 +520,7 @@ public class MultiClusterTopicManagementService implements Service {
             + " topic {} in cluster.", _topic);
         triggerPreferredLeaderElection(partitionInfoList, _topic);
         _preferredLeaderElectionRequested = false;
-
       }
-
     }
 
     private void triggerPreferredLeaderElection(List<TopicPartitionInfo> partitionInfoList, String partitionTopic) {
@@ -522,7 +530,8 @@ public class MultiClusterTopicManagementService implements Service {
       }
       ElectPreferredLeadersResult electPreferredLeadersResult = _adminClient.electPreferredLeaders(partitions);
 
-      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(), electPreferredLeadersResult.all());
+      LOGGER.info("{}: triggerPreferredLeaderElection - {}", this.getClass().toString(),
+          electPreferredLeadersResult.all());
     }
 
     private static void reassignPartitions(AdminClient adminClient, Collection<Node> brokers, String topic,
@@ -560,11 +569,13 @@ public class MultiClusterTopicManagementService implements Service {
         NewPartitionReassignment newPartitionReassignment = new NewPartitionReassignment(targetReplicas);
         reassignments.put(topicPartitionSeqEntry.getKey(), Optional.of(newPartitionReassignment));
       }
+
       AlterPartitionReassignmentsResult alterPartitionReassignmentsResult =
           adminClient.alterPartitionReassignments(reassignments);
       try {
         alterPartitionReassignmentsResult.all().get();
       } catch (InterruptedException | ExecutionException e) {
+
         LOGGER.error("An exception occurred while altering the partition reassignments for {}", topic, e);
       }
     }
@@ -586,21 +597,25 @@ public class MultiClusterTopicManagementService implements Service {
 
     static boolean someBrokerNotPreferredLeader(List<TopicPartitionInfo> partitionInfoList, Collection<Node> brokers) {
       Set<Integer> brokersNotPreferredLeader = new HashSet<>(brokers.size());
-      for (Node broker: brokers)
+      for (Node broker : brokers) {
         brokersNotPreferredLeader.add(broker.id());
-      for (TopicPartitionInfo partitionInfo : partitionInfoList)
+      }
+      for (TopicPartitionInfo partitionInfo : partitionInfoList) {
         brokersNotPreferredLeader.remove(partitionInfo.replicas().get(0).id());
+      }
 
       return !brokersNotPreferredLeader.isEmpty();
     }
 
     static boolean someBrokerNotElectedLeader(List<TopicPartitionInfo> partitionInfoList, Collection<Node> brokers) {
       Set<Integer> brokersNotElectedLeader = new HashSet<>(brokers.size());
-      for (Node broker: brokers)
+      for (Node broker : brokers) {
         brokersNotElectedLeader.add(broker.id());
+      }
       for (TopicPartitionInfo partitionInfo : partitionInfoList) {
-        if (partitionInfo.leader() != null)
+        if (partitionInfo.leader() != null) {
           brokersNotElectedLeader.remove(partitionInfo.leader().id());
+        }
       }
       return !brokersNotElectedLeader.isEmpty();
     }
@@ -653,11 +668,16 @@ public class MultiClusterTopicManagementService implements Service {
      *     {"topic":"kmf-topic","partition":0,"replicas":[2,0]}]}
      * </pre>
      */
-    private static String formatAsNewReassignmentJson(String topic, scala.collection.Map<Object, Seq<Object>> partitionsToReassign) {
+    private static String formatAsNewReassignmentJson(String topic,
+        scala.collection.Map<Object, Seq<Object>> partitionsToReassign) {
       StringBuilder builder = new StringBuilder();
       builder.append("{\"version\":1,\"partitions\":[\n");
       for (int partition = 0; partition < partitionsToReassign.size(); partition++) {
-        builder.append("  {\"topic\":\"").append(topic).append("\",\"partition\":").append(partition).append(",\"replicas\":[");
+        builder.append("  {\"topic\":\"")
+            .append(topic)
+            .append("\",\"partition\":")
+            .append(partition)
+            .append(",\"replicas\":[");
         Seq<Object> replicas = partitionsToReassign.apply(partition);
         for (int replicaIndex = 0; replicaIndex < replicas.size(); replicaIndex++) {
           Object replica = replicas.apply(replicaIndex);
@@ -670,6 +690,5 @@ public class MultiClusterTopicManagementService implements Service {
       builder.append("]}");
       return builder.toString();
     }
-
   }
 }
