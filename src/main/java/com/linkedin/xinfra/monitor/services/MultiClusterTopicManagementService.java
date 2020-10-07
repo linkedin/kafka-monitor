@@ -15,13 +15,9 @@ import com.linkedin.xinfra.monitor.services.configs.CommonServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
-
-import java.io.IOException;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import kafka.admin.AdminUtils;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,16 +33,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.Config;
-
-import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
-
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
@@ -107,7 +100,7 @@ public class MultiClusterTopicManagementService implements Service {
     _preferredLeaderElectionIntervalMs =
         config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor(
-        r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
+      r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
     _topicPartitionResult.complete(null);
   }
 
@@ -224,7 +217,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeElectLeader();
-          } catch (IOException | KafkaException e) {
+          } catch (KafkaException e) {
             LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName,
                 e);
           }
