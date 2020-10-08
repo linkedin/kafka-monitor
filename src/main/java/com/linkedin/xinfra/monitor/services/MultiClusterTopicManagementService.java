@@ -36,11 +36,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import kafka.admin.BrokerMetadata;
-import kafka.server.ConfigType;
-import kafka.zk.KafkaZkClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
+import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitionReassignment;
@@ -53,8 +54,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.security.JaasUtils;
-import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.config.ConfigResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option$;
@@ -415,70 +415,74 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(),
-          Utils.ZK_SESSION_TIMEOUT_MS, Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM,
-          METRIC_GROUP_NAME, "SessionExpireListener", null)) {
+      List<TopicPartitionInfo> partitionInfoList =
+          _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+      Collection<Node> brokers = this.getAvailableBrokers();
+      boolean partitionReassigned = false;
+      if (partitionInfoList.size() == 0) {
+        throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
+      }
 
-        List<TopicPartitionInfo> partitionInfoList =
-            _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-        Collection<Node> brokers = this.getAvailableBrokers();
-        boolean partitionReassigned = false;
-        if (partitionInfoList.size() == 0) {
-          throw new IllegalStateException("Topic " + _topic + " does not exist in cluster.");
+      int currentReplicationFactor = getReplicationFactor(partitionInfoList);
+      int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
+
+      if (_replicationFactor < currentReplicationFactor) {
+        LOGGER.debug(
+            "Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
+            _replicationFactor, currentReplicationFactor, _topic);
+      }
+
+      if (expectedReplicationFactor > currentReplicationFactor && Utils.ongoingPartitionReassignments(_adminClient)
+          .isEmpty()) {
+        LOGGER.info(
+            "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
+                + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
+        reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+
+        partitionReassigned = true;
+      }
+
+      // Update the properties of the monitor topic if any config is different from the user-specified config
+      ConfigResource topicConfigResource = new ConfigResource(ConfigResource.Type.TOPIC, _topic);
+      Config currentConfig = _adminClient.describeConfigs(Collections.singleton(topicConfigResource)).all().get().get(topicConfigResource);
+      Map<String, ConfigEntry> expectedConfigs = new HashMap<>();
+      for (ConfigEntry configEntry : currentConfig.entries()) {
+        expectedConfigs.put(configEntry.name(), configEntry);
+      }
+      for (Map.Entry<Object, Object> entry : _topicProperties.entrySet()) {
+        String name = String.valueOf(entry.getKey());
+        ConfigEntry configEntry = new ConfigEntry(name, String.valueOf(entry.getValue()));
+        expectedConfigs.put(name, configEntry);
+      }
+      Config expectedConfig = new Config(expectedConfigs.values());
+
+      if (!currentConfig.equals(expectedConfig)) {
+        LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+            + "in cluster from {} to {}.", _topic, currentConfig, expectedConfig);
+        Collection<AlterConfigOp> alterConfigOps = new ArrayList<>();
+        for (ConfigEntry configEntry : expectedConfig.entries()) {
+          alterConfigOps.add(new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
         }
+        Map<ConfigResource, Collection<AlterConfigOp>> configs = Collections.singletonMap(topicConfigResource, alterConfigOps);
+        _adminClient.incrementalAlterConfigs(configs);
+      }
 
-        int currentReplicationFactor = getReplicationFactor(partitionInfoList);
-        int expectedReplicationFactor = Math.max(currentReplicationFactor, _replicationFactor);
+      if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
+          && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
+        LOGGER.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
+        reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
 
-        if (_replicationFactor < currentReplicationFactor) {
-          LOGGER.debug(
-              "Configured replication factor {} is smaller than the current replication factor {} of the topic {} in cluster.",
-              _replicationFactor, currentReplicationFactor, _topic);
-        }
+        partitionReassigned = true;
+      }
 
-        if (expectedReplicationFactor > currentReplicationFactor && Utils.ongoingPartitionReassignments(_adminClient)
-            .isEmpty()) {
-          LOGGER.info(
-              "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
-                  + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
-          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-
-          partitionReassigned = true;
-        }
-
-        // Update the properties of the monitor topic if any config is different from the user-specified config
-        Properties currentProperties = zkClient.getEntityConfigs(ConfigType.Topic(), _topic);
-        Properties expectedProperties = new Properties();
-        for (Object key : currentProperties.keySet()) {
-          expectedProperties.put(key, currentProperties.get(key));
-        }
-        for (Object key : _topicProperties.keySet()) {
-          expectedProperties.put(key, _topicProperties.get(key));
-        }
-
-        if (!currentProperties.equals(expectedProperties)) {
-          LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-              + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
-          zkClient.setOrCreateEntityConfigs(ConfigType.Topic(), _topic, expectedProperties);
-        }
-
-        if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
-            && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
-          LOGGER.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
-          reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
-
-          partitionReassigned = true;
-        }
-
-        if (partitionInfoList.size() >= brokers.size() && someBrokerNotElectedLeader(partitionInfoList, brokers)) {
-          if (!partitionReassigned || Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
-            LOGGER.info("MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
-                + "cluster.", _topic);
-            triggerPreferredLeaderElection(partitionInfoList, _topic);
-            _preferredLeaderElectionRequested = false;
-          } else {
-            _preferredLeaderElectionRequested = true;
-          }
+      if (partitionInfoList.size() >= brokers.size() && someBrokerNotElectedLeader(partitionInfoList, brokers)) {
+        if (!partitionReassigned || Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
+          LOGGER.info("MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
+              + "cluster.", _topic);
+          triggerPreferredLeaderElection(partitionInfoList, _topic);
+          _preferredLeaderElectionRequested = false;
+        } else {
+          _preferredLeaderElectionRequested = true;
         }
       }
     }
@@ -488,17 +492,13 @@ public class MultiClusterTopicManagementService implements Service {
         return;
       }
 
-      try (KafkaZkClient zkClient = KafkaZkClient.apply(_zkConnect, JaasUtils.isZkSecurityEnabled(),
-          Utils.ZK_SESSION_TIMEOUT_MS, Utils.ZK_CONNECTION_TIMEOUT_MS, Integer.MAX_VALUE, Time.SYSTEM,
-          METRIC_GROUP_NAME, "SessionExpireListener", null)) {
-        if (Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
-          List<TopicPartitionInfo> partitionInfoList =
-              _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
-          LOGGER.info("MultiClusterTopicManagementService will trigger requested preferred leader election for the"
-              + " topic {} in cluster.", _topic);
-          triggerPreferredLeaderElection(partitionInfoList, _topic);
-          _preferredLeaderElectionRequested = false;
-        }
+      if (Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
+        List<TopicPartitionInfo> partitionInfoList =
+            _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
+        LOGGER.info("MultiClusterTopicManagementService will trigger requested preferred leader election for the"
+            + " topic {} in cluster.", _topic);
+        triggerPreferredLeaderElection(partitionInfoList, _topic);
+        _preferredLeaderElectionRequested = false;
       }
     }
 
