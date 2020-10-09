@@ -445,24 +445,18 @@ public class MultiClusterTopicManagementService implements Service {
       // Update the properties of the monitor topic if any config is different from the user-specified config
       ConfigResource topicConfigResource = new ConfigResource(ConfigResource.Type.TOPIC, _topic);
       Config currentConfig = _adminClient.describeConfigs(Collections.singleton(topicConfigResource)).all().get().get(topicConfigResource);
-      Map<String, ConfigEntry> expectedConfigs = new HashMap<>();
-      for (ConfigEntry configEntry : currentConfig.entries()) {
-        expectedConfigs.put(configEntry.name(), configEntry);
-      }
+      Collection<AlterConfigOp> alterConfigOps = new ArrayList<>();
       for (Map.Entry<Object, Object> entry : _topicProperties.entrySet()) {
         String name = String.valueOf(entry.getKey());
         ConfigEntry configEntry = new ConfigEntry(name, String.valueOf(entry.getValue()));
-        expectedConfigs.put(name, configEntry);
-      }
-      Config expectedConfig = new Config(expectedConfigs.values());
-
-      if (!currentConfig.equals(expectedConfig)) {
-        LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-            + "in cluster from {} to {}.", _topic, currentConfig, expectedConfig);
-        Collection<AlterConfigOp> alterConfigOps = new ArrayList<>();
-        for (ConfigEntry configEntry : expectedConfig.entries()) {
+        if (!configEntry.equals(currentConfig.get(name))) {
           alterConfigOps.add(new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
         }
+      }
+
+      if (!alterConfigOps.isEmpty()) {
+        LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+                + "in cluster with {}.", _topic, alterConfigOps);
         Map<ConfigResource, Collection<AlterConfigOp>> configs = Collections.singletonMap(topicConfigResource, alterConfigOps);
         _adminClient.incrementalAlterConfigs(configs);
       }
