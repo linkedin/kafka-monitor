@@ -39,7 +39,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
-import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
@@ -444,13 +443,11 @@ public class MultiClusterTopicManagementService implements Service {
       // Update the properties of the monitor topic if any config is different from the user-specified config
       Properties currentProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
       Properties expectedProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
+      ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, _topic);
       DescribeConfigsResult describeConfigsResult =
-          _adminClient.describeConfigs(Collections.singleton(new ConfigResource(ConfigResource.Type.TOPIC, _topic)));
+          _adminClient.describeConfigs(Collections.singleton(configResource));
 
-      for (Map.Entry<ConfigResource, KafkaFuture<Config>> entry : describeConfigsResult.values().entrySet()) {
-        ConfigResource configResource = entry.getKey();
-        Config config = entry.getValue().get();
-        ConfigEntry configEntry = config.get(_topic);
+      for (ConfigEntry configEntry : describeConfigsResult.values().get(configResource).get().entries()) {
         currentProperties.put(configResource, new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
       }
 
