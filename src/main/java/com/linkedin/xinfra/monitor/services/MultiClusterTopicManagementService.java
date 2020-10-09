@@ -40,6 +40,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
 import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
@@ -447,8 +448,10 @@ public class MultiClusterTopicManagementService implements Service {
           _adminClient.describeConfigs(Collections.singleton(new ConfigResource(ConfigResource.Type.TOPIC, _topic)));
 
       for (Map.Entry<ConfigResource, KafkaFuture<Config>> entry : describeConfigsResult.values().entrySet()) {
-        currentProperties.put(entry.getKey(),
-            new AlterConfigOp(entry.getValue().get().get(_topic), AlterConfigOp.OpType.SET));
+        ConfigResource configResource = entry.getKey();
+        Config config = entry.getValue().get();
+        ConfigEntry configEntry = config.get(_topic);
+        currentProperties.put(configResource, new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
       }
 
       for (Object key : currentProperties.keySet()) {
