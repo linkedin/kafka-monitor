@@ -483,18 +483,6 @@ public class MultiClusterTopicManagementService implements Service {
           _preferredLeaderElectionRequested = false;
         } else {
           _preferredLeaderElectionRequested = true;
-
-          if (partitionInfoList.size() >= brokers.size() && someBrokerNotElectedLeader(partitionInfoList, brokers)) {
-            if (!partitionReassigned || Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
-              LOGGER.info(
-                  "MultiClusterTopicManagementService will trigger preferred leader election for the topic {} in "
-                      + "cluster.", _topic);
-              triggerPreferredLeaderElection(partitionInfoList, _topic);
-              _preferredLeaderElectionRequested = false;
-            } else {
-              _preferredLeaderElectionRequested = true;
-            }
-          }
         }
       }
     }
