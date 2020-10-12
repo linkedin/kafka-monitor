@@ -42,7 +42,6 @@ import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
-import org.apache.kafka.clients.admin.ElectPreferredLeadersResult;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitionReassignment;
 import org.apache.kafka.clients.admin.NewPartitions;
