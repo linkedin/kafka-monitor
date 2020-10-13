@@ -39,6 +39,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
+import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
@@ -415,7 +416,6 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
-
       List<TopicPartitionInfo> partitionInfoList =
           _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
       Collection<Node> brokers = this.getAvailableBrokers();
@@ -435,44 +435,39 @@ public class MultiClusterTopicManagementService implements Service {
 
       if (expectedReplicationFactor > currentReplicationFactor && Utils.ongoingPartitionReassignments(_adminClient)
           .isEmpty()) {
-        LOGGER.info("MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
-            + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
+
+        LOGGER.info(
+            "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
+                + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
         reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+
         partitionReassigned = true;
       }
 
       // Update the properties of the monitor topic if any config is different from the user-specified config
-      Properties currentProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
-      Properties expectedProperties = new Properties(); // ConfigResource -> Collection<AlterConfigOp>
-      ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, _topic);
-      DescribeConfigsResult describeConfigsResult =
-          _adminClient.describeConfigs(Collections.singleton(configResource));
-
-      for (ConfigEntry configEntry : describeConfigsResult.values().get(configResource).get().entries()) {
-        currentProperties.put(configResource, new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
-      }
-
-      for (Object key : currentProperties.keySet()) {
-        expectedProperties.put(key, currentProperties.get(key));
-      }
-      for (Object key : _topicProperties.keySet()) {
-        expectedProperties.put(key, _topicProperties.get(key));
-      }
-
-      if (!currentProperties.equals(expectedProperties)) {
-        LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
-            + "in cluster from {} to {}.", _topic, currentProperties, expectedProperties);
-        Map<ConfigResource, Collection<AlterConfigOp>> newConfigs = new HashMap<>();
-        for (Map.Entry<Object, Object> entry : expectedProperties.entrySet()) {
-          newConfigs.put((ConfigResource) entry.getKey(), (Collection) entry.getValue());
+      ConfigResource topicConfigResource = new ConfigResource(ConfigResource.Type.TOPIC, _topic);
+      Config currentConfig = _adminClient.describeConfigs(Collections.singleton(topicConfigResource)).all().get().get(topicConfigResource);
+      Collection<AlterConfigOp> alterConfigOps = new ArrayList<>();
+      for (Map.Entry<Object, Object> entry : _topicProperties.entrySet()) {
+        String name = String.valueOf(entry.getKey());
+        ConfigEntry configEntry = new ConfigEntry(name, String.valueOf(entry.getValue()));
+        if (!configEntry.equals(currentConfig.get(name))) {
+          alterConfigOps.add(new AlterConfigOp(configEntry, AlterConfigOp.OpType.SET));
         }
-        _adminClient.incrementalAlterConfigs(newConfigs);
+      }
+
+      if (!alterConfigOps.isEmpty()) {
+        LOGGER.info("MultiClusterTopicManagementService will overwrite properties of the topic {} "
+                + "in cluster with {}.", _topic, alterConfigOps);
+        Map<ConfigResource, Collection<AlterConfigOp>> configs = Collections.singletonMap(topicConfigResource, alterConfigOps);
+        _adminClient.incrementalAlterConfigs(configs);
       }
 
       if (partitionInfoList.size() >= brokers.size() && someBrokerNotPreferredLeader(partitionInfoList, brokers)
           && Utils.ongoingPartitionReassignments(_adminClient).isEmpty()) {
         LOGGER.info("{} will reassign partitions of the topic {} in cluster.", this.getClass().toString(), _topic);
         reassignPartitions(_adminClient, brokers, _topic, partitionInfoList.size(), expectedReplicationFactor);
+
         partitionReassigned = true;
       }
 
