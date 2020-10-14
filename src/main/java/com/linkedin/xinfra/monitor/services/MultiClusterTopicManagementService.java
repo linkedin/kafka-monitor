@@ -15,11 +15,9 @@ import com.linkedin.xinfra.monitor.services.configs.CommonServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import kafka.admin.AdminUtils;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.admin.AdminUtils;
 import kafka.admin.BrokerMetadata;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -219,7 +218,7 @@ public class MultiClusterTopicManagementService implements Service {
           TopicManagementHelper helper = entry.getValue();
           try {
             helper.maybeElectLeader();
-          } catch (IOException | KafkaException e) {
+          } catch (KafkaException e) {
             LOGGER.warn(_serviceName + "/MultiClusterTopicManagementService will retry later in cluster " + clusterName,
                 e);
           }
@@ -435,6 +434,7 @@ public class MultiClusterTopicManagementService implements Service {
 
       if (expectedReplicationFactor > currentReplicationFactor && Utils.ongoingPartitionReassignments(_adminClient)
           .isEmpty()) {
+
         LOGGER.info(
             "MultiClusterTopicManagementService will increase the replication factor of the topic {} in cluster"
                 + "from {} to {}", _topic, currentReplicationFactor, expectedReplicationFactor);
@@ -482,7 +482,7 @@ public class MultiClusterTopicManagementService implements Service {
       }
     }
 
-    void maybeElectLeader() throws Exception {
+    void maybeElectLeader() throws InterruptedException, ExecutionException, TimeoutException {
       if (!_preferredLeaderElectionRequested) {
         return;
       }
