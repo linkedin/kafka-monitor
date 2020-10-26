@@ -163,7 +163,7 @@ public class ClusterTopicManipulationService implements Service {
       try {
         int brokerCount = _adminClient.describeCluster().nodes().get().size();
 
-        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_zkConnect);
+        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_adminClient);
         Set<BrokerMetadata> brokers = new HashSet<>();
         for (Node broker : _adminClient.describeCluster().nodes().get()) {
           BrokerMetadata brokerMetadata = new BrokerMetadata(broker.id(), null);
