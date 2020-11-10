@@ -39,6 +39,8 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.linkedin.xinfra.monitor.common.Utils.prettyPrint;
+
 /*
  * The SingleClusterMonitor app is intended to monitor the performance and availability of a given Kafka cluster. It creates
  * one producer and one consumer with the given configuration, produces messages with increasing integer in the
@@ -55,53 +57,81 @@ public class SingleClusterMonitor implements App {
   private final TopicManagementService _topicManagementService;
   private final String _name;
   private final List<Service> _allServices;
+  private final boolean _isTopicManagementServiceEnabled;
 
   public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
     ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
     _name = name;
-    _topicManagementService = new TopicManagementService(props, name);
-    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+    LOG.info("SingleClusterMonitor properties: {}", prettyPrint(props));
+    _isTopicManagementServiceEnabled = (boolean) props.get("topic-management.topicManagementEnabled");
+    _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
+    CompletableFuture<Void> topicPartitionResult;
+    if (_isTopicManagementServiceEnabled) {
+      _topicManagementService = new TopicManagementService(props, name);
+      topicPartitionResult = _topicManagementService.topicPartitionResult();
 
-    // block on the MultiClusterTopicManagementService to complete.
-    topicPartitionResult.get();
+      // block on the MultiClusterTopicManagementService to complete.
+      topicPartitionResult.get();
 
+      _allServices.add(_topicManagementService);
+    } else {
+      _topicManagementService = null;
+      topicPartitionResult = new CompletableFuture<>();
+      topicPartitionResult.complete(null);
+
+    }
     ProduceService produceService = new ProduceService(props, name);
     ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-
-    _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
-    _allServices.add(_topicManagementService);
     _allServices.add(produceService);
     _allServices.add(consumeService);
   }
 
   @Override
   public void start() throws Exception {
-    _topicManagementService.start();
-    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
-    try {
+    if (_isTopicManagementServiceEnabled) {
+      _topicManagementService.start();
+      CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+
+      try {
       /* Delay 2 second to reduce the chance that produce and consumer thread has race condition
       with TopicManagementService and MultiClusterTopicManagementService */
-      long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
-      Thread.sleep(threadSleepMs);
-    } catch (InterruptedException e) {
-      throw new Exception("Interrupted while sleeping the thread", e);
-    }
-    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+        long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
+        Thread.sleep(threadSleepMs);
+      } catch (InterruptedException e) {
+        throw new Exception("Interrupted while sleeping the thread", e);
+      }
+      CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+        for (Service service : _allServices) {
+          if (!service.isRunning()) {
+            LOG.debug("Now starting {}", service.getServiceName());
+            service.start();
+          }
+        }
+      });
+
+      try {
+        topicPartitionFuture.get();
+      } catch (InterruptedException | ExecutionException e) {
+        throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
+      }
+
+    } else {
+      try {
+        long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
+        Thread.sleep(threadSleepMs);
+      } catch (InterruptedException e) {
+        throw new Exception("Interrupted while sleeping the thread", e);
+      }
+
       for (Service service : _allServices) {
         if (!service.isRunning()) {
           LOG.debug("Now starting {}", service.getServiceName());
           service.start();
         }
       }
-    });
-
-    try {
-      topicPartitionFuture.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
     }
 
-    LOG.info(_name + "/SingleClusterMonitor started.");
+    LOG.info(_name + "/SingleClusterMonitor started!");
   }
 
   @Override
