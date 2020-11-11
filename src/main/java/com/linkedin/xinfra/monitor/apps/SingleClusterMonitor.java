@@ -63,7 +63,9 @@ public class SingleClusterMonitor implements App {
     ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
     _name = name;
     LOG.info("SingleClusterMonitor properties: {}", prettyPrint(props));
-    _isTopicManagementServiceEnabled = (boolean) props.get("topic-management.topicManagementEnabled");
+    TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
+    _isTopicManagementServiceEnabled =
+        config.getBoolean(TopicManagementServiceConfig.TOPIC_MANAGEMENT_ENABLED_CONFIG);
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     CompletableFuture<Void> topicPartitionResult;
     if (_isTopicManagementServiceEnabled) {
@@ -116,13 +118,6 @@ public class SingleClusterMonitor implements App {
       }
 
     } else {
-      try {
-        long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
-        Thread.sleep(threadSleepMs);
-      } catch (InterruptedException e) {
-        throw new Exception("Interrupted while sleeping the thread", e);
-      }
-
       for (Service service : _allServices) {
         if (!service.isRunning()) {
           LOG.debug("Now starting {}", service.getServiceName());

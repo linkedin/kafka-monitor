@@ -60,8 +60,16 @@ public class TopicManagementServiceConfig extends AbstractConfig {
   public static final String TOPIC_PROPS_CONFIG = "topic-management.topic.props";
   public static final String TOPIC_PROPS_DOC = "A configuration map for the topic";
 
+  public static final String TOPIC_MANAGEMENT_ENABLED_CONFIG = "topic-management.topicManagementEnabled";
+  public static final String TOPIC_MANAGEMENT_ENABLED_DOC = "Boolean switch for enabling Topic Management Service";
+
   static {
     CONFIG = new ConfigDef()
+      .define(TOPIC_MANAGEMENT_ENABLED_CONFIG,
+              ConfigDef.Type.BOOLEAN,
+              true,
+              ConfigDef.Importance.HIGH,
+              TOPIC_MANAGEMENT_ENABLED_DOC)
       .define(ZOOKEEPER_CONNECT_CONFIG,
               ConfigDef.Type.STRING,
               ConfigDef.Importance.HIGH,
