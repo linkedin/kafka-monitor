@@ -19,8 +19,8 @@ import org.apache.kafka.common.metrics.Metrics;
  */
 class XinfraMonitorMetrics {
 
-  Metrics _metrics;
-  Map<String, String> _tags;
+  final Metrics _metrics;
+  final Map<String, String> _tags;
 
   /**
    *

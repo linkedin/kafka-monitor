@@ -308,7 +308,7 @@ public class ProduceService implements Service {
     }
   }
 
-  @SuppressWarnings("NullableProblems")
+
   private class ProduceServiceThreadFactory implements ThreadFactory {
 
     private final AtomicInteger _threadId = new AtomicInteger();
@@ -318,7 +318,7 @@ public class ProduceService implements Service {
   }
 
   private class HandleNewPartitionsThreadFactory implements ThreadFactory {
-    public Thread newThread(@SuppressWarnings("NullableProblems") Runnable r) {
+    public Thread newThread(Runnable r) {
       return new Thread(r, _name + "-produce-service-new-partition-handler");
     }
   }

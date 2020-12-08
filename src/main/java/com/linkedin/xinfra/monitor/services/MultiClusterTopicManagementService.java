@@ -383,10 +383,9 @@ public class MultiClusterTopicManagementService implements Service {
       // Using Set enforces the usage of loop which is O(n).
       // As the list of brokers does not change in newPartitionAssignments,
       // the acceptance of a List argument instead of a Set will be faster which is (O(1))
-      List<BrokerMetadata> brokerMetadataList = new ArrayList<>();
-
+      List<BrokerMetadata> brokerMetadataList = new ArrayList<>(brokers);
       // convert to a list so there's no need to create a index and iterate through this set
-      brokerMetadataList.addAll(brokers);
+      //addAll() is replaced with parameterized constructor call for better performance..
 
       int brokerSetSize = brokers.size();
 

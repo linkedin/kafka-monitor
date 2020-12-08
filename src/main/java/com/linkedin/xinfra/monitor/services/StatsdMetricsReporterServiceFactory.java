@@ -28,7 +28,7 @@ public class StatsdMetricsReporterServiceFactory implements ServiceFactory {
   }
 
   @Override
-  public Service createService() throws Exception {
+  public Service createService() {
 
     //noinspection unchecked
     return new StatsdMetricsReporterService(_properties, _name);
