@@ -204,7 +204,7 @@ public class ConsumeService implements Service {
 
       } else if (index < nextIndex) {
         _sensors._recordsDuplicated.record();
-      } else if (index > nextIndex) {
+      } else { // this will equate to the case where index > nextIndex...
         nextIndexes.put(partition, index + 1);
         long numLostRecords = index - nextIndex;
         _sensors._recordsLost.record(numLostRecords);

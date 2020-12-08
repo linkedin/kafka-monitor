@@ -58,7 +58,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Service that monitors the commit offset availability of a particular Consumer Group.
  */
-@SuppressWarnings("NullableProblems")
 public class OffsetCommitService implements Service {
 
   public static final String METRIC_GRP_PREFIX = "xm-offset-commit-service";

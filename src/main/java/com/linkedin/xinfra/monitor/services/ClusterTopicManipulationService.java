@@ -90,6 +90,7 @@ public class ClusterTopicManipulationService implements Service {
     tags.put("name", name);
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
+    @SuppressWarnings("rawtypes")
     Map topicFactoryConfig =
         props.containsKey(TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) ? (Map) props.get(
             TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();

@@ -15,8 +15,8 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.stats.Total;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +37,13 @@ public class CommitAvailabilityMetrics {
     LOG.info("{} called.", this.getClass().getSimpleName());
     _offsetsCommitted = metrics.sensor("offsets-committed");
     _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,
-        "The total number of offsets per second that are committed.", tags), new Total());
+        "The total number of offsets per second that are committed.", tags), new CumulativeSum());
 
     _failedCommitOffsets = metrics.sensor("failed-commit-offsets");
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-avg", METRIC_GROUP_NAME,
         "The average number of offsets per second that have failed.", tags), new Rate());
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
-        "The total number of offsets per second that have failed.", tags), new Total());
+        "The total number of offsets per second that have failed.", tags), new CumulativeSum());
 
     metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
       (MetricConfig config, long now) -> {

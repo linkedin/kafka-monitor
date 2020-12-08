@@ -19,11 +19,11 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Percentile;
 import org.apache.kafka.common.metrics.stats.Percentiles;
 import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.stats.Total;
 
 
 public class ProduceMetrics {
@@ -52,13 +52,13 @@ public class ProduceMetrics {
             "The average number of records per second that are produced", tags), new Rate());
     _recordsProduced.add(
         new MetricName("records-produced-total", XinfraMonitorConstants.METRIC_GROUP_NAME_PRODUCE_SERVICE,
-            "The total number of records that are produced", tags), new Total());
+            "The total number of records that are produced", tags), new CumulativeSum());
 
     _produceError = metrics.sensor("produce-error");
     _produceError.add(new MetricName("produce-error-rate", XinfraMonitorConstants.METRIC_GROUP_NAME_PRODUCE_SERVICE,
         "The average number of errors per second", tags), new Rate());
     _produceError.add(new MetricName("produce-error-total", XinfraMonitorConstants.METRIC_GROUP_NAME_PRODUCE_SERVICE,
-        "The total number of errors", tags), new Total());
+        "The total number of errors", tags), new CumulativeSum());
 
     _produceDelay = metrics.sensor("produce-delay");
     _produceDelay.add(new MetricName("produce-delay-ms-avg", XinfraMonitorConstants.METRIC_GROUP_NAME_PRODUCE_SERVICE,

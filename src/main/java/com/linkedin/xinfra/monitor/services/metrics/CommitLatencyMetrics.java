@@ -63,7 +63,7 @@ public class CommitLatencyMetrics {
    * start the recording of consumer offset commit
    * @throws Exception if the offset commit is already in progress.
    */
-  public void recordCommitStart() throws Exception {
+  public void recordCommitStart() {
     if (!_inProgressCommit) {
       this.setCommitStartTimeMs(System.currentTimeMillis());
       _inProgressCommit = true;
