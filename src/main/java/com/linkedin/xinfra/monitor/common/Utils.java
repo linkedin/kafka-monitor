@@ -19,10 +19,10 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -112,18 +112,11 @@ public class Utils {
 
     List<BrokerMetadata> brokerMetadataList = new ArrayList<>(brokers);
 
-    int brokerSetSize = brokers.size();
+    // Shuffle to get a random order in the replica list
+    Collections.shuffle(brokerMetadataList);
 
-    List<Integer> replicaList = new ArrayList<>();
-    while (replicaList.size() < brokerSetSize) {
-
-      // Regardless of the replica assignments here, maybeReassignPartitionAndElectLeader()
-      // will periodically reassign the partition as needed.
-      int random = new Random().nextInt(brokerSetSize);
-      BrokerMetadata brokerMetadata = brokerMetadataList.get(random);
-      int id = brokerMetadata.id();
-      replicaList.add(id);
-    }
+    // Get broker ids for replica list
+    List<Integer> replicaList = brokerMetadataList.stream().map(m -> m.id()).collect(Collectors.toList());
 
     return replicaList;
   }
