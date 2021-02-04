@@ -50,6 +50,15 @@ public class TopicManagementServiceConfig extends AbstractConfig {
       + " in the config with replication factor %s and min ISR as max(%s - 1, 1). The partition number is determined based on %s and %s",
       TOPIC_REPLICATION_FACTOR_CONFIG, TOPIC_REPLICATION_FACTOR_CONFIG, PARTITIONS_TO_BROKERS_RATIO_CONFIG, MIN_PARTITION_NUM_DOC);
 
+  public static final String TOPIC_ADD_PARTITION_ENABLED_CONFIG = "topic-management.topicAddPartitionEnabled";
+  public static final String TOPIC_ADD_PARTITION_ENABLED_DOC = String.format("When true this service automatically add topic partition(s) "
+      + "if the current topic partition count is smaller than the partition number which is determined based on %s and %s",
+          PARTITIONS_TO_BROKERS_RATIO_CONFIG, MIN_PARTITION_NUM_DOC);
+
+  public static final String TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG = "topic-management.topicReassignPartitionAndElectLeaderEnabled";
+  public static final String TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_DOC = "When true this service automatically balance topic partitions in"
+      + " a cluster to ensure a minimum number of leader replicas on each alive broker.";
+
   public static final String TOPIC_FACTORY_CLASS_CONFIG = "topic-management.topicFactory.class.name";
   public static final String TOPIC_FACTORY_CLASS_DOC = "The name of the class used to create topics.  This class must implement "
       + TopicFactory.class.getName() + ".";
@@ -93,6 +102,16 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               true,
               ConfigDef.Importance.LOW,
               TOPIC_CREATION_ENABLED_DOC)
+      .define(TOPIC_ADD_PARTITION_ENABLED_CONFIG,
+              ConfigDef.Type.BOOLEAN,
+              true,
+              ConfigDef.Importance.LOW,
+              TOPIC_ADD_PARTITION_ENABLED_DOC)
+      .define(TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG,
+              ConfigDef.Type.BOOLEAN,
+              true,
+              ConfigDef.Importance.LOW,
+              TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_DOC)
       .define(TOPIC_REPLICATION_FACTOR_CONFIG,
               ConfigDef.Type.INT,
               1,
