@@ -277,6 +277,22 @@ public class SingleClusterMonitor implements App {
       .dest("autoTopicCreationEnabled")
       .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
+    parser.addArgument("--topic-add-partition-enabled")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("TOPIC_ADD_PARTITION_ENABLED")
+      .dest("topicAddPartitionEnabled")
+      .help(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_DOC);
+
+    parser.addArgument("--topic-reassign-partition-and-elect-leader-enabled")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED")
+      .dest("topicReassignPartitionAndElectLeaderEnabled")
+      .help(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_DOC);
+
     parser.addArgument("--replication-factor")
         .action(net.sourceforge.argparse4j.impl.Arguments.store())
         .required(false)
@@ -336,6 +352,10 @@ public class SingleClusterMonitor implements App {
     // topic management service config
     if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+    if (res.getBoolean("topicAddPartitionEnabled") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG, res.getBoolean("topicAddPartitionEnabled"));
+    if (res.getBoolean("topicReassignPartitionAndElectLeaderEnabled") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG, res.getBoolean("topicReassignPartitionAndElectLeaderEnabled"));
     if (res.getInt("replicationFactor") != null)
       props.put(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG, res.getInt("replicationFactor"));
     if (res.getInt("rebalanceMs") != null)

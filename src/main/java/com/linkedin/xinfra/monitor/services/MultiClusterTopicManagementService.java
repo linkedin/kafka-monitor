@@ -84,7 +84,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
-  private final int _scheduleIntervalMs;
+  private final int _rebalanceIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private final ScheduledExecutorService _executor;
 
@@ -97,7 +97,7 @@ public class MultiClusterTopicManagementService implements Service {
         props.containsKey(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) ? (Map) props.get(
             MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
-    _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    _rebalanceIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs =
         config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor(
@@ -128,13 +128,20 @@ public class MultiClusterTopicManagementService implements Service {
   @Override
   public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
-      Runnable tmRunnable = new TopicManagementRunnable();
-      _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      final long topicManagementProcedureInitialDelay = 0;
+      _executor.scheduleWithFixedDelay(
+              new TopicManagementRunnable(),
+              topicManagementProcedureInitialDelay,
+              _rebalanceIntervalMs,
+              TimeUnit.MILLISECONDS);
 
-      Runnable pleRunnable = new PreferredLeaderElectionRunnable();
-      _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs,
+      LOGGER.info("Topic management periodical procedure started with initial delay {} ms and interval {} ms",
+              topicManagementProcedureInitialDelay, _rebalanceIntervalMs);
+
+      _executor.scheduleWithFixedDelay(new PreferredLeaderElectionRunnable(), _preferredLeaderElectionIntervalMs,
           _preferredLeaderElectionIntervalMs, TimeUnit.MILLISECONDS);
-      LOGGER.info("{}/MultiClusterTopicManagementService started.", _serviceName);
+      LOGGER.info("Preferred leader election periodical procedure started with initial delay {} ms and interval {} ms",
+              _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs);
     }
   }
 
@@ -242,10 +249,12 @@ public class MultiClusterTopicManagementService implements Service {
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
     private final int _requestTimeoutMs;
-    private final List _bootstrapServers;
+    private final List<String> _bootstrapServers;
 
     // package private for unit testing
     boolean _topicCreationEnabled;
+    boolean _topicAddPartitionEnabled;
+    boolean _topicReassignPartitionAndElectLeaderEnabled;
     AdminClient _adminClient;
     String _topic;
     TopicFactory _topicFactory;
@@ -256,6 +265,8 @@ public class MultiClusterTopicManagementService implements Service {
       AdminClientConfig adminClientConfig = new AdminClientConfig(props);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
       _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+      _topicAddPartitionEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
+      _topicReassignPartitionAndElectLeaderEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
       _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
@@ -284,14 +295,17 @@ public class MultiClusterTopicManagementService implements Service {
 
     @SuppressWarnings("unchecked")
     void maybeCreateTopic() throws Exception {
-      if (_topicCreationEnabled) {
-        int brokerCount = _adminClient.describeCluster().nodes().get().size();
-        int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
-        NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
-        newTopic.configs((Map) _topicProperties);
-        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
-            _topicProperties, _adminClient);
+      if (!_topicCreationEnabled) {
+        LOGGER.info("Topic creation is not enabled for {} in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+        return;
       }
+      int brokerCount = _adminClient.describeCluster().nodes().get().size();
+      int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
+      NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
+      newTopic.configs((Map) _topicProperties);
+      _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
+              _topicProperties, _adminClient);
     }
 
     AdminClient constructAdminClient(Map<String, Object> props) {
@@ -304,6 +318,11 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
+      if (!_topicAddPartitionEnabled) {
+        LOGGER.info("Adding partition to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
+        return;
+      }
       Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap =
           _adminClient.describeTopics(Collections.singleton(_topic)).values();
       KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
@@ -414,6 +433,11 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
+      if (!_topicReassignPartitionAndElectLeaderEnabled) {
+        LOGGER.info("Reassign partition and elect leader to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
+        return;
+      }
       List<TopicPartitionInfo> partitionInfoList =
           _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
       Collection<Node> brokers = this.getAvailableBrokers();
