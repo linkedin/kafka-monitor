@@ -263,6 +263,7 @@ public class MultiClusterTopicManagementService implements Service {
 
     @SuppressWarnings("unchecked")
     TopicManagementHelper(Map<String, Object> props) throws Exception {
+
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
       AdminClientConfig adminClientConfig = new AdminClientConfig(props);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
@@ -290,9 +291,17 @@ public class MultiClusterTopicManagementService implements Service {
               TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory =
           (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
-
       _adminClient = constructAdminClient(props);
       LOGGER.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
+      logConfigurationValues();
+    }
+
+    private void logConfigurationValues() {
+      LOGGER.info("TopicManagementHelper for cluster with Zookeeper connect {} is configured with " +
+              "[topic={}, topicCreationEnabled={}, topicAddPartitionEnabled={}, " +
+              "topicReassignPartitionAndElectLeaderEnabled={}, minPartitionsToBrokersRatio={}, " +
+              "minPartitionNum={}]", _zkConnect, _topic, _topicCreationEnabled, _topicAddPartitionEnabled,
+              _topicReassignPartitionAndElectLeaderEnabled, _minPartitionsToBrokersRatio, _minPartitionNum);
     }
 
     @SuppressWarnings("unchecked")
