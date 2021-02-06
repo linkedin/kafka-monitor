@@ -55,13 +55,13 @@ public class SingleClusterMonitor implements App {
 
   private static final int SERVICES_INITIAL_CAPACITY = 4;
   private final TopicManagementService _topicManagementService;
-  private final String _name;
+  private final String _clusterName;
   private final List<Service> _allServices;
   private final boolean _isTopicManagementServiceEnabled;
 
-  public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  public SingleClusterMonitor(Map<String, Object> props, String clusterName) throws Exception {
     ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
-    _name = name;
+    _clusterName = clusterName;
     LOG.info("SingleClusterMonitor properties: {}", prettyPrint(props));
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     _isTopicManagementServiceEnabled =
@@ -69,7 +69,8 @@ public class SingleClusterMonitor implements App {
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
     CompletableFuture<Void> topicPartitionResult;
     if (_isTopicManagementServiceEnabled) {
-      _topicManagementService = new TopicManagementService(props, name);
+      String topicManagementServiceName = String.format("Topic-management-service-for-%s", clusterName);
+      _topicManagementService = new TopicManagementService(props, topicManagementServiceName);
       topicPartitionResult = _topicManagementService.topicPartitionResult();
 
       // block on the MultiClusterTopicManagementService to complete.
@@ -80,10 +81,9 @@ public class SingleClusterMonitor implements App {
       _topicManagementService = null;
       topicPartitionResult = new CompletableFuture<>();
       topicPartitionResult.complete(null);
-
     }
-    ProduceService produceService = new ProduceService(props, name);
-    ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
+    ProduceService produceService = new ProduceService(props, clusterName);
+    ConsumeService consumeService = new ConsumeService(clusterName, topicPartitionResult, consumerFactory);
     _allServices.add(produceService);
     _allServices.add(consumeService);
   }
@@ -126,7 +126,7 @@ public class SingleClusterMonitor implements App {
       }
     }
 
-    LOG.info(_name + "/SingleClusterMonitor started!");
+    LOG.info(_clusterName + "/SingleClusterMonitor started!");
   }
 
   @Override
@@ -134,7 +134,7 @@ public class SingleClusterMonitor implements App {
     for (Service service : _allServices) {
       service.stop();
     }
-    LOG.info(_name + "/SingleClusterMonitor stopped.");
+    LOG.info(_clusterName + "/SingleClusterMonitor stopped.");
   }
 
   @Override
