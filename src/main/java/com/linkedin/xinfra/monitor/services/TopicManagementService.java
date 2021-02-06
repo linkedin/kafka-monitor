@@ -58,8 +58,14 @@ public class TopicManagementService implements Service {
     Map<String, Object> serviceProps = new HashMap<>();
     serviceProps.put(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG, configPerCluster);
     serviceProps.put(MultiClusterTopicManagementServiceConfig.TOPIC_CONFIG, props.get(TopicManagementServiceConfig.TOPIC_CONFIG));
-    if (props.containsKey(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG))
-      serviceProps.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, props.get(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG));
+    Object providedRebalanceIntervalMsConfig = props.get(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    if (providedRebalanceIntervalMsConfig != null) {
+      serviceProps.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, providedRebalanceIntervalMsConfig);
+    }
+    Object providedPreferredLeaderElectionIntervalMsConfig = props.get(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
+    if (providedPreferredLeaderElectionIntervalMsConfig != null) {
+      serviceProps.put(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG, providedPreferredLeaderElectionIntervalMsConfig);
+    }
     return serviceProps;
   }
 
