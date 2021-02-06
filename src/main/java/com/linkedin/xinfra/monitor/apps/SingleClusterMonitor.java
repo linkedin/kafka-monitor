@@ -309,6 +309,14 @@ public class SingleClusterMonitor implements App {
       .dest("rebalanceMs")
       .help(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
 
+    parser.addArgument("--topic-preferred-leader-election-interval-ms")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Integer.class)
+      .metavar("PREFERED_LEADER_ELECTION_INTERVAL_MS")
+      .dest("preferredLeaderElectionIntervalMs")
+      .help(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_DOC);
+
     return parser;
   }
 
@@ -360,6 +368,8 @@ public class SingleClusterMonitor implements App {
       props.put(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG, res.getInt("replicationFactor"));
     if (res.getInt("rebalanceMs") != null)
       props.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
+    if (res.getLong("preferredLeaderElectionIntervalMs") != null)
+      props.put(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG, res.getLong("preferredLeaderElectionIntervalMs"));
     SingleClusterMonitor app = new SingleClusterMonitor(props, "single-cluster-monitor");
     app.start();
 
