@@ -342,7 +342,7 @@ public class MultiClusterTopicManagementService implements Service {
 
       final int currPartitionNum = partitions.size();
       if (currPartitionNum >= requiredMinPartitionNum) {
-        LOGGER.info("{} will not increase partition of the topic {} in the cluster. Current partition count {} and '" +
+        LOGGER.debug("{} will not increase partition of the topic {} in the cluster. Current partition count {} and '" +
                 "minimum required partition count is {}.", this.getClass().toString(), _topic, currPartitionNum, requiredMinPartitionNum);
         return;
       }
