@@ -365,8 +365,7 @@ public class MultiClusterTopicManagementService implements Service {
 
       Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
       newPartitionsMap.put(_topic, newPartitions);
-      CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
-      createPartitionsResult.all().wait(_requestTimeout.toMillis());
+      _adminClient.createPartitions(newPartitionsMap).all().get(_requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
       LOGGER.info("{} finished increasing partition of the topic {} in the cluster from {} to {}",
               this.getClass().toString(), _topic, currPartitionNum,  requiredMinPartitionNum);
     }
