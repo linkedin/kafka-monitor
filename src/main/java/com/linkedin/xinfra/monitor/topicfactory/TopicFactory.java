@@ -42,6 +42,6 @@ public interface TopicFactory {
    * @param adminClient AdminClient object
    * @return A set of brokers that don't take new partitions or reassigned partitions for topics.
    */
-  Set<Integer> getBlackListedBrokers(AdminClient adminClient);
+  Set<Integer> getExcludedBrokers(AdminClient adminClient);
 
 }

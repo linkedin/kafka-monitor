@@ -32,7 +32,7 @@ public class DefaultTopicFactory implements TopicFactory {
   }
 
   @Override
-  public Set<Integer> getBlackListedBrokers(AdminClient adminClient) {
+  public Set<Integer> getExcludedBrokers(AdminClient adminClient) {
     return Collections.emptySet();
   }
 }

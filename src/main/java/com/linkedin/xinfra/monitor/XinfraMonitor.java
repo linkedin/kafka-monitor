@@ -65,22 +65,22 @@ public class XinfraMonitor {
     _services = new ConcurrentHashMap<>();
 
     for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
-      String name = clusterProperty.getKey();
+      String clusterName = clusterProperty.getKey();
       Map props = clusterProperty.getValue();
       if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
-        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
+        throw new IllegalArgumentException(clusterName + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
       String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
 
       Class<?> aClass = Class.forName(className);
       if (App.class.isAssignableFrom(aClass)) {
-        App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-        _apps.put(name, clusterApp);
+        App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, clusterName);
+        _apps.put(clusterName, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
         ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
             .getConstructor(Map.class, String.class)
-            .newInstance(props, name);
+            .newInstance(props, clusterName);
         Service service = serviceFactory.createService();
-        _services.put(name, service);
+        _services.put(clusterName, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
