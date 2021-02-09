@@ -87,11 +87,7 @@ public class ProduceService implements Service {
     _partitioner = config.getConfiguredInstance(ProduceServiceConfig.PARTITIONER_CLASS_CONFIG, KMPartitioner.class);
     _threadsNum = config.getInt(ProduceServiceConfig.PRODUCE_THREAD_NUM_CONFIG);
     _topic = config.getString(ProduceServiceConfig.TOPIC_CONFIG);
-    // TODO: Some producer implementation does not allow multiple producers with the same producer ID. So, this is a
-    // temporary way to avoid producer ID collision. A better way to fix this issue is to let users provide producer ID
-    // prefix and KMF keeps track of the the producer service creation process and dynamically generate producer ID using
-    // the given prefix.
-    _producerId = String.format("%s-%s", _name, config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG));
+    _producerId = config.getString(ProduceServiceConfig.PRODUCER_ID_CONFIG);
     _produceDelayMs = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_DELAY_MS_CONFIG);
     _recordSize = config.getInt(ProduceServiceConfig.PRODUCE_RECORD_SIZE_BYTE_CONFIG);
     _sync = config.getBoolean(ProduceServiceConfig.PRODUCE_SYNC_CONFIG);
