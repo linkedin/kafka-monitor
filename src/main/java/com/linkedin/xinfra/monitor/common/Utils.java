@@ -169,7 +169,7 @@ public class Utils {
       throws ExecutionException, InterruptedException {
     try {
       if (adminClient.listTopics().names().get().contains(topic)) {
-        LOG.info("AdminClient indicates that {} already exists in the cluster. Topic config: {}", topic, topicConfig);
+        LOG.info("AdminClient indicates that topic {} already exists in the cluster. Topic config: {}", topic, topicConfig);
         return getPartitionNumForTopic(adminClient, topic);
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
