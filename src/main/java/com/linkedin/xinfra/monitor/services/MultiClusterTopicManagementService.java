@@ -310,9 +310,7 @@ public class MultiClusterTopicManagementService implements Service {
                 "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
         return;
       }
-      int brokerCount = _adminClient.describeCluster().nodes().get().size();
-      int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
-      NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
+      NewTopic newTopic = new NewTopic(_topic, minPartitionNum(), (short) _replicationFactor);
       newTopic.configs((Map) _topicProperties);
       _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
               _topicProperties, _adminClient);
