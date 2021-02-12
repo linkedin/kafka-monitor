@@ -236,7 +236,6 @@ public class ConsumeService extends AbstractService {
       metrics.sensor("topic-partitions").add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.",
               tags), new CumulativeSum(partitionCount));
-      LOG.info("{}/ConsumeService started", _name);
     }
   }
 

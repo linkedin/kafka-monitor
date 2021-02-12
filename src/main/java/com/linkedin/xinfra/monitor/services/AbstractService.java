@@ -26,8 +26,6 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractService implements Service {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractService.class);
-
-
   // Below fields are used for the topic description retry logic since sometimes it takes a while for the admin clint
   // to discover a topic due to the fact that Kafka's metadata is eventually consistent. The retry logic is particularly
   // helpful to avoid exceptions when a new topic gets created since it takes even longer for the admin client to discover
@@ -64,6 +62,8 @@ public abstract class AbstractService implements Service {
             attemptCount, exception);
       } else if (topicDescription == null) {
         LOG.warn("Got null description for topic {} at attempt {}", topic, attemptCount);
+      } else {
+        return topicDescription;
       }
       attemptCount++;
       if (attemptCount < _describeTopicRetries) {
@@ -73,9 +73,8 @@ public abstract class AbstractService implements Service {
 
     if (exception != null) {
       throw new IllegalStateException(exception);
-    } else if (topicDescription == null) {
+    } else {
       throw new IllegalStateException(String.format("Got null description for topic %s after %d retry(s)", topic, _describeTopicRetries));
     }
-    return topicDescription;
   }
 }
