@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -275,5 +276,13 @@ public class Utils {
       LOG.error("fail to retrieve value for " + mbeanExpr + ":" + attributeExpr, e);
     }
     return values;
+  }
+
+  public static void delay(Duration duration) {
+    try {
+      Thread.sleep(duration.toMillis());
+    } catch (InterruptedException e) {
+      LOG.warn("While trying to sleep for {} millis. Got:", duration.toMillis(), e);
+    }
   }
 }

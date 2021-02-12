@@ -16,6 +16,7 @@ import com.linkedin.xinfra.monitor.producer.KMBaseProducer;
 import com.linkedin.xinfra.monitor.producer.NewProducer;
 import com.linkedin.xinfra.monitor.services.configs.ProduceServiceConfig;
 import com.linkedin.xinfra.monitor.services.metrics.ProduceMetrics;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,9 +37,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -48,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("rawtypes")
-public class ProduceService implements Service {
+public class ProduceService extends AbstractService {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String[] NON_OVERRIDABLE_PROPERTIES = new String[]{
     ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -78,6 +77,8 @@ public class ProduceService implements Service {
   private static final String KEY_SERIALIZER_CLASS = "org.apache.kafka.common.serialization.StringSerializer";
 
   public ProduceService(Map<String, Object> props, String name) throws Exception {
+    // TODO: Make values of below fields come from configs
+    super(10, Duration.ofMinutes(1));
     _name = name;
     ProduceServiceConfig config = new ProduceServiceConfig(props);
     _brokerList = config.getString(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
@@ -156,16 +157,11 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
-      try {
-        KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
-        Map<String, TopicDescription> topicDescriptions = topicDescriptionsFuture.get();
-        int partitionNum = topicDescriptions.get(_topic).partitions().size();
-        initializeStateForPartitions(partitionNum);
-        _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
-        LOG.info("{}/ProduceService started", _name);
-      } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
-        LOG.error("Exception occurred while starting produce service for topic: {}", _topic, e);
-      }
+      TopicDescription topicDescription = getTopicDescription(_adminClient, _topic);
+      int partitionNum = topicDescription.partitions().size();
+      initializeStateForPartitions(partitionNum);
+      _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
+      LOG.info("{}/ProduceService started", _name);
     }
   }
 
