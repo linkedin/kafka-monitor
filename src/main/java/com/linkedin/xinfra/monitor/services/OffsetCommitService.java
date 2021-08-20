@@ -66,7 +66,7 @@ public class OffsetCommitService implements Service {
   private static final Logger LOGGER = LoggerFactory.getLogger(OffsetCommitService.class);
   private static final String SERVICE_SUFFIX = "-consumer-offset-commit-service";
   private final AtomicBoolean _isRunning;
-  private final ScheduledExecutorService _scheduledExecutorService;
+  private ScheduledExecutorService _scheduledExecutorService;
   private final String _serviceName;
   private final AdminClient _adminClient;
   private final String _consumerGroup;
@@ -75,6 +75,8 @@ public class OffsetCommitService implements Service {
   private final ConsumerNetworkClient _consumerNetworkClient;
   private final Time _time;
   private final OffsetCommitServiceMetrics _offsetCommitServiceMetrics;
+
+  private final ThreadFactory threadFactory;
 
   /**
    *
@@ -135,13 +137,12 @@ public class OffsetCommitService implements Service {
     _consumerNetworkClient = new ConsumerNetworkClient(logContext, kafkaClient, metadata, _time, retryBackoffMs,
         config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), heartbeatIntervalMs);
 
-    ThreadFactory threadFactory = new ThreadFactory() {
+    threadFactory = new ThreadFactory() {
       @Override
       public Thread newThread(Runnable runnable) {
         return new Thread(runnable, serviceName + SERVICE_SUFFIX);
       }
     };
-    _scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
 
     LOGGER.info("OffsetCommitService's ConsumerConfig - {}", Utils.prettyPrint(config.values()));
   }
@@ -155,8 +156,8 @@ public class OffsetCommitService implements Service {
   @Override
   public void start() {
     if (_isRunning.compareAndSet(false, true)) {
-
       Runnable runnable = new OffsetCommitServiceRunnable();
+      _scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
       _scheduledExecutorService.scheduleWithFixedDelay(runnable, 1, 2, TimeUnit.SECONDS);
       LOGGER.info("Scheduled the offset commit service executor.");
     }

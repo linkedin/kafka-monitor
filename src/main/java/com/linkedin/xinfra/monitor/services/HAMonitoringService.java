@@ -153,7 +153,7 @@ public class HAMonitoringService implements Service {
     // start a thread to ensure coordinator ready
     // while not stopping, poll the coordinator
     long initialDelaySecond = 5;
-    long periodSecond = 30;
+    long periodSecond = 10;
 
     this.coordinator.ensureActiveGroup();
 

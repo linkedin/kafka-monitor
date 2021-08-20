@@ -78,28 +78,34 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
             String protocol,
             List<JoinGroupResponseData.JoinGroupResponseMember> allMemberMetadata
     ) {
-        Map<String, String> memberIds = new HashMap<>();
-
+        // Map group defined id to identity object
         Map<String, HAMonitoringIdentity> assignments = new HashMap<>();
+        int leaders = 0;
+
+        String leaderId = null;
+        String leaderGroupId = null;
+
         for (JoinGroupResponseData.JoinGroupResponseMember entry : allMemberMetadata) {
             HAMonitoringIdentity id = HAMonitoringProtocol.deserializeMetadata(ByteBuffer.wrap(entry.metadata()));
-            id.setLeader(false);
-            memberIds.put(entry.memberId(), id.getId());
+            if (id.isLeader()) leaders++;
+
+            // Update lexicographically smallest group defined id
+            // Use group id instead of user defined id, since user defined ids are not guaranteed to be unique
+            if (leaderGroupId == null || entry.memberId().compareTo(leaderGroupId) < 0) {
+                leaderGroupId = entry.memberId();
+            }
+
             assignments.put(entry.memberId(), id);
         }
 
-        String leaderGroupId = null;
-        String leaderId = null;
-        // Make member with lexicographically smallest id the leader for kafka monitor
-        for (Map.Entry<String, String> memberId : memberIds.entrySet()) {
-            if (leaderId == null || memberId.getValue().compareTo(leaderId) < 0) {
-                leaderGroupId = memberId.getKey();
-                leaderId = memberId.getValue();
+        if (leaders != 1) {
+            // Make member with lexicographically smallest group id the leader for kafka monitor
+            for (Map.Entry<String, HAMonitoringIdentity> entry : assignments.entrySet()) {
+                entry.getValue().setLeader(entry.getKey() == leaderGroupId);
             }
-        }
+        } // Otherwise, leave the current leader
 
-        assignments.get(leaderGroupId).setLeader(true);
-
+        // Map group defined id to serialized identity object
         Map<String, ByteBuffer> serializedAssignments = new HashMap<>();
         for (Map.Entry<String, HAMonitoringIdentity> entry : assignments.entrySet()) {
             serializedAssignments.put(entry.getKey(), HAMonitoringProtocol.serializeMetadata(entry.getValue()));

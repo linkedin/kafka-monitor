@@ -48,7 +48,6 @@ public class KafkaMetricsReporterService implements Service {
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(KafkaMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    initializeProducer();
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
     Integer rf = config.getInt(KafkaMetricsReporterServiceConfig.TOPIC_REPLICATION_FACTOR);
     Utils.createTopicIfNotExists(
@@ -63,6 +62,8 @@ public class KafkaMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
+    initializeProducer();
+
     _executor = Executors.newSingleThreadScheduledExecutor();
 
     _executor.scheduleAtFixedRate(() -> {

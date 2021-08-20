@@ -52,7 +52,7 @@ public class ConsumeService implements Service {
   private static final long CONSUME_THREAD_SLEEP_MS = 100;
   private static Metrics metrics;
   private final AtomicBoolean _running;
-  private final KMBaseConsumer _baseConsumer;
+  private KMBaseConsumer _baseConsumer;
   private final int _latencySlaMs;
   private ConsumeMetrics _sensors;
   private Thread _consumeThread;
@@ -63,6 +63,8 @@ public class ConsumeService implements Service {
   private final String _name;
   private static final String METRIC_GROUP_NAME = "consume-service";
   private static Map<String, String> tags;
+  private CompletableFuture<Void> _topicPartitionFuture;
+  private ConsumerFactory _consumerFactory;
 
   /**
    * Mainly contains services for three metrics:
@@ -83,39 +85,11 @@ public class ConsumeService implements Service {
                         CompletableFuture<Void> topicPartitionResult,
                         ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
-    _baseConsumer = consumerFactory.baseConsumer();
+    _consumerFactory = consumerFactory;
     _latencySlaMs = consumerFactory.latencySlaMs();
     _name = name;
     _adminClient = consumerFactory.adminClient();
     _running = new AtomicBoolean(false);
-
-    // Returns a new CompletionStage (topicPartitionFuture) which
-    // executes the given action - code inside run() - when this stage (topicPartitionResult) completes normally,.
-    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
-      MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
-      List<MetricsReporter> reporters = new ArrayList<>();
-      reporters.add(new JmxReporter(JMX_PREFIX));
-      metrics = new Metrics(metricConfig, reporters, new SystemTime());
-      tags = new HashMap<>();
-      tags.put(TAGS_NAME, name);
-      _topic = consumerFactory.topic();
-      _sensors = new ConsumeMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
-          consumerFactory.latencyPercentileGranularityMs());
-      _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, consumerFactory.latencyPercentileMaxMs(),
-          consumerFactory.latencyPercentileGranularityMs());
-      _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
-      _consumeThread = new Thread(() -> {
-        try {
-          consume();
-        } catch (Exception e) {
-          LOG.error(name + "/ConsumeService failed", e);
-        }
-      }, name + " consume-service");
-      _consumeThread.setDaemon(true);
-    });
-
-    // In a blocking fashion, waits for this topicPartitionFuture to complete, and then returns its result.
-    topicPartitionFuture.get();
   }
 
   private void consume() throws Exception {
@@ -228,6 +202,36 @@ public class ConsumeService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
+      try {
+        _baseConsumer = _consumerFactory.baseConsumer();
+
+        CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
+        topicPartitionResult.complete(null);
+        _topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+          MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
+          List<MetricsReporter> reporters = new ArrayList<>();
+          reporters.add(new JmxReporter(JMX_PREFIX));
+          metrics = new Metrics(metricConfig, reporters, new SystemTime());
+          tags = new HashMap<>();
+          tags.put(TAGS_NAME, _name);
+          _topic = _consumerFactory.topic();
+          _sensors = new ConsumeMetrics(metrics, tags, _consumerFactory.latencyPercentileMaxMs(), _consumerFactory.latencyPercentileGranularityMs());
+          _commitLatencyMetrics = new CommitLatencyMetrics(metrics, tags, _consumerFactory.latencyPercentileMaxMs(), _consumerFactory.latencyPercentileGranularityMs());
+          _commitAvailabilityMetrics = new CommitAvailabilityMetrics(metrics, tags);
+          _consumeThread = new Thread(() -> {
+            try {
+              consume();
+            } catch (Exception e) {
+              LOG.error(_name + "/ConsumeService failed", e);
+            }
+          }, _name + " consume-service");
+          _consumeThread.setDaemon(true);
+        });
+
+        _topicPartitionFuture.get();
+      } catch (Exception e) {
+        LOG.error("Error trying to start ConsumeService", e);
+      }
       _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
 
@@ -253,6 +257,7 @@ public class ConsumeService implements Service {
   public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
       try {
+        _consumeThread.join();
         _baseConsumer.close();
       } catch (Exception e) {
         LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);

@@ -58,7 +58,7 @@ public class XinfraMonitor {
   private final ConcurrentMap<String, App> _apps;
   private final ConcurrentMap<String, Service> _services;
   private final ConcurrentMap<String, Object> _offlineRunnables;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   /** When true start has been called on this instance of Xinfra Monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   /** When true user has provided config to run monitor in highly available mode */
@@ -77,7 +77,6 @@ public class XinfraMonitor {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(XinfraMonitorConstants.JMX_PREFIX));
@@ -151,6 +150,7 @@ public class XinfraMonitor {
     long initialDelaySecond = 5;
     long periodSecond = 5;
 
+    _executor = Executors.newSingleThreadScheduledExecutor();
     _executor.scheduleAtFixedRate(() -> {
       try {
         checkHealth();

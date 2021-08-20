@@ -25,17 +25,21 @@ public class JolokiaService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(JolokiaService.class);
 
   private final String _name;
-  private final JolokiaServer _jolokiaServer;
+  private JolokiaServer _jolokiaServer;
   private final AtomicBoolean _isRunning;
 
   public JolokiaService(Map<String, Object> props, String name) throws Exception {
     _name = name;
-    _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
     _isRunning = new AtomicBoolean(false);
   }
 
   public synchronized void start() {
     if (_isRunning.compareAndSet(false, true)) {
+      try {
+        _jolokiaServer = new JolokiaServer(new JvmAgentConfig("host=*,port=8778"), false);
+      } catch (Exception e) {
+        LOG.error("Error starting JolokiaService", e);
+      }
       _jolokiaServer.start();
       LOG.info("{}/JolokiaService started at port 8778", _name);
     }

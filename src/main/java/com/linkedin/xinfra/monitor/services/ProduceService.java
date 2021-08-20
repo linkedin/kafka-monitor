@@ -105,6 +105,8 @@ public class ProduceService implements Service {
       }
     }
 
+    props.forEach(_producerPropsOverride::putIfAbsent);
+
     _adminClient = AdminClient.create(props);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
@@ -112,8 +114,6 @@ public class ProduceService implements Service {
     } else {
       _producerClassName = producerClass;
     }
-
-    initializeProducer(props);
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -153,6 +153,15 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
+      _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
+      _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
+
+      try {
+        initializeProducer(_producerPropsOverride);
+      } catch (Exception e) {
+        LOG.error("Failed to restart producer.", e);
+        throw new IllegalStateException(e);
+      }
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
       _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
 

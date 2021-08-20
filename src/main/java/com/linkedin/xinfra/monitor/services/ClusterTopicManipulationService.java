@@ -57,7 +57,7 @@ public class ClusterTopicManipulationService implements Service {
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterTopicManipulationService.class);
   private final String _configDefinedServiceName;
   private final Duration _reportIntervalSecond;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   private final AdminClient _adminClient;
   private boolean _isOngoingTopicCreationDone;
   private boolean _isOngoingTopicDeletionDone;
@@ -77,7 +77,6 @@ public class ClusterTopicManipulationService implements Service {
     _isOngoingTopicCreationDone = true;
     _isOngoingTopicDeletionDone = true;
     _adminClient = adminClient;
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _reportIntervalSecond = Duration.ofSeconds(1);
     _running = new AtomicBoolean(false);
     _configDefinedServiceName = name;
@@ -113,6 +112,7 @@ public class ClusterTopicManipulationService implements Service {
           this.getClass().getCanonicalName());
       Runnable clusterTopicManipulationServiceRunnable = new ClusterTopicManipulationServiceRunnable();
 
+      _executor = Executors.newSingleThreadScheduledExecutor();
       _executor.scheduleAtFixedRate(clusterTopicManipulationServiceRunnable, _reportIntervalSecond.getSeconds(),
           _reportIntervalSecond.getSeconds(), TimeUnit.SECONDS);
     }
