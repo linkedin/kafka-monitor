@@ -44,7 +44,7 @@ public class HAMonitoringConfig extends AbstractConfig {
     static {
         CONFIG = new ConfigDef().define(GROUP_ID_CONFIG,
                                         ConfigDef.Type.STRING,
-                                        "leader-election-group",
+                                        "xinfra-monitor-leader",
                                         ConfigDef.Importance.HIGH,
                                         GROUP_ID_DOC)
                                 .define(GROUP_INSTANCE_ID_CONFIG,
@@ -118,7 +118,7 @@ public class HAMonitoringConfig extends AbstractConfig {
                                         CommonClientConfigs.CONNECTIONS_MAX_IDLE_MS_DOC)
                                 .define(METRIC_GROUP_PREFIX_CONFIG,
                                         ConfigDef.Type.STRING,
-                                        "leader-election",
+                                        "xinfra-leader-election",
                                         ConfigDef.Importance.LOW,
                                         METRIC_GROUP_PREFIX_DOC)
                                 .define(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,

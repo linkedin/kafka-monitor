@@ -59,7 +59,7 @@ public class HAMonitoringService implements Service {
     MetricConfig metricConfig = new MetricConfig();
     Metrics metrics = new Metrics(metricConfig, new ArrayList<>(), time);
 
-    logContext = new LogContext("[Leader Election group=" + groupId + " instance=" + groupInstanceId + "] ");
+    logContext = new LogContext("[HA Leader Election group=" + groupId + " instance=" + groupInstanceId + "] ");
 
     Metadata metadata = new Metadata(
             retryBackoffMs,

@@ -53,7 +53,7 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
 
     @Override
     public String protocolType() {
-        return "leaderelector";
+        return "xinfraleaderelector";
     }
 
     @Override
@@ -69,7 +69,7 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
     @Override
     protected void onJoinPrepare(int generation, String memberId) {
         // do nothing - no clean up required
-        // KF monitor should keep running unless leader has changed
+        // xinfra monitor should keep running unless leader has changed
         return;
     }
 
@@ -79,8 +79,6 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
             String protocol,
             List<JoinGroupResponseData.JoinGroupResponseMember> allMemberMetadata
     ) {
-        LOG.info("performing assignment");
-
         Map<String, String> memberIds = new HashMap<>();
 
         Map<String, HAMonitoringIdentity> assignments = new HashMap<>();
