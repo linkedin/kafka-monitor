@@ -100,16 +100,16 @@ public class XinfraMonitor {
           _isHA = true;
           Runnable startMonitor = (() -> {
             try {
-              LOG.info("HAKafkaMonitor starting...");
+              LOG.info("HAXinfraMonitor starting...");
               this.start();
-              LOG.info("HAKafkaMonitor started.");
+              LOG.info("HAXinfraMonitor started.");
             } catch (Exception e) {
-              throw new IllegalStateException("Error startingHAKafkaMonitor", e);
+              throw new IllegalStateException("Error startingHAXinfraMonitor", e);
             }
           });
           Runnable stopMonitor = (() -> {
             this.stop();
-            LOG.info("HAKafkaMonitor stopped.");
+            LOG.info("HAXinfraMonitor stopped.");
           });
 
           Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class, Runnable.class, Runnable.class).newInstance(props, name, startMonitor, stopMonitor);
