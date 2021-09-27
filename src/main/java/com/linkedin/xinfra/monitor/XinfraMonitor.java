@@ -12,6 +12,7 @@ package com.linkedin.xinfra.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.xinfra.monitor.apps.App;
+import com.linkedin.xinfra.monitor.services.HAMonitoringServiceFactory;
 import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import java.io.BufferedReader;
@@ -89,38 +90,37 @@ public class XinfraMonitor {
       if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
         throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
       String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
-
       Class<?> aClass = Class.forName(className);
+
+      if (className.contains("HAMonitoring")) {
+        _isHA = true;
+        Runnable startMonitor = (() -> {
+          try {
+            LOG.info("HAXinfraMonitor starting...");
+            this.start();
+            LOG.info("HAXinfraMonitor started.");
+          } catch (Exception e) {
+            throw new IllegalStateException("Error starting HAXinfraMonitor", e);
+          }
+        });
+        Runnable stopMonitor = (() -> {
+          this.stop();
+          LOG.info("HAXinfraMonitor stopped.");
+        });
+
+        props.put(HAMonitoringServiceFactory.STARTMONITOR, startMonitor);
+        props.put(HAMonitoringServiceFactory.STOPMONITOR, stopMonitor);
+      }
+
       if (App.class.isAssignableFrom(aClass)) {
         App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
         _apps.put(name, clusterApp);
       } else if (Service.class.isAssignableFrom(aClass)) {
-        Constructor<?>[] constructors = Class.forName(className).getConstructors();
-        if (constructors.length > 0 && this.constructorContainsClass(constructors, Runnable.class)) {
-          _isHA = true;
-          Runnable startMonitor = (() -> {
-            try {
-              LOG.info("HAXinfraMonitor starting...");
-              this.start();
-              LOG.info("HAXinfraMonitor started.");
-            } catch (Exception e) {
-              throw new IllegalStateException("Error startingHAXinfraMonitor", e);
-            }
-          });
-          Runnable stopMonitor = (() -> {
-            this.stop();
-            LOG.info("HAXinfraMonitor stopped.");
-          });
-
-          Service service = (Service) Class.forName(className).getConstructor(Map.class, String.class, Runnable.class, Runnable.class).newInstance(props, name, startMonitor, stopMonitor);
-          _services.put(name, service);
-        } else {
-          ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
               .getConstructor(Map.class, String.class)
               .newInstance(props, name);
           Service service = serviceFactory.createService();
           _services.put(name, service);
-        }
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
