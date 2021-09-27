@@ -92,7 +92,7 @@ public class XinfraMonitor {
       String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
       Class<?> aClass = Class.forName(className);
 
-      if (className.contains("HAMonitoring")) {
+      if (className.isAssignableFrom(com.linkedin.xinfra.monitor.services.HAMonitoringService.class)) {
         _isHA = true;
         Runnable startMonitor = (() -> {
           try {
