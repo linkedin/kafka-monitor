@@ -12,6 +12,7 @@ package com.linkedin.xinfra.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.xinfra.monitor.apps.App;
+import com.linkedin.xinfra.monitor.services.HAMonitoringService;
 import com.linkedin.xinfra.monitor.services.HAMonitoringServiceFactory;
 import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
@@ -92,7 +93,7 @@ public class XinfraMonitor {
       String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
       Class<?> aClass = Class.forName(className);
 
-      if (className.isAssignableFrom(com.linkedin.xinfra.monitor.services.HAMonitoringService.class)) {
+      if (HAMonitoringService.class.isAssignableFrom(aClass)) {
         _isHA = true;
         Runnable startMonitor = (() -> {
           try {
