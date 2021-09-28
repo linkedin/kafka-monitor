@@ -70,7 +70,6 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
     protected void onJoinPrepare(int generation, String memberId) {
         // do nothing - no clean up required
         // xinfra monitor should keep running unless leader has changed
-        return;
     }
 
     @Override

@@ -61,8 +61,8 @@ public class XinfraMonitor {
   private final ScheduledExecutorService _executor;
   /** When true start has been called on this instance of Xinfra Monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
-
-  private Boolean _isHA = false;
+  /** When true user has provided config to run monitor in highly available mode */
+  private Boolean _isRunningHA = false;
 
   /**
    * XinfraMonitor constructor creates apps and services for each of the individual clusters (properties) that's passed in.
@@ -94,7 +94,7 @@ public class XinfraMonitor {
       Class<?> aClass = Class.forName(className);
 
       if (HAMonitoringService.class.isAssignableFrom(aClass)) {
-        _isHA = true;
+        _isRunningHA = true;
         Runnable startMonitor = (() -> {
           try {
             LOG.info("HAXinfraMonitor starting...");
@@ -219,7 +219,7 @@ public class XinfraMonitor {
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
 
-    if (!xinfraMonitor._isHA) {
+    if (!xinfraMonitor._isRunningHA) {
       xinfraMonitor.start();
       LOG.info("Xinfra Monitor has started.");
       xinfraMonitor.awaitShutdown();
