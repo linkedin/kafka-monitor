@@ -1,0 +1,77 @@
+nextgen:
+  initiative: nextgen
+  domain: openshiftapps
+  baseImageRegistry: docker-registry.default.svc:5000
+  imageRegistryNamespace: app-shared-services
+  repoURL: wcgartifactory-docker.jfrog.io
+  routerID: 4c8f
+  clusterID: wc-qb01
+  conjurAccount: wellcare
+  conjurHostID: authn-k8s/tampa
+
+application: shared-services
+replicaCount: 1
+
+imageStreams:
+  service:
+    name: kafka-monitor
+    pullPolicy: Always
+    
+service:
+  enabled: false
+  httpPort: 8080
+  type: ClusterIP
+
+env:
+  service:
+    KAFKA_BROKERS: wellcare-cluster-kafka-brokers.dev-app-sup-services:9092
+    ZOOKEEPER_BROKERS: wellcare-cluster-zookeeper-client.dev-app-sup-services:2181
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 500M
+  requests:
+    cpu: 50m
+    memory: 200Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+autoscaling: 
+  enabled: false
+  
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+deploymentStrategy:
+  revisionHistoryLimit: 3
+  maxSurge: 0
+  maxUnavailable: 1
+  type: RollingUpdate
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths: []
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
