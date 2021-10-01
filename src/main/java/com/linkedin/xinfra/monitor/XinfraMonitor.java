@@ -12,6 +12,8 @@ package com.linkedin.xinfra.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.xinfra.monitor.apps.App;
+import com.linkedin.xinfra.monitor.services.HAMonitoringService;
+import com.linkedin.xinfra.monitor.services.HAMonitoringServiceFactory;
 import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import java.io.BufferedReader;
@@ -34,6 +36,15 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
  * applications.
@@ -50,6 +61,8 @@ public class XinfraMonitor {
   private final ScheduledExecutorService _executor;
   /** When true start has been called on this instance of Xinfra Monitor. */
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
+  /** When true user has provided config to run monitor in highly available mode */
+  private Boolean _isRunningHA = false;
 
   /**
    * XinfraMonitor constructor creates apps and services for each of the individual clusters (properties) that's passed in.
@@ -64,27 +77,6 @@ public class XinfraMonitor {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
-      String name = clusterProperty.getKey();
-      Map props = clusterProperty.getValue();
-      if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
-        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
-      String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
-
-      Class<?> aClass = Class.forName(className);
-      if (App.class.isAssignableFrom(aClass)) {
-        App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
-        _apps.put(name, clusterApp);
-      } else if (Service.class.isAssignableFrom(aClass)) {
-        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
-            .getConstructor(Map.class, String.class)
-            .newInstance(props, name);
-        Service service = serviceFactory.createService();
-        _services.put(name, service);
-      } else {
-        throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
-      }
-    }
     _executor = Executors.newSingleThreadScheduledExecutor();
     _offlineRunnables = new ConcurrentHashMap<>();
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -92,6 +84,48 @@ public class XinfraMonitor {
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
     metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
+
+    for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
+      String name = clusterProperty.getKey();
+      Map props = clusterProperty.getValue();
+      if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
+        throw new IllegalArgumentException(name + " is not configured with " + XinfraMonitorConstants.CLASS_NAME_CONFIG);
+      String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
+      Class<?> aClass = Class.forName(className);
+
+      if (HAMonitoringService.class.isAssignableFrom(aClass)) {
+        _isRunningHA = true;
+        Runnable startMonitor = (() -> {
+          try {
+            LOG.info("HAXinfraMonitor starting...");
+            this.start();
+            LOG.info("HAXinfraMonitor started.");
+          } catch (Exception e) {
+            throw new IllegalStateException("Error starting HAXinfraMonitor", e);
+          }
+        });
+        Runnable stopMonitor = (() -> {
+          this.stop();
+          LOG.info("HAXinfraMonitor stopped.");
+        });
+
+        props.put(HAMonitoringServiceFactory.STARTMONITOR, startMonitor);
+        props.put(HAMonitoringServiceFactory.STOPMONITOR, stopMonitor);
+      }
+
+      if (App.class.isAssignableFrom(aClass)) {
+        App clusterApp = (App) Class.forName(className).getConstructor(Map.class, String.class).newInstance(props, name);
+        _apps.put(name, clusterApp);
+      } else if (Service.class.isAssignableFrom(aClass)) {
+        ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
+              .getConstructor(Map.class, String.class)
+              .newInstance(props, name);
+          Service service = serviceFactory.createService();
+          _services.put(name, service);
+      } else {
+        throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
+      }
+    }
   }
 
   private boolean constructorContainsClass(Constructor<?>[] constructors, Class<?> classObject) {
@@ -184,10 +218,12 @@ public class XinfraMonitor {
     @SuppressWarnings("unchecked")
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
-    xinfraMonitor.start();
-    LOG.info("Xinfra Monitor has started.");
 
-    xinfraMonitor.awaitShutdown();
+    if (!xinfraMonitor._isRunningHA) {
+      xinfraMonitor.start();
+      LOG.info("Xinfra Monitor has started.");
+      xinfraMonitor.awaitShutdown();
+    }
   }
 
 }

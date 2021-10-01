@@ -59,7 +59,7 @@ public class ProduceService implements Service {
   private KMBaseProducer _producer;
   private final KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
-  private final ScheduledExecutorService _handleNewPartitionsExecutor;
+  private ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
   /** This can be updated while running when new partitions are added to the monitor topic. */
@@ -115,9 +115,6 @@ public class ProduceService implements Service {
 
     initializeProducer(props);
 
-    _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
-    _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
-
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
     reporters.add(new JmxReporter(JMX_PREFIX));
@@ -156,6 +153,9 @@ public class ProduceService implements Service {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
+      _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
+      _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
+
       try {
         KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
         Map<String, TopicDescription> topicDescriptions = topicDescriptionsFuture.get();

@@ -28,18 +28,19 @@ public class DefaultMetricsReporterService implements Service {
   private final String _name;
   private final List<String> _metricNames;
   private final int _reportIntervalSec;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
 
   public DefaultMetricsReporterService(Map<String, Object> props, String name) {
     _name = name;
     DefaultMetricsReporterServiceConfig config = new DefaultMetricsReporterServiceConfig(props);
     _metricNames = config.getList(DefaultMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(DefaultMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
-    _executor = Executors.newSingleThreadScheduledExecutor();
   }
 
   @Override
   public synchronized void start() {
+    _executor = Executors.newSingleThreadScheduledExecutor();
+
     _executor.scheduleAtFixedRate(() -> {
       try {
         reportMetrics();

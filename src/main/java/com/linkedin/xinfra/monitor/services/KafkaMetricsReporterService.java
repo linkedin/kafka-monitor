@@ -36,7 +36,7 @@ public class KafkaMetricsReporterService implements Service {
   private final String _name;
   private final List<String> _metricsNames;
   private final int _reportIntervalSec;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   private KafkaProducer<String, String> _producer;
   private final String _brokerList;
   private final String _topic;
@@ -47,7 +47,6 @@ public class KafkaMetricsReporterService implements Service {
     KafkaMetricsReporterServiceConfig config = new KafkaMetricsReporterServiceConfig(props);
     _metricsNames = config.getList(KafkaMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(KafkaMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _brokerList = config.getString(KafkaMetricsReporterServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     initializeProducer();
     _topic = config.getString(KafkaMetricsReporterServiceConfig.TOPIC_CONFIG);
@@ -64,6 +63,8 @@ public class KafkaMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
+    _executor = Executors.newSingleThreadScheduledExecutor();
+
     _executor.scheduleAtFixedRate(() -> {
       try {
         reportMetrics();
