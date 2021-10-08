@@ -81,8 +81,6 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
         // Map group defined id to identity object
         Map<String, HAMonitoringIdentity> assignments = new HashMap<>();
         int leaders = 0;
-
-        String leaderId = null;
         String leaderGroupId = null;
 
         for (JoinGroupResponseData.JoinGroupResponseMember entry : allMemberMetadata) {
@@ -121,9 +119,9 @@ public class HAMonitoringCoordinator extends AbstractCoordinator {
             String protocol,
             ByteBuffer memberAssignment
     ) {
-        HAMonitoringIdentity assignment = HAMonitoringProtocol.deserializeMetadata(memberAssignment);
+        this.identity = HAMonitoringProtocol.deserializeMetadata(memberAssignment);
 
-        if (assignment.isLeader()) {
+        if (this.identity.isLeader()) {
             LOG.info("HAMonitoringCoordinator received assignment: is leader");
             try {
                 startMonitor.run();

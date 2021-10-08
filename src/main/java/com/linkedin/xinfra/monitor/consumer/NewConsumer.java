@@ -26,7 +26,8 @@ import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
+import java.util.Collection;
 
 /**
  * Wraps around the new consumer from Apache Kafka and implements the #KMBaseConsumer interface
@@ -49,7 +50,7 @@ public class NewConsumer implements KMBaseConsumer {
       consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, configureGroupId(targetConsumerGroupId, adminClient));
     }
     _consumer = new KafkaConsumer<>(consumerProperties);
-    _consumer.subscribe(Collections.singletonList(topic));
+    _consumer.subscribe(Collections.singletonList(topic), new KMRebalance(_consumer));
   }
 
   static String configureGroupId(String targetConsumerGroupId, AdminClient adminClient)
@@ -101,5 +102,17 @@ public class NewConsumer implements KMBaseConsumer {
   @Override
   public void updateLastCommit() {
     lastCommitted = System.currentTimeMillis();
+  }
+
+  private class KMRebalance implements ConsumerRebalanceListener {
+    private final KafkaConsumer<String, String> _consumer;
+     public KMRebalance(KafkaConsumer consumer) {
+      _consumer = consumer;
+    }
+     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+    }
+     public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+      _consumer.seekToEnd(partitions);
+    }
   }
 }
