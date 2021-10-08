@@ -65,6 +65,7 @@ public class ConsumeService implements Service {
   private static Map<String, String> tags;
   private CompletableFuture<Void> _topicPartitionFuture;
   private ConsumerFactory _consumerFactory;
+  private CompletableFuture<Void> _topicPartitionResult;
 
   /**
    * Mainly contains services for three metrics:
@@ -85,6 +86,7 @@ public class ConsumeService implements Service {
                         CompletableFuture<Void> topicPartitionResult,
                         ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
+    _topicPartitionResult = topicPartitionResult;
     _consumerFactory = consumerFactory;
     _latencySlaMs = consumerFactory.latencySlaMs();
     _name = name;
@@ -205,9 +207,9 @@ public class ConsumeService implements Service {
       try {
         _baseConsumer = _consumerFactory.baseConsumer();
 
-        CompletableFuture<Void> topicPartitionResult = new CompletableFuture<>();
-        topicPartitionResult.complete(null);
-        _topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+        // _topicPartitionResult = new CompletableFuture<>();
+        // _topicPartitionResult.complete(null);
+        _topicPartitionFuture = _topicPartitionResult.thenRun(() -> {
           MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
           List<MetricsReporter> reporters = new ArrayList<>();
           reporters.add(new JmxReporter(JMX_PREFIX));
