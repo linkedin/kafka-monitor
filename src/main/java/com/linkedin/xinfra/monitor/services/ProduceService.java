@@ -160,7 +160,6 @@ public class ProduceService implements Service {
         initializeProducer(_producerPropsOverride);
       } catch (Exception e) {
         LOG.error("Failed to restart producer.", e);
-        throw new IllegalStateException(e);
       }
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
       _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
