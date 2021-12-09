@@ -16,13 +16,14 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -112,18 +113,11 @@ public class Utils {
 
     List<BrokerMetadata> brokerMetadataList = new ArrayList<>(brokers);
 
-    int brokerSetSize = brokers.size();
+    // Shuffle to get a random order in the replica list
+    Collections.shuffle(brokerMetadataList);
 
-    List<Integer> replicaList = new ArrayList<>();
-    while (replicaList.size() < brokerSetSize) {
-
-      // Regardless of the replica assignments here, maybeReassignPartitionAndElectLeader()
-      // will periodically reassign the partition as needed.
-      int random = new Random().nextInt(brokerSetSize);
-      BrokerMetadata brokerMetadata = brokerMetadataList.get(random);
-      int id = brokerMetadata.id();
-      replicaList.add(id);
-    }
+    // Get broker ids for replica list
+    List<Integer> replicaList = brokerMetadataList.stream().map(m -> m.id()).collect(Collectors.toList());
 
     return replicaList;
   }
@@ -169,7 +163,7 @@ public class Utils {
       throws ExecutionException, InterruptedException {
     try {
       if (adminClient.listTopics().names().get().contains(topic)) {
-        LOG.info("AdminClient indicates that {} already exists in the cluster. Topic config: {}", topic, topicConfig);
+        LOG.info("AdminClient indicates that topic {} already exists in the cluster. Topic config: {}", topic, topicConfig);
         return getPartitionNumForTopic(adminClient, topic);
       }
       int brokerCount = Utils.getBrokerCount(adminClient);
@@ -275,5 +269,13 @@ public class Utils {
       LOG.error("fail to retrieve value for " + mbeanExpr + ":" + attributeExpr, e);
     }
     return values;
+  }
+
+  public static void delay(Duration duration) {
+    try {
+      Thread.sleep(duration.toMillis());
+    } catch (InterruptedException e) {
+      LOG.warn("While trying to sleep for {} millis. Got:", duration.toMillis(), e);
+    }
   }
 }

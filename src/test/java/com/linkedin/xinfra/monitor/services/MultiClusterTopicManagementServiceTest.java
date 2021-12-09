@@ -71,6 +71,8 @@ public class MultiClusterTopicManagementServiceTest {
     _topicManagementHelper._adminClient = Mockito.mock(AdminClient.class);
     _topicManagementHelper._topicFactory = Mockito.mock(TopicFactory.class);
     _topicManagementHelper._topicCreationEnabled = true;
+    _topicManagementHelper._topicAddPartitionEnabled = true;
+    _topicManagementHelper._topicReassignPartitionAndElectLeaderEnabled = true;
   }
 
   @AfterMethod

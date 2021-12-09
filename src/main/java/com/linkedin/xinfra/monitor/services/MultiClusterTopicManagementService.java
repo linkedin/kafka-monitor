@@ -15,6 +15,7 @@ import com.linkedin.xinfra.monitor.services.configs.CommonServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.MultiClusterTopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -41,7 +43,6 @@ import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.AlterPartitionReassignmentsResult;
 import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
-import org.apache.kafka.clients.admin.CreatePartitionsResult;
 import org.apache.kafka.clients.admin.ElectLeadersResult;
 import org.apache.kafka.clients.admin.NewPartitionReassignment;
 import org.apache.kafka.clients.admin.NewPartitions;
@@ -84,7 +85,7 @@ public class MultiClusterTopicManagementService implements Service {
   private final AtomicBoolean _isRunning = new AtomicBoolean(false);
   private final String _serviceName;
   private final Map<String, TopicManagementHelper> _topicManagementByCluster;
-  private final int _scheduleIntervalMs;
+  private final int _rebalanceIntervalMs;
   private final long _preferredLeaderElectionIntervalMs;
   private ScheduledExecutorService _executor;
 
@@ -97,7 +98,7 @@ public class MultiClusterTopicManagementService implements Service {
         props.containsKey(MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) ? (Map) props.get(
             MultiClusterTopicManagementServiceConfig.PROPS_PER_CLUSTER_CONFIG) : new HashMap<>();
     _topicManagementByCluster = initializeTopicManagementHelper(propsByCluster, topic);
-    _scheduleIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
+    _rebalanceIntervalMs = config.getInt(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG);
     _preferredLeaderElectionIntervalMs =
         config.getLong(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG);
     _topicPartitionResult.complete(null);
@@ -129,13 +130,22 @@ public class MultiClusterTopicManagementService implements Service {
       _executor = Executors.newSingleThreadScheduledExecutor(
         r -> new Thread(r, _serviceName + "-multi-cluster-topic-management-service"));
 
-      Runnable tmRunnable = new TopicManagementRunnable();
-      _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      // Runnable tmRunnable = new TopicManagementRunnable();
+      // _executor.scheduleWithFixedDelay(tmRunnable, 0, _scheduleIntervalMs, TimeUnit.MILLISECONDS);
+      final long topicManagementProcedureInitialDelay = 0;
+      _executor.scheduleWithFixedDelay(
+              new TopicManagementRunnable(),
+              topicManagementProcedureInitialDelay,
+              _rebalanceIntervalMs,
+              TimeUnit.MILLISECONDS);
 
-      Runnable pleRunnable = new PreferredLeaderElectionRunnable();
-      _executor.scheduleWithFixedDelay(pleRunnable, _preferredLeaderElectionIntervalMs,
+      LOGGER.info("Topic management periodical procedure started with initial delay {} ms and interval {} ms",
+              topicManagementProcedureInitialDelay, _rebalanceIntervalMs);
+
+      _executor.scheduleWithFixedDelay(new PreferredLeaderElectionRunnable(), _preferredLeaderElectionIntervalMs,
           _preferredLeaderElectionIntervalMs, TimeUnit.MILLISECONDS);
-      LOGGER.info("{}/MultiClusterTopicManagementService started.", _serviceName);
+      LOGGER.info("Preferred leader election periodical procedure started with initial delay {} ms and interval {} ms",
+              _preferredLeaderElectionIntervalMs, _preferredLeaderElectionIntervalMs);
     }
   }
 
@@ -242,28 +252,33 @@ public class MultiClusterTopicManagementService implements Service {
     private final int _minPartitionNum;
     private final Properties _topicProperties;
     private boolean _preferredLeaderElectionRequested;
-    private final int _requestTimeoutMs;
-    private final List _bootstrapServers;
+    private final Duration _requestTimeout;
+    private final List<String> _bootstrapServers;
 
     // package private for unit testing
     boolean _topicCreationEnabled;
+    boolean _topicAddPartitionEnabled;
+    boolean _topicReassignPartitionAndElectLeaderEnabled;
     AdminClient _adminClient;
     String _topic;
     TopicFactory _topicFactory;
 
     @SuppressWarnings("unchecked")
     TopicManagementHelper(Map<String, Object> props) throws Exception {
+
       TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
       AdminClientConfig adminClientConfig = new AdminClientConfig(props);
       String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
       _topicCreationEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+      _topicAddPartitionEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
+      _topicReassignPartitionAndElectLeaderEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
       _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
       _preferredLeaderElectionRequested = false;
-      _requestTimeoutMs = adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
+      _requestTimeout = Duration.ofMillis(adminClientConfig.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG));
       _bootstrapServers = adminClientConfig.getList(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
       _topicProperties = new Properties();
       if (props.containsKey(TopicManagementServiceConfig.TOPIC_PROPS_CONFIG)) {
@@ -278,21 +293,30 @@ public class MultiClusterTopicManagementService implements Service {
               TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
       _topicFactory =
           (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
-
       _adminClient = constructAdminClient(props);
       LOGGER.info("{} configs: {}", _adminClient.getClass().getSimpleName(), props);
+      logConfigurationValues();
+    }
+
+    private void logConfigurationValues() {
+      LOGGER.info("TopicManagementHelper for cluster with Zookeeper connect {} is configured with " +
+              "[topic={}, topicCreationEnabled={}, topicAddPartitionEnabled={}, " +
+              "topicReassignPartitionAndElectLeaderEnabled={}, minPartitionsToBrokersRatio={}, " +
+              "minPartitionNum={}]", _zkConnect, _topic, _topicCreationEnabled, _topicAddPartitionEnabled,
+              _topicReassignPartitionAndElectLeaderEnabled, _minPartitionsToBrokersRatio, _minPartitionNum);
     }
 
     @SuppressWarnings("unchecked")
     void maybeCreateTopic() throws Exception {
-      if (_topicCreationEnabled) {
-        int brokerCount = _adminClient.describeCluster().nodes().get().size();
-        int numPartitions = Math.max((int) Math.ceil(brokerCount * _minPartitionsToBrokersRatio), minPartitionNum());
-        NewTopic newTopic = new NewTopic(_topic, numPartitions, (short) _replicationFactor);
-        newTopic.configs((Map) _topicProperties);
-        _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
-            _topicProperties, _adminClient);
+      if (!_topicCreationEnabled) {
+        LOGGER.info("Topic creation is not enabled for {} in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+        return;
       }
+      NewTopic newTopic = new NewTopic(_topic, minPartitionNum(), (short) _replicationFactor);
+      newTopic.configs((Map) _topicProperties);
+      _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
+              _topicProperties, _adminClient);
     }
 
     AdminClient constructAdminClient(Map<String, Object> props) {
@@ -304,36 +328,46 @@ public class MultiClusterTopicManagementService implements Service {
       return Math.max((int) Math.ceil(_minPartitionsToBrokersRatio * brokerCount), _minPartitionNum);
     }
 
-    void maybeAddPartitions(int minPartitionNum) throws ExecutionException, InterruptedException {
+    void maybeAddPartitions(final int requiredMinPartitionNum)
+            throws ExecutionException, InterruptedException, CancellationException, TimeoutException {
+      if (!_topicAddPartitionEnabled) {
+        LOGGER.info("Adding partition to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
+        return;
+      }
       Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap =
           _adminClient.describeTopics(Collections.singleton(_topic)).values();
       KafkaFuture<TopicDescription> topicDescriptions = kafkaFutureMap.get(_topic);
-      List<TopicPartitionInfo> partitions = topicDescriptions.get().partitions();
+      List<TopicPartitionInfo> partitions = topicDescriptions.get(_requestTimeout.toMillis(), TimeUnit.MILLISECONDS).partitions();
 
-      int partitionNum = partitions.size();
-      if (partitionNum < minPartitionNum) {
-        LOGGER.info("{} will increase partition of the topic {} in the cluster from {}" + " to {}.",
-            this.getClass().toString(), _topic, partitionNum, minPartitionNum);
-        Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_adminClient);
-        Set<BrokerMetadata> brokers = new HashSet<>();
-        for (Node broker : _adminClient.describeCluster().nodes().get()) {
-          BrokerMetadata brokerMetadata = new BrokerMetadata(broker.id(), null);
-          brokers.add(brokerMetadata);
-        }
-
-        if (!blackListedBrokers.isEmpty()) {
-          brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
-        }
-
-        List<List<Integer>> newPartitionAssignments =
-            newPartitionAssignments(minPartitionNum, partitionNum, brokers, _replicationFactor);
-
-        NewPartitions newPartitions = NewPartitions.increaseTo(minPartitionNum, newPartitionAssignments);
-
-        Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
-        newPartitionsMap.put(_topic, newPartitions);
-        CreatePartitionsResult createPartitionsResult = _adminClient.createPartitions(newPartitionsMap);
+      final int currPartitionNum = partitions.size();
+      if (currPartitionNum >= requiredMinPartitionNum) {
+        LOGGER.debug("{} will not increase partition of the topic {} in the cluster. Current partition count {} and '" +
+                "minimum required partition count is {}.", this.getClass().toString(), _topic, currPartitionNum, requiredMinPartitionNum);
+        return;
       }
+      LOGGER.info("{} will increase partition of the topic {} in the cluster from {}" + " to {}.",
+              this.getClass().toString(), _topic, currPartitionNum,  requiredMinPartitionNum);
+      Set<BrokerMetadata> brokers = new HashSet<>();
+      for (Node broker : _adminClient.describeCluster().nodes().get(_requestTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
+        BrokerMetadata brokerMetadata = new BrokerMetadata(broker.id(), null);
+        brokers.add(brokerMetadata);
+      }
+      Set<Integer> excludedBrokers = _topicFactory.getExcludedBrokers(_adminClient);
+      if (!excludedBrokers.isEmpty()) {
+        brokers.removeIf(broker ->  excludedBrokers.contains(broker.id()));
+      }
+
+      List<List<Integer>> newPartitionAssignments =
+              newPartitionAssignments(requiredMinPartitionNum, currPartitionNum, brokers, _replicationFactor);
+
+      NewPartitions newPartitions = NewPartitions.increaseTo(requiredMinPartitionNum, newPartitionAssignments);
+
+      Map<String, NewPartitions> newPartitionsMap = new HashMap<>();
+      newPartitionsMap.put(_topic, newPartitions);
+      _adminClient.createPartitions(newPartitionsMap).all().get(_requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
+      LOGGER.info("{} finished increasing partition of the topic {} in the cluster from {} to {}",
+              this.getClass().toString(), _topic, currPartitionNum,  requiredMinPartitionNum);
     }
 
     static List<List<Integer>> newPartitionAssignments(int minPartitionNum, int partitionNum,
@@ -384,10 +418,9 @@ public class MultiClusterTopicManagementService implements Service {
       // Using Set enforces the usage of loop which is O(n).
       // As the list of brokers does not change in newPartitionAssignments,
       // the acceptance of a List argument instead of a Set will be faster which is (O(1))
-      List<BrokerMetadata> brokerMetadataList = new ArrayList<>();
-
+      List<BrokerMetadata> brokerMetadataList = new ArrayList<>(brokers);
       // convert to a list so there's no need to create a index and iterate through this set
-      brokerMetadataList.addAll(brokers);
+      //addAll() is replaced with parameterized constructor call for better performance..
 
       int brokerSetSize = brokers.size();
 
@@ -410,12 +443,17 @@ public class MultiClusterTopicManagementService implements Service {
 
     private Set<Node> getAvailableBrokers() throws ExecutionException, InterruptedException {
       Set<Node> brokers = new HashSet<>(_adminClient.describeCluster().nodes().get());
-      Set<Integer> blackListedBrokers = _topicFactory.getBlackListedBrokers(_adminClient);
-      brokers.removeIf(broker -> blackListedBrokers.contains(broker.id()));
+      Set<Integer> excludedBrokers = _topicFactory.getExcludedBrokers(_adminClient);
+      brokers.removeIf(broker -> excludedBrokers.contains(broker.id()));
       return brokers;
     }
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
+      if (!_topicReassignPartitionAndElectLeaderEnabled) {
+        LOGGER.info("Reassign partition and elect leader to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
+                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
+        return;
+      }
       List<TopicPartitionInfo> partitionInfoList =
           _adminClient.describeTopics(Collections.singleton(_topic)).all().get().get(_topic).partitions();
       Collection<Node> brokers = this.getAvailableBrokers();

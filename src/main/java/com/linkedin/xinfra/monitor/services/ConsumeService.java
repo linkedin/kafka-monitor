@@ -17,8 +17,8 @@ import com.linkedin.xinfra.monitor.consumer.KMBaseConsumer;
 import com.linkedin.xinfra.monitor.services.metrics.CommitAvailabilityMetrics;
 import com.linkedin.xinfra.monitor.services.metrics.CommitLatencyMetrics;
 import com.linkedin.xinfra.monitor.services.metrics.ConsumeMetrics;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,24 +28,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConsumeService implements Service {
+public class ConsumeService extends AbstractService {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumeService.class);
   private static final String TAGS_NAME = "name";
   private static final long COMMIT_TIME_INTERVAL = 4;
@@ -86,12 +83,15 @@ public class ConsumeService implements Service {
                         CompletableFuture<Void> topicPartitionResult,
                         ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
-    _topicPartitionResult = topicPartitionResult;
-    _consumerFactory = consumerFactory;
-    _latencySlaMs = consumerFactory.latencySlaMs();
-    _name = name;
-    _adminClient = consumerFactory.adminClient();
-    _running = new AtomicBoolean(false);
+      // TODO: Make values of below fields come from configs
+      super(10, Duration.ofMinutes(1));
+      // _baseConsumer = consumerFactory.baseConsumer();
+      _latencySlaMs = consumerFactory.latencySlaMs();
+      _name = name;
+      _adminClient = consumerFactory.adminClient();
+      _running = new AtomicBoolean(false);
+      _topicPartitionResult = topicPartitionResult;
+      _consumerFactory = consumerFactory;
   }
 
   private void consume() throws Exception {
@@ -180,7 +180,7 @@ public class ConsumeService implements Service {
 
       } else if (index < nextIndex) {
         _sensors._recordsDuplicated.record();
-      } else if (index > nextIndex) {
+      } else { // this will equate to the case where index > nextIndex...
         nextIndexes.put(partition, index + 1);
         long numLostRecords = index - nextIndex;
         _sensors._recordsLost.record(numLostRecords);
@@ -235,19 +235,10 @@ public class ConsumeService implements Service {
       _consumeThread.start();
       LOG.info("{}/ConsumeService started.", _name);
 
-      Sensor topicPartitionCount = metrics.sensor("topic-partitions");
-      DescribeTopicsResult describeTopicsResult = _adminClient.describeTopics(Collections.singleton(_topic));
-      Map<String, KafkaFuture<TopicDescription>> topicResultValues = describeTopicsResult.values();
-      KafkaFuture<TopicDescription> topicDescriptionKafkaFuture = topicResultValues.get(_topic);
-      TopicDescription topicDescription = null;
-      try {
-        topicDescription = topicDescriptionKafkaFuture.get();
-      } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Exception occurred while getting the topicDescriptionKafkaFuture for topic: {}", _topic, e);
-      }
+      TopicDescription topicDescription = getTopicDescription(_adminClient, _topic);
       @SuppressWarnings("ConstantConditions")
       double partitionCount = topicDescription.partitions().size();
-      topicPartitionCount.add(
+      metrics.sensor("topic-partitions").add(
           new MetricName("topic-partitions-count", METRIC_GROUP_NAME, "The total number of partitions for the topic.",
               tags), new CumulativeSum(partitionCount));
     }

@@ -39,6 +39,8 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.linkedin.xinfra.monitor.common.Utils.prettyPrint;
+
 /*
  * The SingleClusterMonitor app is intended to monitor the performance and availability of a given Kafka cluster. It creates
  * one producer and one consumer with the given configuration, produces messages with increasing integer in the
@@ -53,55 +55,78 @@ public class SingleClusterMonitor implements App {
 
   private static final int SERVICES_INITIAL_CAPACITY = 4;
   private final TopicManagementService _topicManagementService;
-  private final String _name;
+  private final String _clusterName;
   private final List<Service> _allServices;
+  private final boolean _isTopicManagementServiceEnabled;
 
-  public SingleClusterMonitor(Map<String, Object> props, String name) throws Exception {
+  public SingleClusterMonitor(Map<String, Object> props, String clusterName) throws Exception {
     ConsumerFactory consumerFactory = new ConsumerFactoryImpl(props);
-    _name = name;
-    _topicManagementService = new TopicManagementService(props, name);
-    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
-
-    // block on the MultiClusterTopicManagementService to complete.
-    topicPartitionResult.get();
-
-    ProduceService produceService = new ProduceService(props, name);
-    ConsumeService consumeService = new ConsumeService(name, topicPartitionResult, consumerFactory);
-
+    _clusterName = clusterName;
+    LOG.info("SingleClusterMonitor properties: {}", prettyPrint(props));
+    TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
+    _isTopicManagementServiceEnabled =
+        config.getBoolean(TopicManagementServiceConfig.TOPIC_MANAGEMENT_ENABLED_CONFIG);
     _allServices = new ArrayList<>(SERVICES_INITIAL_CAPACITY);
-    _allServices.add(_topicManagementService);
+    CompletableFuture<Void> topicPartitionResult;
+    if (_isTopicManagementServiceEnabled) {
+      String topicManagementServiceName = String.format("Topic-management-service-for-%s", clusterName);
+      _topicManagementService = new TopicManagementService(props, topicManagementServiceName);
+      topicPartitionResult = _topicManagementService.topicPartitionResult();
+
+      // block on the MultiClusterTopicManagementService to complete.
+      topicPartitionResult.get();
+
+      _allServices.add(_topicManagementService);
+    } else {
+      _topicManagementService = null;
+      topicPartitionResult = new CompletableFuture<>();
+      topicPartitionResult.complete(null);
+    }
+    ProduceService produceService = new ProduceService(props, clusterName);
+    ConsumeService consumeService = new ConsumeService(clusterName, topicPartitionResult, consumerFactory);
     _allServices.add(produceService);
     _allServices.add(consumeService);
   }
 
   @Override
   public void start() throws Exception {
-    _topicManagementService.start();
-    CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
-    try {
+    if (_isTopicManagementServiceEnabled) {
+      _topicManagementService.start();
+      CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
+
+      try {
       /* Delay 2 second to reduce the chance that produce and consumer thread has race condition
       with TopicManagementService and MultiClusterTopicManagementService */
-      long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
-      Thread.sleep(threadSleepMs);
-    } catch (InterruptedException e) {
-      throw new Exception("Interrupted while sleeping the thread", e);
-    }
-    CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+        long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
+        Thread.sleep(threadSleepMs);
+      } catch (InterruptedException e) {
+        throw new Exception("Interrupted while sleeping the thread", e);
+      }
+      CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
+        for (Service service : _allServices) {
+          if (!service.isRunning()) {
+            LOG.debug("Now starting {}", service.getServiceName());
+            service.start();
+          }
+        }
+      });
+
+      try {
+        topicPartitionFuture.get();
+      } catch (InterruptedException | ExecutionException e) {
+        throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
+      }
+
+    } else {
       for (Service service : _allServices) {
         if (!service.isRunning()) {
           LOG.debug("Now starting {}", service.getServiceName());
           service.start();
         }
       }
-    });
-
-    try {
-      topicPartitionFuture.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new Exception("Exception occurred while getting the TopicPartitionFuture", e);
     }
 
-    LOG.info(_name + "/SingleClusterMonitor started.");
+    LOG.info(_clusterName + "/SingleClusterMonitor started!");
   }
 
   @Override
@@ -109,7 +134,7 @@ public class SingleClusterMonitor implements App {
     for (Service service : _allServices) {
       service.stop();
     }
-    LOG.info(_name + "/SingleClusterMonitor stopped.");
+    LOG.info(_clusterName + "/SingleClusterMonitor stopped.");
   }
 
   @Override
@@ -252,6 +277,22 @@ public class SingleClusterMonitor implements App {
       .dest("autoTopicCreationEnabled")
       .help(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_DOC);
 
+    parser.addArgument("--topic-add-partition-enabled")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("TOPIC_ADD_PARTITION_ENABLED")
+      .dest("topicAddPartitionEnabled")
+      .help(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_DOC);
+
+    parser.addArgument("--topic-reassign-partition-and-elect-leader-enabled")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Boolean.class)
+      .metavar("TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED")
+      .dest("topicReassignPartitionAndElectLeaderEnabled")
+      .help(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_DOC);
+
     parser.addArgument("--replication-factor")
         .action(net.sourceforge.argparse4j.impl.Arguments.store())
         .required(false)
@@ -267,6 +308,14 @@ public class SingleClusterMonitor implements App {
       .metavar("REBALANCE_MS")
       .dest("rebalanceMs")
       .help(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_DOC);
+
+    parser.addArgument("--topic-preferred-leader-election-interval-ms")
+      .action(net.sourceforge.argparse4j.impl.Arguments.store())
+      .required(false)
+      .type(Integer.class)
+      .metavar("PREFERED_LEADER_ELECTION_INTERVAL_MS")
+      .dest("preferredLeaderElectionIntervalMs")
+      .help(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_DOC);
 
     return parser;
   }
@@ -311,10 +360,16 @@ public class SingleClusterMonitor implements App {
     // topic management service config
     if (res.getBoolean("autoTopicCreationEnabled") != null)
       props.put(TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG, res.getBoolean("autoTopicCreationEnabled"));
+    if (res.getBoolean("topicAddPartitionEnabled") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG, res.getBoolean("topicAddPartitionEnabled"));
+    if (res.getBoolean("topicReassignPartitionAndElectLeaderEnabled") != null)
+      props.put(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG, res.getBoolean("topicReassignPartitionAndElectLeaderEnabled"));
     if (res.getInt("replicationFactor") != null)
       props.put(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG, res.getInt("replicationFactor"));
     if (res.getInt("rebalanceMs") != null)
       props.put(MultiClusterTopicManagementServiceConfig.REBALANCE_INTERVAL_MS_CONFIG, res.getInt("rebalanceMs"));
+    if (res.getLong("preferredLeaderElectionIntervalMs") != null)
+      props.put(MultiClusterTopicManagementServiceConfig.PREFERRED_LEADER_ELECTION_CHECK_INTERVAL_MS_CONFIG, res.getLong("preferredLeaderElectionIntervalMs"));
     SingleClusterMonitor app = new SingleClusterMonitor(props, "single-cluster-monitor");
     app.start();
 

@@ -29,7 +29,7 @@ public class DefaultMetricsReporterServiceFactory implements ServiceFactory {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Service createService() throws Exception {
+  public Service createService() {
     return new DefaultMetricsReporterService(_properties, _serviceName);
   }
 }

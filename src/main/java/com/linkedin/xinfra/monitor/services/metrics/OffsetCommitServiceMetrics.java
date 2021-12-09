@@ -17,7 +17,7 @@ import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
-import org.apache.kafka.common.metrics.stats.Total;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +48,7 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
         "The success rate of group coordinator accepting consumer offset commit requests.", tags), new Avg());
     _offsetCommittedSensor.add(new MetricName(SUCCESS_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator successfully accepting consumer offset commit requests.", tags),
-        new Total());
+        new CumulativeSum());
 
     _offsetCommitFailSensor = metrics.sensor(FAILURE_SENSOR_NAME);
     /* NaN will persist as long as no record is submitted to the failure sensor.
@@ -57,7 +57,7 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
         "The failure rate of group coordinator accepting consumer offset commit requests.", tags), new Avg());
     _offsetCommitFailSensor.add(new MetricName(FAILURE_METRIC_TOTAL, METRIC_GROUP_NAME,
             "The total count of group coordinator unsuccessfully receiving consumer offset commit requests.", tags),
-        new Total());
+        new CumulativeSum());
 
     Measurable measurable = new Measurable() {
       @Override
