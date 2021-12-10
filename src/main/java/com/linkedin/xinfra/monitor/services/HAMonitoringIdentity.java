@@ -3,6 +3,9 @@ package com.linkedin.xinfra.monitor.services;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Keep track of assignments made in HAMonitoringCoordinator
+ */
 public class HAMonitoringIdentity {
     private String id;
     private Boolean isLeader;

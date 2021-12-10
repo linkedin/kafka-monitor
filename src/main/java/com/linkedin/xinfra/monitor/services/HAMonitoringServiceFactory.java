@@ -4,7 +4,7 @@ import java.util.Map;
 
 
 /**
- * Factory class which instantiates a JolokiaService service.
+ * Factory class that constructs the HAMonitoringService.
  */
 @SuppressWarnings("rawtypes")
 public class HAMonitoringServiceFactory implements ServiceFactory {

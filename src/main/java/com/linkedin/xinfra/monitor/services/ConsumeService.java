@@ -85,7 +85,6 @@ public class ConsumeService extends AbstractService {
       throws ExecutionException, InterruptedException {
       // TODO: Make values of below fields come from configs
       super(10, Duration.ofMinutes(1));
-      // _baseConsumer = consumerFactory.baseConsumer();
       _latencySlaMs = consumerFactory.latencySlaMs();
       _name = name;
       _adminClient = consumerFactory.adminClient();

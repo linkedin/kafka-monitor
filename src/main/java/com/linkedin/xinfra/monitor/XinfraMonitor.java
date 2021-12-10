@@ -92,6 +92,9 @@ public class XinfraMonitor {
       String className = (String) props.get(XinfraMonitorConstants.CLASS_NAME_CONFIG);
       Class<?> aClass = Class.forName(className);
 
+      /**
+       * If HA config is specified, create Runnables for the service to start and stop the monitor
+       */
       if (HAMonitoringService.class.isAssignableFrom(aClass)) {
         _isRunningHA = true;
         Runnable startMonitor = (() -> {
@@ -219,6 +222,10 @@ public class XinfraMonitor {
     Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
 
+    /**
+     * If HA version is not running, start the monitor
+     * HA version will start the monitor if this instance is selected by the coordinator
+     */
     if (!xinfraMonitor._isRunningHA) {
       xinfraMonitor.start();
       LOG.info("Xinfra Monitor has started.");

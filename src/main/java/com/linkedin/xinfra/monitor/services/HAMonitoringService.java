@@ -23,17 +23,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Service that creates HAMonitoringCoordinator and regularly polls it.
+ */
 public class HAMonitoringService implements Service {
   private static final Logger LOG = LoggerFactory.getLogger(HAMonitoringService.class);
   private ScheduledExecutorService _executor;
-  private final HAMonitoringCoordinator coordinator;
   private AtomicBoolean _isRunning;
-  private final LogContext logContext;
-
-  private String groupInstanceId;
-
   private final String _name;
-  protected final Time time;
+  private final HAMonitoringCoordinator _coordinator;
 
   public HAMonitoringService(Map<String, Object> props, String name, Runnable startMonitor, Runnable stopMonitor) {
     _name = name;
@@ -45,9 +43,10 @@ public class HAMonitoringService implements Service {
     String metricGrpPrefix = config.getString(HAMonitoringConfig.METRIC_GROUP_PREFIX_CONFIG);
     String clientId = config.getString(CommonClientConfigs.CLIENT_ID_CONFIG);
 
-    time = Time.SYSTEM;
+    Time time = Time.SYSTEM;
 
-    groupInstanceId = config.getString(HAMonitoringConfig.GROUP_INSTANCE_ID_CONFIG);
+    // Each instance the monitor will need an ID to join the coordinator group
+    String groupInstanceId = config.getString(HAMonitoringConfig.GROUP_INSTANCE_ID_CONFIG);
     if (groupInstanceId == null) {
       groupInstanceId = UUID.randomUUID().toString();
     }
@@ -56,10 +55,11 @@ public class HAMonitoringService implements Service {
 
     HAMonitoringIdentity id = new HAMonitoringIdentity(groupInstanceId);
 
+    // Create paramaters required by the coordinator
     MetricConfig metricConfig = new MetricConfig();
     Metrics metrics = new Metrics(metricConfig, new ArrayList<>(), time);
 
-    logContext = new LogContext("[HA Leader Election group=" + groupId + " instance=" + groupInstanceId + "] ");
+    LogContext logContext = new LogContext("[HA Leader Election group=" + groupId + " instance=" + groupInstanceId + "] ");
 
     Metadata metadata = new Metadata(
             retryBackoffMs,
@@ -113,11 +113,12 @@ public class HAMonitoringService implements Service {
             heartbeatIntervalMs,
             groupId,
             Optional.of(groupInstanceId),
-            retryBackoffMs, // long
-            false // leaveGroupOnClose
+            retryBackoffMs,
+            false
     );
 
-    this.coordinator = new HAMonitoringCoordinator(
+    // Create a HAMonitoringCoordinator instance
+    _coordinator = new HAMonitoringCoordinator(
             groupRebalanceConfig,
             logContext,
             client,
@@ -131,15 +132,16 @@ public class HAMonitoringService implements Service {
 
     _isRunning = new AtomicBoolean(true);
 
-    // start a thread to ensure coordinator ready
-    // while not stopping, poll the coordinator
+    /**
+     * Start a thread to poll the coordinator at a fixed rate.
+     */
     long initialDelaySecond = 5;
     long periodSecond = 30;
 
-    this.coordinator.ensureActiveGroup();
+    _coordinator.ensureActiveGroup();
 
     _executor = Executors.newSingleThreadScheduledExecutor();
-    _executor.scheduleAtFixedRate(() -> this.coordinator.poll(), initialDelaySecond, periodSecond, TimeUnit.SECONDS);
+    _executor.scheduleAtFixedRate(() -> _coordinator.poll(), initialDelaySecond, periodSecond, TimeUnit.SECONDS);
 
     LOG.info("{}/HAMonitoringService started.", _name);
   }
@@ -152,18 +154,21 @@ public class HAMonitoringService implements Service {
 
     // start a thread to ensure coordinator ready
     // while not stopping, poll the coordinator
-    long initialDelaySecond = 5;
-    long periodSecond = 30;
-
-    this.coordinator.ensureActiveGroup();
-
-    _executor = Executors.newSingleThreadScheduledExecutor();
-    _executor.scheduleAtFixedRate(() -> this.coordinator.poll(), initialDelaySecond, periodSecond, TimeUnit.SECONDS);
+//    long initialDelaySecond = 5;
+//    long periodSecond = 30;
+//
+//    _coordinator.ensureActiveGroup();
+//
+//    _executor = Executors.newSingleThreadScheduledExecutor();
+//    _executor.scheduleAtFixedRate(() -> _coordinator.poll(), initialDelaySecond, periodSecond, TimeUnit.SECONDS);
   }
 
   @Override
   public synchronized void stop() {
-    // don't actually stop, this service should still be running to see if this member becomes the leader
+    /**
+     * This service should contine running to see if this group member becomes in charge of reporting metrics.
+     * Continue polling the cooridnator.
+     */
   }
 
   @Override

@@ -165,16 +165,6 @@ public class ProduceService extends AbstractService {
       _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
       _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
 
-      // try {
-      //   KafkaFuture<Map<String, TopicDescription>> topicDescriptionsFuture = _adminClient.describeTopics(Collections.singleton(_topic)).all();
-      //   Map<String, TopicDescription> topicDescriptions = topicDescriptionsFuture.get();
-      //   int partitionNum = topicDescriptions.get(_topic).partitions().size();
-      //   initializeStateForPartitions(partitionNum);
-      //   _handleNewPartitionsExecutor.scheduleWithFixedDelay(new NewPartitionHandler(), 1, 30, TimeUnit.SECONDS);
-      //   LOG.info("{}/ProduceService started", _name);
-      // } catch (InterruptedException | UnknownTopicOrPartitionException | ExecutionException e) {
-      //   LOG.error("Exception occurred while starting produce service for topic: {}", _topic, e);
-      // }
       TopicDescription topicDescription = getTopicDescription(_adminClient, _topic);
       int partitionNum = topicDescription.partitions().size();
       initializeStateForPartitions(partitionNum);
