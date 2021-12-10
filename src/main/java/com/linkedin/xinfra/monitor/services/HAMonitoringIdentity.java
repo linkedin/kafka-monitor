@@ -7,47 +7,47 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * Keep track of assignments made in HAMonitoringCoordinator
  */
 public class HAMonitoringIdentity {
-    private String id;
-    private Boolean isLeader;
+  private String _id;
+  private Boolean _isLeader;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public HAMonitoringIdentity(
-            @JsonProperty("id") String id
-    ) {
-        this.id = id;
-        this.isLeader = false;
+  public HAMonitoringIdentity(
+          @JsonProperty("_id") String id
+  ) {
+    _id = id;
+    _isLeader = false;
+  }
+
+  public byte[] toBytes() {
+    try {
+      return MAPPER.writeValueAsBytes(this);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Error serializing identity information", e);
     }
+  }
 
-    public byte[] toBytes() {
-        try {
-            return MAPPER.writeValueAsBytes(this);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error serializing identity information", e);
-        }
+  public static HAMonitoringIdentity fromBytes(byte[] jsonData) {
+    try {
+      return MAPPER.readValue(jsonData, HAMonitoringIdentity.class);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Error deserializing identity information", e);
     }
+  }
 
-    public static HAMonitoringIdentity fromBytes(byte[] jsonData) {
-        try {
-            return MAPPER.readValue(jsonData, HAMonitoringIdentity.class);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error deserializing identity information", e);
-        }
-    }
+  public String getId() {
+    return _id;
+  }
 
-    public String getId() {
-        return this.id;
-    }
+  public void setId(String id) {
+    _id = id;
+  }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+  public boolean isLeader() {
+    return _isLeader;
+  }
 
-    public boolean isLeader() {
-        return this.isLeader;
-    }
-
-    public void setLeader(boolean isLeader) {
-        this.isLeader = isLeader;
-    }
+  public void setLeader(boolean isLeader) {
+    _isLeader = isLeader;
+  }
 }

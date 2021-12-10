@@ -106,12 +106,12 @@ public class NewConsumer implements KMBaseConsumer {
 
   private class KMRebalance implements ConsumerRebalanceListener {
     private final KafkaConsumer<String, String> _consumer;
-     public KMRebalance(KafkaConsumer consumer) {
+    public KMRebalance(KafkaConsumer consumer) {
       _consumer = consumer;
     }
-     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
     }
-     public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+    public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
       _consumer.seekToEnd(partitions);
     }
   }

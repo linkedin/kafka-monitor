@@ -84,13 +84,13 @@ public class ConsumeService extends AbstractService {
                         ConsumerFactory consumerFactory)
       throws ExecutionException, InterruptedException {
       // TODO: Make values of below fields come from configs
-      super(10, Duration.ofMinutes(1));
-      _latencySlaMs = consumerFactory.latencySlaMs();
-      _name = name;
-      _adminClient = consumerFactory.adminClient();
-      _running = new AtomicBoolean(false);
-      _topicPartitionResult = topicPartitionResult;
-      _consumerFactory = consumerFactory;
+    super(10, Duration.ofMinutes(1));
+    _latencySlaMs = consumerFactory.latencySlaMs();
+    _name = name;
+    _adminClient = consumerFactory.adminClient();
+    _running = new AtomicBoolean(false);
+    _topicPartitionResult = topicPartitionResult;
+    _consumerFactory = consumerFactory;
   }
 
   private void consume() throws Exception {

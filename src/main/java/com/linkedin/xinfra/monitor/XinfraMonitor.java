@@ -36,15 +36,6 @@ import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * This is the main entry point of the monitor.  It reads the configuration and manages the life cycle of the monitoring
  * applications.
@@ -97,7 +88,7 @@ public class XinfraMonitor {
        */
       if (HAMonitoringService.class.isAssignableFrom(aClass)) {
         _isRunningHA = true;
-        Runnable startMonitor = (() -> {
+        Runnable startMonitor = () -> {
           try {
             LOG.info("HAXinfraMonitor starting...");
             this.start();
@@ -105,11 +96,11 @@ public class XinfraMonitor {
           } catch (Exception e) {
             throw new IllegalStateException("Error starting HAXinfraMonitor", e);
           }
-        });
-        Runnable stopMonitor = (() -> {
+        };
+        Runnable stopMonitor = () -> {
           this.stop();
           LOG.info("HAXinfraMonitor stopped.");
-        });
+        };
 
         props.put(HAMonitoringServiceFactory.STARTMONITOR, startMonitor);
         props.put(HAMonitoringServiceFactory.STOPMONITOR, stopMonitor);
@@ -122,8 +113,8 @@ public class XinfraMonitor {
         ServiceFactory serviceFactory = (ServiceFactory) Class.forName(className + XinfraMonitorConstants.FACTORY)
               .getConstructor(Map.class, String.class)
               .newInstance(props, name);
-          Service service = serviceFactory.createService();
-          _services.put(name, service);
+        Service service = serviceFactory.createService();
+        _services.put(name, service);
       } else {
         throw new IllegalArgumentException(className + " should implement either " + App.class.getSimpleName() + " or " + Service.class.getSimpleName());
       }
