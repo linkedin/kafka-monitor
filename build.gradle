@@ -9,9 +9,11 @@ buildscript {
     classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
   }
 }
-apply plugin: 'maven-publish'
+
 apply plugin: 'com.jfrog.bintray'
 apply plugin: 'distribution'
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
 
 
 allprojects {
