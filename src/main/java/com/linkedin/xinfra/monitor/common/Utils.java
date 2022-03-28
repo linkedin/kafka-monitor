@@ -13,7 +13,9 @@ package com.linkedin.xinfra.monitor.common;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import java.io.ByteArrayOutputStream;
+import com.linkedin.avroutil1.compatibility.AvroCodecUtil;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
+import com.linkedin.avroutil1.compatibility.AvroVersion;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -34,10 +36,9 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import kafka.admin.BrokerMetadata;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.Encoder;
-import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.io.Decoder;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.ListPartitionReassignmentsResult;
@@ -45,7 +46,6 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.PartitionReassignment;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -224,29 +224,21 @@ public class Utils {
    * @return GenericRecord that is de-serialized from kafka message w.r.t. expected schema.
    */
   public static GenericRecord genericRecordFromJson(String message) {
-    GenericRecord record = new GenericData.Record(DefaultTopicSchema.MESSAGE_V0);
-    JSONObject jsonObject = new JSONObject(message);
-    record.put(DefaultTopicSchema.TOPIC_FIELD.name(), jsonObject.getString(DefaultTopicSchema.TOPIC_FIELD.name()));
-    record.put(DefaultTopicSchema.INDEX_FIELD.name(), jsonObject.getLong(DefaultTopicSchema.INDEX_FIELD.name()));
-    record.put(DefaultTopicSchema.TIME_FIELD.name(), jsonObject.getLong(DefaultTopicSchema.TIME_FIELD.name()));
-    record.put(DefaultTopicSchema.PRODUCER_ID_FIELD.name(),
-        jsonObject.getString(DefaultTopicSchema.PRODUCER_ID_FIELD.name()));
-    record.put(DefaultTopicSchema.CONTENT_FIELD.name(), jsonObject.getString(DefaultTopicSchema.CONTENT_FIELD.name()));
-    return record;
+    try {
+      Decoder jsonDecoder = AvroCompatibilityHelper.newCompatibleJsonDecoder(DefaultTopicSchema.MESSAGE_V0, message);
+      GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(DefaultTopicSchema.MESSAGE_V0, DefaultTopicSchema.MESSAGE_V0);
+      return reader.read(null, jsonDecoder);
+    } catch (Exception e) {
+      throw new IllegalStateException("unable to deserialize " + message, e);
+    }
   }
 
   public static String jsonFromGenericRecord(GenericRecord record) {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(DefaultTopicSchema.MESSAGE_V0);
-
     try {
-      Encoder encoder = new JsonEncoder(DefaultTopicSchema.MESSAGE_V0, out);
-      writer.write(record, encoder);
-      encoder.flush();
+      return AvroCodecUtil.serializeJson(record, AvroVersion.AVRO_1_4);
     } catch (IOException e) {
-      LOG.error("Unable to serialize avro record due to error " + e);
+      throw new IllegalStateException("Unable to serialize avro record due to error: " + record, e);
     }
-    return out.toString();
   }
 
   public static List<MbeanAttributeValue> getMBeanAttributeValues(String mbeanExpr, String attributeExpr) {
