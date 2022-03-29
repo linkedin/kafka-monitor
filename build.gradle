@@ -27,12 +27,15 @@ allprojects {
 
   repositories {
     mavenCentral()
+    maven {
+      url  "https://linkedin.jfrog.io/artifactory/avro-util/"
+    }
   }
 
   dependencies {
     compile 'net.sourceforge.argparse4j:argparse4j:0.5.0'
     compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.1'
-    compile 'org.apache.avro:avro:1.4.1'
+    compile 'org.apache.avro:avro:1.9.2'
     compile 'org.json:json:20140107'
     compile 'org.jolokia:jolokia-jvm:1.6.2'
     compile 'net.savantly:graphite-client:1.1.0-RELEASE'
@@ -40,6 +43,8 @@ allprojects {
     compile 'com.signalfx.public:signalfx-codahale:0.0.47'
     compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.4.0'
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.1'
+    compile 'org.apache.commons:commons-lang3:3.12.0'
+    compile 'com.linkedin.avroutil1:helper-all:0.2.81'
     testCompile 'org.mockito:mockito-core:2.24.0'
     testCompile 'org.testng:testng:6.8.8'
   }

@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import net.savantly.graphite.GraphiteClient;
 import net.savantly.graphite.GraphiteClientFactory;
 import net.savantly.graphite.impl.SimpleCarbonMetric;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
