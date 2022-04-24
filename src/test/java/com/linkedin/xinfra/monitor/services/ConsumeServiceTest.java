@@ -189,7 +189,7 @@ public class ConsumeServiceTest {
     thread.join(500);
 
     Assert.assertFalse(thread.isAlive());
-    Assert.assertEquals(error.get(), null);
+    Assert.assertNull(error.get());
 
   }
 
