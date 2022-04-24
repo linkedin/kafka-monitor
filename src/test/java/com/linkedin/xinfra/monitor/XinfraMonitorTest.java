@@ -10,8 +10,11 @@
 
 package com.linkedin.xinfra.monitor;
 
+import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import com.linkedin.xinfra.monitor.services.Service;
+
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +74,7 @@ public class XinfraMonitorTest {
 
     t.start();
     xinfraMonitor.start();
-    Thread.sleep(100);
+    Utils.delay(Duration.ofMillis(100));
     xinfraMonitor.stop();
     t.join(500);
     org.testng.Assert.assertFalse(t.isAlive());

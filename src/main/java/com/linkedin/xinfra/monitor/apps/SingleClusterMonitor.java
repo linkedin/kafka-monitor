@@ -24,6 +24,8 @@ import com.linkedin.xinfra.monitor.services.configs.MultiClusterTopicManagementS
 import com.linkedin.xinfra.monitor.services.configs.ProduceServiceConfig;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
 import com.linkedin.xinfra.monitor.services.metrics.ClusterTopicManipulationMetrics;
+
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.linkedin.xinfra.monitor.common.Utils.delay;
 import static com.linkedin.xinfra.monitor.common.Utils.prettyPrint;
 
 /*
@@ -94,14 +97,9 @@ public class SingleClusterMonitor implements App {
       _topicManagementService.start();
       CompletableFuture<Void> topicPartitionResult = _topicManagementService.topicPartitionResult();
 
-      try {
       /* Delay 2 second to reduce the chance that produce and consumer thread has race condition
       with TopicManagementService and MultiClusterTopicManagementService */
-        long threadSleepMs = TimeUnit.SECONDS.toMillis(2);
-        Thread.sleep(threadSleepMs);
-      } catch (InterruptedException e) {
-        throw new Exception("Interrupted while sleeping the thread", e);
-      }
+      delay(Duration.ofSeconds(2));
       CompletableFuture<Void> topicPartitionFuture = topicPartitionResult.thenRun(() -> {
         for (Service service : _allServices) {
           if (!service.isRunning()) {

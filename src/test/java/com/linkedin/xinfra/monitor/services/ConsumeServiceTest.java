@@ -14,6 +14,8 @@ import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.consumer.BaseConsumerRecord;
 import com.linkedin.xinfra.monitor.consumer.KMBaseConsumer;
 import com.linkedin.xinfra.monitor.services.metrics.CommitLatencyMetrics;
+
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -83,12 +85,9 @@ public class ConsumeServiceTest {
     consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* in milliseconds */
-    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
-
-    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+    /* delay safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
-    Thread.sleep(threadStartDelay);
+    Utils.delay(Duration.ofSeconds(THREAD_START_DELAY_SECONDS));
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
         tags)).metricValue());
@@ -112,12 +111,9 @@ public class ConsumeServiceTest {
     consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* in milliseconds */
-    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
-
-    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+    /* delay safe to do here instead of ScheduledExecutorService
      *  We want to sleep current thread so that consumeService can start running for enough seconds. */
-    Thread.sleep(threadStartDelay);
+    Utils.delay(Duration.ofSeconds(THREAD_START_DELAY_SECONDS));
 
     shutdownConsumeService(consumeService);
   }
@@ -190,7 +186,7 @@ public class ConsumeServiceTest {
 
     thread.start();
     consumeService.startConsumeThreadForTesting();
-    Thread.sleep(100);
+    Utils.delay(Duration.ofMillis(100));
 
     consumeService.stop();
     thread.join(500);

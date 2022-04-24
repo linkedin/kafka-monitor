@@ -117,9 +117,9 @@ public class ConsumeService extends AbstractService {
     topicPartitionFuture.get();
   }
 
-  private void consume() throws Exception {
+  private void consume()  {
     /* Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService */
-    Thread.sleep(1000);
+    Utils.delay(Duration.ofSeconds(1));
 
     Map<Integer, Long> nextIndexes = new HashMap<>();
 
@@ -132,7 +132,7 @@ public class ConsumeService extends AbstractService {
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         /* Avoid busy while loop */
         //noinspection BusyWait
-        Thread.sleep(CONSUME_THREAD_SLEEP_MS);
+        Utils.delay(Duration.ofMillis(CONSUME_THREAD_SLEEP_MS));
         continue;
       }
 
