@@ -117,9 +117,7 @@ public class Utils {
     Collections.shuffle(brokerMetadataList);
 
     // Get broker ids for replica list
-    List<Integer> replicaList = brokerMetadataList.stream().map(m -> m.id()).collect(Collectors.toList());
-
-    return replicaList;
+    return brokerMetadataList.stream().map(m -> m.id()).collect(Collectors.toList());
   }
 
   /**

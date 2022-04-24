@@ -203,8 +203,7 @@ public class ConsumeServiceTest {
    */
   private Metrics consumeServiceMetrics(ConsumeService consumeService) {
     setup();
-    Metrics metrics = consumeService.metrics();
-    return metrics;
+    return consumeService.metrics();
   }
 
   /**
