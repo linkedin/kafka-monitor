@@ -52,8 +52,8 @@ public class SignalFxMetricsReporterService implements Service {
 
     _executor = Executors.newSingleThreadScheduledExecutor();
     _metricRegistry = new MetricRegistry();
-    _metricMap = new HashMap<String, SettableDoubleGauge>();
-    _dimensionsMap = new HashMap<String, String>();
+    _metricMap = new HashMap<>();
+    _dimensionsMap = new HashMap<>();
     if (props.containsKey(SignalFxMetricsReporterServiceConfig.SIGNALFX_METRIC_DIMENSION)) {
       _dimensionsMap = (Map<String, String>) props.get(SignalFxMetricsReporterServiceConfig.SIGNALFX_METRIC_DIMENSION);
     }
