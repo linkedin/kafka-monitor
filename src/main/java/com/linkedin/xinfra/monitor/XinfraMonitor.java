@@ -60,11 +60,11 @@ public class XinfraMonitor {
    */
 
   @SuppressWarnings({"rawtypes"})
-  public XinfraMonitor(Map<String, Map> allClusterProps) throws Exception {
+  public XinfraMonitor(Map<String, Map<String, Object>> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
+    for (Map.Entry<String, Map<String, Object>> clusterProperty : allClusterProps.entrySet()) {
       String clusterName = clusterProperty.getKey();
       Map props = clusterProperty.getValue();
       if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
@@ -165,7 +165,6 @@ public class XinfraMonitor {
       service.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 
-  @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
       LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.properties");
@@ -182,7 +181,7 @@ public class XinfraMonitor {
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
+    Map<String, Map<String, Object>> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
     xinfraMonitor.start();
     LOG.info("Xinfra Monitor has started.");
