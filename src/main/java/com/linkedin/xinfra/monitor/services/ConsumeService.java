@@ -152,16 +152,13 @@ public class ConsumeService extends AbstractService {
       int partition = record.partition();
       /* Commit availability and commit latency service */
       /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-      OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
-        @Override
-        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception kafkaException) {
-          if (kafkaException != null) {
-            LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
-            _commitAvailabilityMetrics._failedCommitOffsets.record();
-          } else {
-            _commitAvailabilityMetrics._offsetsCommitted.record();
-            _commitLatencyMetrics.recordCommitComplete();
-          }
+      OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, kafkaException) -> {
+        if (kafkaException != null) {
+          LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+          _commitAvailabilityMetrics._failedCommitOffsets.record();
+        } else {
+          _commitAvailabilityMetrics._offsetsCommitted.record();
+          _commitLatencyMetrics.recordCommitComplete();
         }
       };
 

@@ -59,27 +59,24 @@ public class OffsetCommitServiceMetrics extends XinfraMonitorMetrics {
             "The total count of group coordinator unsuccessfully receiving consumer offset commit requests.", tags),
         new CumulativeSum());
 
-    Measurable measurable = new Measurable() {
-      @Override
-      public double measure(MetricConfig config, long now) {
-        double offsetCommitSuccessRate = (double) metrics.metrics()
-            .get(metrics.metricName(SUCCESS_RATE_METRIC, METRIC_GROUP_NAME, tags))
-            .metricValue();
-        double offsetCommitFailureRate = (double) metrics.metrics()
-            .get(metrics.metricName(FAILURE_RATE_METRIC, METRIC_GROUP_NAME, tags))
-            .metricValue();
+    Measurable measurable = (config, now) -> {
+      double offsetCommitSuccessRate = (double) metrics.metrics()
+          .get(metrics.metricName(SUCCESS_RATE_METRIC, METRIC_GROUP_NAME, tags))
+          .metricValue();
+      double offsetCommitFailureRate = (double) metrics.metrics()
+          .get(metrics.metricName(FAILURE_RATE_METRIC, METRIC_GROUP_NAME, tags))
+          .metricValue();
 
-        if (new Double(offsetCommitSuccessRate).isNaN()) {
-          offsetCommitSuccessRate = 0;
-        }
-
-        if (new Double(offsetCommitFailureRate).isNaN()) {
-          offsetCommitFailureRate = 0;
-        }
-
-        return offsetCommitSuccessRate + offsetCommitFailureRate > 0 ? offsetCommitSuccessRate / (
-            offsetCommitSuccessRate + offsetCommitFailureRate) : 0;
+      if (new Double(offsetCommitSuccessRate).isNaN()) {
+        offsetCommitSuccessRate = 0;
       }
+
+      if (new Double(offsetCommitFailureRate).isNaN()) {
+        offsetCommitFailureRate = 0;
+      }
+
+      return offsetCommitSuccessRate + offsetCommitFailureRate > 0 ? offsetCommitSuccessRate / (
+          offsetCommitSuccessRate + offsetCommitFailureRate) : 0;
     };
 
     metrics.addMetric(new MetricName("offset-commit-availability-avg", METRIC_GROUP_NAME,

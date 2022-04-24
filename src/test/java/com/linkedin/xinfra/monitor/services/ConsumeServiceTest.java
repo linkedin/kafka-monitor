@@ -144,16 +144,13 @@ public class ConsumeServiceTest {
     /* define return value */
     Mockito.when(kmBaseConsumer.lastCommitted()).thenReturn(MOCK_LAST_COMMITTED_OFFSET);
     Mockito.when(kmBaseConsumer.committed(Mockito.any())).thenReturn(new OffsetAndMetadata(FIRST_OFFSET));
-    Mockito.doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocationOnMock) {
-        OffsetCommitCallback callback = invocationOnMock.getArgument(0);
-        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
-        committedOffsets.put(new TopicPartition(TOPIC, PARTITION), new OffsetAndMetadata(FIRST_OFFSET));
-        callback.onComplete(committedOffsets, null);
+    Mockito.doAnswer((Answer<Void>) invocationOnMock -> {
+      OffsetCommitCallback callback = invocationOnMock.getArgument(0);
+      Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+      committedOffsets.put(new TopicPartition(TOPIC, PARTITION), new OffsetAndMetadata(FIRST_OFFSET));
+      callback.onComplete(committedOffsets, null);
 
-        return null;
-      }
+      return null;
     }).when(kmBaseConsumer).commitAsync(Mockito.any(OffsetCommitCallback.class));
 
 
