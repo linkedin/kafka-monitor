@@ -55,8 +55,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Utils {
   private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
-  public static final int ZK_CONNECTION_TIMEOUT_MS = 30_000;
-  public static final int ZK_SESSION_TIMEOUT_MS = 30_000;
   private static final long LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS = 60000L;
   private static final int LIST_PARTITION_REASSIGNMENTS_MAX_ATTEMPTS = 3;
   private static final String LIST_PARTITION_REASSIGNMENTS_TIMEOUT_MS_CONFIG = "list.partition.reassignment.timeout.ms";
