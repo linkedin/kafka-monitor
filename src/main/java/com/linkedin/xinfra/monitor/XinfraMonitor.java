@@ -16,7 +16,6 @@ import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,15 +91,6 @@ public class XinfraMonitor {
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
     metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
-  }
-
-  private boolean constructorContainsClass(Constructor<?>[] constructors, Class<?> classObject) {
-    for (int n = 0; n < constructors[0].getParameterTypes().length; ++n) {
-      if (constructors[0].getParameterTypes()[n].equals(classObject)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   public synchronized void start() throws Exception {
