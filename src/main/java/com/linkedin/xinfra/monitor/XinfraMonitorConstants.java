@@ -15,9 +15,7 @@ package com.linkedin.xinfra.monitor;
  */
 public class XinfraMonitorConstants {
 
-  public XinfraMonitorConstants() {
-    
-  }
+  private XinfraMonitorConstants() {}
 
   public static final String TAGS_NAME = "name";
 
