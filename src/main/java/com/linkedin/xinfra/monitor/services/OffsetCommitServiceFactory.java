@@ -74,9 +74,7 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
 
     Map<String, String> customProps = (Map<String, String>) props.get(CommonServiceConfig.CONSUMER_PROPS_CONFIG);
     if (customProps != null) {
-      for (Map.Entry<String, String> entry : customProps.entrySet()) {
-        consumerProps.put(entry.getKey(), entry.getValue());
-      }
+      consumerProps.putAll(customProps);
     }
 
     return consumerProps;
