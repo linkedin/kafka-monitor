@@ -85,7 +85,7 @@ public class NewConsumer implements KMBaseConsumer {
 
   @Override
   public OffsetAndMetadata committed(TopicPartition tp) {
-    return _consumer.committed(tp);
+    return _consumer.committed(Collections.singleton(tp)).get(tp);
   }
 
   @Override
