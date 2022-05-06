@@ -45,6 +45,8 @@ allprojects {
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.1'
     compile 'org.apache.commons:commons-lang3:3.12.0'
     compile 'com.linkedin.avroutil1:helper-all:0.2.81'
+    compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.10.3'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.10.3'
     testCompile 'org.mockito:mockito-core:2.24.0'
     testCompile 'org.testng:testng:6.8.8'
   }
