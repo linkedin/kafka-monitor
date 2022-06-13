@@ -36,22 +36,39 @@ public class CommitAvailabilityMetrics {
   public CommitAvailabilityMetrics(final Metrics metrics, final Map<String, String> tags) {
     LOG.info("{} called.", this.getClass().getSimpleName());
     _offsetsCommitted = metrics.sensor("offsets-committed");
+    _offsetsCommitted.add(new MetricName("offsets-committed-rate", METRIC_GROUP_NAME,
+        "The average number of offsets per second that are committed", tags), new Rate());
     _offsetsCommitted.add(new MetricName("offsets-committed-total", METRIC_GROUP_NAME,
-        "The total number of offsets per second that are committed.", tags), new CumulativeSum());
+        "The total number of offsets that are committed", tags), new CumulativeSum());
 
     _failedCommitOffsets = metrics.sensor("failed-commit-offsets");
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-avg", METRIC_GROUP_NAME,
-        "The average number of offsets per second that have failed.", tags), new Rate());
+        "The average number of offsets per second that have failed to be committed", tags), new Rate());
+    _failedCommitOffsets.add(new MetricName("failed-commit-offsets-rate", METRIC_GROUP_NAME,
+        "The average number of offsets per second that have failed to be committed", tags), new Rate());
     _failedCommitOffsets.add(new MetricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
-        "The total number of offsets per second that have failed.", tags), new CumulativeSum());
+        "The total number of offsets that have failed to be committed", tags), new CumulativeSum());
 
-    metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commits availability.", tags),
+    metrics.addMetric(new MetricName("offsets-committed-avg", METRIC_GROUP_NAME, "The average offset commit availability since startup", tags),
       (MetricConfig config, long now) -> {
         Object offsetCommitTotal = metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue();
         Object offsetCommitFailTotal = metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME, tags)).metricValue();
         if (offsetCommitTotal != null && offsetCommitFailTotal != null) {
           double offsetsCommittedCount = (double) offsetCommitTotal;
           double offsetsCommittedErrorCount = (double) offsetCommitFailTotal;
+          return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
+        } else {
+          return 0;
+        }
+      });
+
+    metrics.addMetric(new MetricName("commit-availability-avg", METRIC_GROUP_NAME, "The average commit availability", tags),
+      (MetricConfig config, long now) -> {
+        Object offsetCommitRate = metrics.metrics().get(metrics.metricName("offsets-committed-rate", METRIC_GROUP_NAME, tags)).metricValue();
+        Object offsetCommitFailRate = metrics.metrics().get(metrics.metricName("failed-commit-offsets-rate", METRIC_GROUP_NAME, tags)).metricValue();
+        if (offsetCommitRate != null && offsetCommitFailRate != null) {
+          double offsetsCommittedCount = (double) offsetCommitRate;
+          double offsetsCommittedErrorCount = (double) offsetCommitFailRate;
           return offsetsCommittedCount / (offsetsCommittedCount + offsetsCommittedErrorCount);
         } else {
           return 0;
