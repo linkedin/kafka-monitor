@@ -37,6 +37,9 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
   public static final String REPORT_STATSD_PREFIX = "report.statsd.prefix";
   public static final String REPORT_STATSD_PREFIX_DOC = "The prefix of statsd metric name that will be generated with metric name to report to graphite server.";
 
+  public static final String REPORT_STATSD_TAGS = "report.statsd.tags";
+  public static final String REPORT_STATSD_TAGS_DOC = "Tags to apply to metrics reported to Datadog server.";
+
   static {
     CONFIG = new ConfigDef().define(REPORT_METRICS_CONFIG,
                                     ConfigDef.Type.LIST, Collections.singletonList("kmf.services:*:*"),
@@ -61,7 +64,12 @@ public class StatsdMetricsReporterServiceConfig extends AbstractConfig {
                                     ConfigDef.Type.STRING,
                                     "",
                                     ConfigDef.Importance.LOW,
-                                    REPORT_STATSD_PREFIX_DOC);
+                                    REPORT_STATSD_PREFIX_DOC)
+                            .define(REPORT_STATSD_TAGS,
+                                    ConfigDef.Type.STRING,
+                                    "",
+                                    ConfigDef.Importance.LOW,
+                                    REPORT_STATSD_TAGS_DOC);
 
   }
 

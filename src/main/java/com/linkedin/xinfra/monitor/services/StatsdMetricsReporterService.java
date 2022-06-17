@@ -13,6 +13,7 @@ package com.linkedin.xinfra.monitor.services;
 import com.linkedin.xinfra.monitor.common.MbeanAttributeValue;
 import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.services.configs.StatsdMetricsReporterServiceConfig;
+import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import java.util.List;
@@ -41,9 +42,12 @@ public class StatsdMetricsReporterService implements Service {
     _metricNames = config.getList(StatsdMetricsReporterServiceConfig.REPORT_METRICS_CONFIG);
     _reportIntervalSec = config.getInt(StatsdMetricsReporterServiceConfig.REPORT_INTERVAL_SEC_CONFIG);
     _executor = Executors.newSingleThreadScheduledExecutor();
-    _statsdClient = new NonBlockingStatsDClient(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX),
-            config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST),
-            config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT));
+    _statsdClient = new NonBlockingStatsDClientBuilder()
+      .prefix(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PREFIX))
+      .hostname(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_HOST))
+      .port(config.getInt(StatsdMetricsReporterServiceConfig.REPORT_STATSD_PORT))
+      .constantTags(config.getString(StatsdMetricsReporterServiceConfig.REPORT_STATSD_TAGS).split(" "))
+      .build();
   }
 
   @Override
