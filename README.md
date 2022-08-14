@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="/docs/images/xinfra_monitor.png" width="510"/>
+  <img src="/docs/images/xinfra_monitor.png#gh-light-mode-only" width="510"/>
+  <img src="/docs/images/xinfra_monitor_light.png#gh-dark-mode-only" width="510"/>
 </p>
 
 # Xinfra Monitor
