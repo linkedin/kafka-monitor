@@ -1,0 +1,34 @@
+name: tag (release) flow
+
+on:
+  create:
+    tags:
+      - '*'
+
+jobs:
+  gradle-java8:
+    name: Java 8 release
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v2
+      with:
+        # bring in all history because the gradle versions plugin needs to "walk back" to the closest ancestor tag
+        # to figure out what version this is. optimizing this is left as a challenge to future committers
+        fetch-depth: 0
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Build with Gradle
+        # add --info or --debug below for more details when trying to understand issues
+      run: ./gradlew clean build javadoc --stacktrace --warning-mode all --no-daemon
+    - name: Branch tag
+      id: branch_tag
+      run: echo ::set-output name=RELEASE_TAG::${GITHUB_REF#refs/tags/}
+    - name: Publish to Jfrog
+      env:
+        JFROG_USER: ${{ secrets.JFROG_USER }}
+        JFROG_KEY: ${{ secrets.JFROG_KEY }}
+        RELEASE_TAG: ${{ steps.branch_tag.outputs.RELEASE_TAG }}
+      run: ./scripts/publishToJfrog.sh

@@ -121,6 +121,20 @@ allprojects {
             url = 'https://github.com/linkedin/kafka-monitor'
           }
         }
+
+        repositories {
+          mavenLocal()
+          maven {
+            name "LinkedInJfrog"
+            url "https://linkedin.jfrog.io/artifactory/kafka-monitor"
+            credentials {
+              if (System.getenv('JFROG_USER') != null && System.getenv('JFROG_KEY') != null) {
+                username System.getenv('JFROG_USER')
+                password System.getenv('JFROG_KEY')
+              }
+            }
+          }
+        }
       }
     }
   }
