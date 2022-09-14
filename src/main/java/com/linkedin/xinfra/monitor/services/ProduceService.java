@@ -178,6 +178,20 @@ public class ProduceService extends AbstractService {
     }
     _partitionNum.set(partitionNum);
   }
+  
+  private void updateStateForPartitions(int partitionNum) {
+    Map<Integer, String> keyMapping = generateKeyMappings(partitionNum);
+    for (int partition = 0; partition < partitionNum; partition++) {
+      String key = keyMapping.get(partition);
+      /* This is what preserves sequence numbers across restarts */
+      if (!_nextIndexPerPartition.containsKey(partition)) {
+        _nextIndexPerPartition.put(partition, new AtomicLong(0));
+        _sensors.addPartitionSensors(partition);
+        _produceExecutor.scheduleWithFixedDelay(new ProduceRunnable(partition, key), _produceDelayMs, _produceDelayMs, TimeUnit.MILLISECONDS);
+      }
+    }
+    _partitionNum.set(partitionNum);
+  }
 
   private Map<Integer, String> generateKeyMappings(int partitionNum) {
     HashMap<Integer, String> keyMapping = new HashMap<>();
@@ -280,7 +294,7 @@ public class ProduceService extends AbstractService {
         }
         LOG.info("{}/ProduceService detected new partitions of topic {}", _name, _topic);
         //TODO: Should the ProduceService exit if we can't restart the producer runnables?
-        _produceExecutor.shutdown();
+       /* _produceExecutor.shutdown();
         try {
           _produceExecutor.awaitTermination(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -295,6 +309,8 @@ public class ProduceService extends AbstractService {
         }
         _produceExecutor = Executors.newScheduledThreadPool(_threadsNum);
         initializeStateForPartitions(currentPartitionNum);
+        */
+        updateStateForPartitions(currentPartitionNum);
         LOG.info("New partitions added to monitoring.");
       } catch (InterruptedException e) {
         LOG.error("InterruptedException occurred.", e);
