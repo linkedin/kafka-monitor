@@ -11,11 +11,11 @@
 package com.linkedin.xinfra.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.linkedin.xinfra.monitor.apps.App;
 import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -168,21 +168,14 @@ public class XinfraMonitor {
   @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
-      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.properties");
+      LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.yaml");
       return;
     }
 
-    StringBuilder buffer = new StringBuilder();
-    try (BufferedReader br = new BufferedReader(new FileReader(args[0].trim()))) {
-      String line;
-      while ((line = br.readLine()) != null) {
-        if (!line.startsWith("#"))
-          buffer.append(line);
-      }
-    }
+    File configurationFile = new File(args[0].trim());
 
     @SuppressWarnings("unchecked")
-    Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
+    Map<String, Map> props = new ObjectMapper(new YAMLFactory()).readValue(configurationFile, Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
     xinfraMonitor.start();
     LOG.info("Xinfra Monitor has started.");

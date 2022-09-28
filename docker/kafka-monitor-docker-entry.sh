@@ -22,6 +22,6 @@ trap 'pkill java; exit 143' SIGTERM
 #  wait for DNS services to be available
 sleep 10
 
-bin/xinfra-monitor-start.sh config/xinfra-monitor.properties &
+bin/xinfra-monitor-start.sh config/xinfra-monitor.yaml &
 
 wait $!

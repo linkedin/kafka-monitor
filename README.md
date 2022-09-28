@@ -99,8 +99,8 @@ Xinfra Monitor supports Apache Kafka 0.8 to 2.0:
 
 <ol>
 <li> We advise advanced users to run Xinfra Monitor with
-<code>./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties</code>. The default
-xinfra-monitor.properties in the repo provides an simple example of how to
+<code>./bin/xinfra-monitor-start.sh config/xinfra-monitor.yaml</code>. The default
+xinfra-monitor.yaml in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
 <code>zookeeper.connect</code> and <code>bootstrap.servers</code> to point to your cluster.
   </li>
@@ -109,7 +109,7 @@ monitor a single cluster. You probably need to change the value of
 Config class for respective service, e.g. ProduceServiceConfig.java and
 ConsumeServiceConfig.java.</li>
 <br />
-<li> You can specify multiple SingleClusterMonitor in the xinfra-monitor.properties to
+<li> You can specify multiple SingleClusterMonitor in the xinfra-monitor.yaml to
 monitor multiple Kafka clusters in one Xinfra Monitor process. As another
 advanced use-case, you can point ProduceService and ConsumeService to two different Kafka clusters that are connected by MirrorMaker to monitor their end-to-end latency.</li>
 <br />  
@@ -146,16 +146,16 @@ $ ./gradlew jar
 
 ### Start XinfraMonitor to run tests/services specified in the config file
 ```
-$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.yaml
 ```
 
 ### Run Xinfra Monitor with arbitrary producer/consumer configuration (e.g. SASL enabled client)
-Edit `config/xinfra-monitor.properties` to specify custom configurations for producer in the key/value map `produce.producer.props` in
-`config/xinfra-monitor.properties`. Similarly specify configurations for
+Edit `config/xinfra-monitor.yaml` to specify custom configurations for producer in the key/value map `produce.producer.props` in
+`config/xinfra-monitor.yaml`. Similarly specify configurations for
 consumer as well. The documentation for producer and consumer in the key/value maps can be found in the Apache Kafka wiki.
 
 ```
-$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/xinfra-monitor.yaml
 ```
 
 ### Run SingleClusterMonitor app to monitor kafka cluster
@@ -169,16 +169,16 @@ $ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zo
 ```
 
 ### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters connected by MirrorMaker
-Edit `config/multi-cluster-monitor.properties` to specify the right broker and
+Edit `config/multi-cluster-monitor.yaml` to specify the right broker and
 zookeeper url as suggested by the comment in the properties file
 
 Metrics `produce-availability-avg` and `consume-availability-avg` demonstrate
 whether messages can be properly produced to the source cluster and consumed
-from the destination cluster. See config/multi-cluster-monitor.properties for
+from the destination cluster. See config/multi-cluster-monitor.yaml for
 the full jmx path for these metrics.
 
 ```
-$ ./bin/xinfra-monitor-start.sh config/multi-cluster-monitor.properties
+$ ./bin/xinfra-monitor-start.sh config/multi-cluster-monitor.yaml
 ```
 
 ### Run checkstyle on the java code

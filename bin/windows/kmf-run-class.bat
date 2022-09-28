@@ -1,5 +1,5 @@
 @echo off
-REM Copyright 2016 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+REM Copyright 2022 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
 REM file except in compliance with the License. You may obtain a copy of the License at
 REM
 REM    http://www.apache.org/licenses/LICENSE-2.0
@@ -10,12 +10,12 @@ REM an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expre
 setlocal enabledelayedexpansion
 
 IF [%1] EQU [] (
-	echo USAGE: %0 com.linkedin.xinfra.monitor.XinfraMonitor config/xinfra-monitor.properties
+	echo USAGE: %0 com.linkedin.xinfra.monitor.XinfraMonitor config/xinfra-monitor.yaml
 	EXIT /B 1
 )
 
 IF [%2] EQU [] (
-	echo USAGE: %0 %1 config/xinfra-monitor.properties
+	echo USAGE: %0 %1 config/xinfra-monitor.yaml
 	EXIT /B 1
 )
 
