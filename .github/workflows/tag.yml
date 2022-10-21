@@ -11,21 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         # bring in all history because the gradle versions plugin needs to "walk back" to the closest ancestor tag
         # to figure out what version this is. optimizing this is left as a challenge to future committers
         fetch-depth: 0
     - name: Set up JDK 1.8
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v3
       with:
         java-version: 1.8
+        distribution: microsoft
     - name: Build with Gradle
         # add --info or --debug below for more details when trying to understand issues
       run: ./gradlew clean build javadoc --stacktrace --warning-mode all --no-daemon
     - name: Branch tag
       id: branch_tag
-      run: echo ::set-output name=RELEASE_TAG::${GITHUB_REF#refs/tags/}
+      run: echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     - name: Publish to Jfrog
       env:
         JFROG_USER: ${{ secrets.JFROG_USER }}
