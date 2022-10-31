@@ -107,14 +107,14 @@ public class OffsetCommitService implements Service {
     List<String> bootstrapServers = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
     List<InetSocketAddress> addresses =
         ClientUtils.parseAndValidateAddresses(bootstrapServers, ClientDnsLookup.DEFAULT);
-    ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time);
+    ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config, _time, logContext);
 
     LOGGER.info("Bootstrap servers config: {} | broker addresses: {}", bootstrapServers, addresses);
 
     Metadata metadata = new Metadata(retryBackoffMs, config.getLong(ConsumerConfig.METADATA_MAX_AGE_CONFIG), logContext,
         new ClusterResourceListeners());
 
-    metadata.bootstrap(addresses, _time.milliseconds());
+    metadata.bootstrap(addresses);
 
     Selector selector =
         new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), new Metrics(), _time,
@@ -124,7 +124,10 @@ public class OffsetCommitService implements Service {
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG),
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
         config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
-        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), ClientDnsLookup.DEFAULT, _time, true,
+        config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), 
+        config.getInt(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG),
+        config.getInt(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG),
+        ClientDnsLookup.DEFAULT, _time, true,
         new ApiVersions(), logContext);
 
     LOGGER.debug("The network client active: {}", kafkaClient.active());
