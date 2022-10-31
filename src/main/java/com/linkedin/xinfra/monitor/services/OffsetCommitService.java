@@ -129,7 +129,7 @@ public class OffsetCommitService implements Service {
         config.getLong(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG),
         config.getInt(ConsumerConfig.SEND_BUFFER_CONFIG), config.getInt(ConsumerConfig.RECEIVE_BUFFER_CONFIG),
         config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG),
-        config.getInt(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG), config.getInt(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG),
+        config.getLong(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG), config.getLong(ConsumerConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG),
         ClientDnsLookup.DEFAULT, _time, true,
         new ApiVersions(), logContext);
 
