@@ -243,7 +243,6 @@ public class MultiClusterTopicManagementService implements Service {
 
   @SuppressWarnings("FieldCanBeLocal")
   static class TopicManagementHelper {
-    private final String _zkConnect;
     private final int _replicationFactor;
     private final double _minPartitionsToBrokersRatio;
     private final int _minPartitionNum;
@@ -270,7 +269,6 @@ public class MultiClusterTopicManagementService implements Service {
       _topicAddPartitionEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
       _topicReassignPartitionAndElectLeaderEnabled = config.getBoolean(TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
       _topic = config.getString(TopicManagementServiceConfig.TOPIC_CONFIG);
-      _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
       _replicationFactor = config.getInt(TopicManagementServiceConfig.TOPIC_REPLICATION_FACTOR_CONFIG);
       _minPartitionsToBrokersRatio = config.getDouble(TopicManagementServiceConfig.PARTITIONS_TO_BROKERS_RATIO_CONFIG);
       _minPartitionNum = config.getInt(TopicManagementServiceConfig.MIN_PARTITION_NUM_CONFIG);
@@ -296,18 +294,18 @@ public class MultiClusterTopicManagementService implements Service {
     }
 
     private void logConfigurationValues() {
-      LOGGER.info("TopicManagementHelper for cluster with Zookeeper connect {} is configured with " +
+      LOGGER.info("TopicManagementHelper for cluster with bootstrap servers {} is configured with " +
               "[topic={}, topicCreationEnabled={}, topicAddPartitionEnabled={}, " +
               "topicReassignPartitionAndElectLeaderEnabled={}, minPartitionsToBrokersRatio={}, " +
-              "minPartitionNum={}]", _zkConnect, _topic, _topicCreationEnabled, _topicAddPartitionEnabled,
+              "minPartitionNum={}]", _bootstrapServers, _topic, _topicCreationEnabled, _topicAddPartitionEnabled,
               _topicReassignPartitionAndElectLeaderEnabled, _minPartitionsToBrokersRatio, _minPartitionNum);
     }
 
     @SuppressWarnings("unchecked")
     void maybeCreateTopic() throws Exception {
       if (!_topicCreationEnabled) {
-        LOGGER.info("Topic creation is not enabled for {} in a cluster with Zookeeper URL {}. " +
-                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
+        LOGGER.info("Topic creation is not enabled for {} in a cluster with bootstrap servers {}. " +
+                "Refer to config: {}", _topic, _bootstrapServers, TopicManagementServiceConfig.TOPIC_CREATION_ENABLED_CONFIG);
         return;
       }
       NewTopic newTopic = new NewTopic(_topic, minPartitionNum(), (short) _replicationFactor);
@@ -328,8 +326,8 @@ public class MultiClusterTopicManagementService implements Service {
     void maybeAddPartitions(final int requiredMinPartitionNum)
             throws ExecutionException, InterruptedException, CancellationException, TimeoutException {
       if (!_topicAddPartitionEnabled) {
-        LOGGER.info("Adding partition to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
-                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
+        LOGGER.info("Adding partition to {} topic is not enabled in a cluster with bootstrap servers {}. " +
+                "Refer to config: {}", _topic, _bootstrapServers, TopicManagementServiceConfig.TOPIC_ADD_PARTITION_ENABLED_CONFIG);
         return;
       }
       Map<String, KafkaFuture<TopicDescription>> kafkaFutureMap =
@@ -447,8 +445,8 @@ public class MultiClusterTopicManagementService implements Service {
 
     void maybeReassignPartitionAndElectLeader() throws ExecutionException, InterruptedException, TimeoutException {
       if (!_topicReassignPartitionAndElectLeaderEnabled) {
-        LOGGER.info("Reassign partition and elect leader to {} topic is not enabled in a cluster with Zookeeper URL {}. " +
-                "Refer to config: {}", _topic, _zkConnect, TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
+        LOGGER.info("Reassign partition and elect leader to {} topic is not enabled in a cluster with bootstrap servers {}. " +
+                "Refer to config: {}", _topic, _bootstrapServers, TopicManagementServiceConfig.TOPIC_REASSIGN_PARTITION_AND_ELECT_LEADER_ENABLED_CONFIG);
         return;
       }
       List<TopicPartitionInfo> partitionInfoList =

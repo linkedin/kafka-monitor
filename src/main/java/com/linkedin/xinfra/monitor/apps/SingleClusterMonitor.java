@@ -188,14 +188,6 @@ public class SingleClusterMonitor implements App {
       .dest("brokerList")
       .help("Comma-separated list of Kafka brokers in the form HOST1:PORT1,HOST2:PORT2,...");
 
-    parser.addArgument("--zookeeper")
-      .action(net.sourceforge.argparse4j.impl.Arguments.store())
-      .required(true)
-      .type(String.class)
-      .metavar("HOST:PORT")
-      .dest("zkConnect")
-      .help("The connection string for the zookeeper connection in the form host:port");
-
     parser.addArgument("--record-size")
       .action(net.sourceforge.argparse4j.impl.Arguments.store())
       .required(false)
@@ -330,7 +322,6 @@ public class SingleClusterMonitor implements App {
     Namespace res = parser.parseArgs(args);
     Map<String, Object> props = new HashMap<>();
     // produce service config
-    props.put(ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG, res.getString("zkConnect"));
     props.put(ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG, res.getString("brokerList"));
     if (res.getString("producerClassName") != null)
       props.put(ProduceServiceConfig.PRODUCER_CLASS_CONFIG, res.getString("producerClassName"));

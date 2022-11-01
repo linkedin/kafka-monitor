@@ -26,9 +26,6 @@ public class TopicManagementServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String ZOOKEEPER_CONNECT_CONFIG = CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG;
-  public static final String ZOOKEEPER_CONNECT_DOC = CommonServiceConfig.ZOOKEEPER_CONNECT_DOC;
-
   public static final String TOPIC_CONFIG = CommonServiceConfig.TOPIC_CONFIG;
   public static final String TOPIC_DOC = CommonServiceConfig.TOPIC_DOC;
 
@@ -79,10 +76,6 @@ public class TopicManagementServiceConfig extends AbstractConfig {
               true,
               ConfigDef.Importance.HIGH,
               TOPIC_MANAGEMENT_ENABLED_DOC)
-      .define(ZOOKEEPER_CONNECT_CONFIG,
-              ConfigDef.Type.STRING,
-              ConfigDef.Importance.HIGH,
-              ZOOKEEPER_CONNECT_DOC)
       .define(TOPIC_CONFIG,
               ConfigDef.Type.STRING,
               ConfigDef.Importance.HIGH,

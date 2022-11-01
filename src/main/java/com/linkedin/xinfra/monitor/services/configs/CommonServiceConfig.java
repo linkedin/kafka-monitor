@@ -17,9 +17,6 @@ public class CommonServiceConfig {
   public static final String CONSUMER_PROPS_CONFIG = "consumer.props";
   public static final String CONSUMER_PROPS_DOC = "consumer props";
 
-  public static final String ZOOKEEPER_CONNECT_CONFIG = "zookeeper.connect";
-  public static final String ZOOKEEPER_CONNECT_DOC = "Zookeeper connect string.";
-
   public static final String BOOTSTRAP_SERVERS_CONFIG = CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
   public static final String BOOTSTRAP_SERVERS_DOC = CommonClientConfigs.BOOTSTRAP_SERVERS_DOC;
 

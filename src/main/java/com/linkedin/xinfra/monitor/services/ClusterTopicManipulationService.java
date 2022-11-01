@@ -67,7 +67,6 @@ public class ClusterTopicManipulationService implements Service {
 
   private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
   private final TopicFactory _topicFactory;
-  private final String _zkConnect;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient, Map<String, Object> props)
       throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
@@ -96,7 +95,6 @@ public class ClusterTopicManipulationService implements Service {
             TopicManagementServiceConfig.TOPIC_FACTORY_PROPS_CONFIG) : new HashMap();
 
     _clusterTopicManipulationMetrics = new ClusterTopicManipulationMetrics(metrics, tags);
-    _zkConnect = config.getString(TopicManagementServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     _topicFactory =
         (TopicFactory) Class.forName(topicFactoryClassName).getConstructor(Map.class).newInstance(topicFactoryConfig);
   }
