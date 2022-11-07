@@ -9,7 +9,7 @@ jobs:
     name: ci
     strategy:
       matrix:
-        version: ['11', '17']
+        version: ['11', '8']
         dist: ['microsoft']
 
     runs-on: ubuntu-latest
