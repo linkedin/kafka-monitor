@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+    types: ['opened', 'synchronize']
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: set up JDK 1.8
+      uses: actions/setup-java@v3
+      with:
+        java-version: 1.8
+        distribution: microsoft
+    - name: test
+      run: ./gradlew --info test --no-daemon
