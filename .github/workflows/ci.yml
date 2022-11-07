@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    types: ['opened', 'synchronize']
+
+jobs:
+  ci:
+    name: ci
+    strategy:
+      matrix:
+        version: ['11.0.13']
+        dist: ['microsoft']
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: set up JDK ${{matrix.version}} (${{matrix.dist}})
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.version }}
+        distribution: ${{ matrix.dist }}
+    - name: test
+      run: ./gradlew --info test --no-daemon
