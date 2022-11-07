@@ -6,12 +6,12 @@ on:
 
 jobs:
   ci:
+    name: ci
     strategy:
       matrix:
-        version: ['11.0.13', '11']
+        version: ['11', '17']
         dist: ['microsoft']
 
-    name: ci
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
