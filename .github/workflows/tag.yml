@@ -16,10 +16,10 @@ jobs:
         # bring in all history because the gradle versions plugin needs to "walk back" to the closest ancestor tag
         # to figure out what version this is. optimizing this is left as a challenge to future committers
         fetch-depth: 0
-    - name: Set up JDK 1.8
+    - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        java-version: 1.8
+        java-version: 11
         distribution: microsoft
     - name: Build with Gradle
         # add --info or --debug below for more details when trying to understand issues
