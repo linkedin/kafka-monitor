@@ -171,14 +171,15 @@ public class MultiClusterTopicManagementService implements Service {
   }
 
   private class TopicManagementRunnable implements Runnable {
+    private static final int MAX_TOPIC_FETCH_ATTEMPTS = 5;
 
     @Override
     public void run() {
       try {
         for (TopicManagementHelper helper : _topicManagementByCluster.values()) {
           helper.maybeCreateTopic();
+          helper.awaitTopicCreated(MAX_TOPIC_FETCH_ATTEMPTS);
         }
-
         /*
          * The partition number of the monitor topics should be the minimum partition number that satisfies the following conditions:
          * - partition number of the monitor topics across all monitored clusters should be the same
@@ -252,6 +253,8 @@ public class MultiClusterTopicManagementService implements Service {
     private final Duration _requestTimeout;
     private final List<String> _bootstrapServers;
 
+    private Random _random = new Random();
+
     // package private for unit testing
     boolean _topicCreationEnabled;
     boolean _topicAddPartitionEnabled;
@@ -259,6 +262,8 @@ public class MultiClusterTopicManagementService implements Service {
     AdminClient _adminClient;
     String _topic;
     TopicFactory _topicFactory;
+
+
 
     @SuppressWarnings("unchecked")
     TopicManagementHelper(Map<String, Object> props) throws Exception {
@@ -314,6 +319,28 @@ public class MultiClusterTopicManagementService implements Service {
       newTopic.configs((Map) _topicProperties);
       _topicFactory.createTopicIfNotExist(_topic, (short) _replicationFactor, _minPartitionsToBrokersRatio,
               _topicProperties, _adminClient);
+    }
+
+    private long backoffFor(int attempt) {
+      return (long) (Math.pow(2, attempt) * 1000) + (1000 - _random.nextInt(1000));
+    }
+    // awaitTopicCreated checks if topic is actually created and its metadata is available
+    // by attempting to describeTopic until success or maxAttempts exhausted
+    void awaitTopicCreated(int maxAttempts) throws Exception {
+      if (!_topicCreationEnabled) {
+        return;
+      }
+      int nAttempts = 0;
+      do {
+        try {
+          _adminClient.describeTopics(Collections.singleton(_topic)).values().get(_topic).get();
+          return;
+        } catch (org.apache.kafka.common.errors.UnknownTopicOrPartitionException e) {
+          LOGGER.warn("fetching topic[attempt={}]: {}: not found, sleeping {}", nAttempts, _topic);
+          Thread.sleep(backoffFor(nAttempts));
+        }
+      } while (nAttempts++ < maxAttempts);
+      LOGGER.warn("fetching topic[attempt={}]: {}: not found. All attempts exhausted", nAttempts, _topic);
     }
 
     AdminClient constructAdminClient(Map<String, Object> props) {
