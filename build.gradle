@@ -1,16 +1,7 @@
 
 def configDocDir = "${buildDir}/configDocs"
 
-buildscript {
-  repositories {
-    jcenter()
-  }
-  dependencies {
-    classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
-  }
-}
 apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.bintray'
 apply plugin: 'distribution'
 
 
@@ -209,22 +200,6 @@ allprojects {
 
 }
 
-bintray {
-  user = System.getenv('BINTRAY_USER')
-  key = System.getenv('BINTRAY_KEY')
-  publications = ['MyPublication']
-  pkg {
-    repo = 'maven'
-    name = 'kafka-monitor'
-    userOrg = 'linkedin'
-    licenses = ['Apache-2.0'] // this is validated by bintray and must be a valid license
-    vcsUrl = 'https://github.com/linkedin/kafka-monitor.git'
-    version {
-      name = project.version
-    }
-    publish = true
-  }
-}
 wrapper {
   gradleVersion = '5.2.1'
   distributionType = Wrapper.DistributionType.ALL
