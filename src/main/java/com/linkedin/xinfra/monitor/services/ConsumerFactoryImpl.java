@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
-  private final KMBaseConsumer _baseConsumer;
-  private final String _topic;
+  private KMBaseConsumer _baseConsumer;
+  private String _topic;
   private static final String FALSE = "false";
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
@@ -37,6 +37,8 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
   private final int _latencySlaMs;
   private static AdminClient adminClient;
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
+  private String _consumerClassName;
+  private final Properties consumerProps = new Properties();
 
   @SuppressWarnings("rawtypes")
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
@@ -48,7 +50,7 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
     _topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
     String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
-    String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
+    _consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
     _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
     _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
     _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
@@ -57,7 +59,6 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
         throw new ConfigException("Override must not contain " + property + " config.");
       }
     }
-    Properties consumerProps = new Properties();
 
     /* Assign default config. This has the lowest priority. */
     consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, FALSE);
@@ -66,8 +67,8 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kmf-consumer-group-" + new Random().nextInt());
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    if (consumerClassName.equals(NewConsumer.class.getCanonicalName()) || consumerClassName.equals(NewConsumer.class.getSimpleName())) {
-      consumerClassName = NewConsumer.class.getCanonicalName();
+    if (_consumerClassName.equals(NewConsumer.class.getCanonicalName()) || _consumerClassName.equals(NewConsumer.class.getSimpleName())) {
+      _consumerClassName = NewConsumer.class.getCanonicalName();
     }
 
     /* Assign config specified for ConsumeService. */
@@ -79,16 +80,6 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
 
     if (props.containsKey(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG)) {
       props.forEach(consumerProps::putIfAbsent);
-    }
-
-    java.lang.reflect.Constructor<?> constructor = adminClientConstructorIfExists(consumerClassName);
-    if (constructor != null) {
-      _baseConsumer = (KMBaseConsumer) constructor
-          .newInstance(_topic, consumerProps, adminClient());
-    } else {
-      _baseConsumer = (KMBaseConsumer) Class.forName(consumerClassName)
-          .getConstructor(String.class, Properties.class)
-          .newInstance(_topic, consumerProps);
     }
   }
 
@@ -117,6 +108,19 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
 
   @Override
   public KMBaseConsumer baseConsumer() {
+    try {
+      java.lang.reflect.Constructor<?> constructor = adminClientConstructorIfExists(_consumerClassName);
+      if (constructor != null) {
+        _baseConsumer = (KMBaseConsumer) constructor
+            .newInstance(_topic, consumerProps, adminClient());
+      } else {
+        _baseConsumer = (KMBaseConsumer) Class.forName(_consumerClassName)
+            .getConstructor(String.class, Properties.class)
+            .newInstance(_topic, consumerProps);
+      }
+    } catch (Exception e) {
+      LOG.error("Cannot create consumer", e);
+    }
     return _baseConsumer;
   }
 

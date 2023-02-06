@@ -29,7 +29,7 @@ public class SignalFxMetricsReporterService implements Service {
   private final String _name;
   private final List<String> _metricNames;
   private final int _reportIntervalSec;
-  private final ScheduledExecutorService _executor;
+  private ScheduledExecutorService _executor;
   private final MetricRegistry _metricRegistry;
   private final SignalFxReporter _signalfxReporter;
 
@@ -50,7 +50,6 @@ public class SignalFxMetricsReporterService implements Service {
       throw new IllegalArgumentException("SignalFx token is not configured");
     }
 
-    _executor = Executors.newSingleThreadScheduledExecutor();
     _metricRegistry = new MetricRegistry();
     _metricMap = new HashMap<String, SettableDoubleGauge>();
     _dimensionsMap = new HashMap<String, String>();
@@ -71,6 +70,8 @@ public class SignalFxMetricsReporterService implements Service {
 
   @Override
   public synchronized void start() {
+    _executor = Executors.newSingleThreadScheduledExecutor();
+
     _signalfxReporter.start(_reportIntervalSec, TimeUnit.SECONDS);
     _executor.scheduleAtFixedRate(() -> {
       try {

@@ -58,7 +58,7 @@ public class ProduceService extends AbstractService {
   private KMBaseProducer _producer;
   private final KMPartitioner _partitioner;
   private ScheduledExecutorService _produceExecutor;
-  private final ScheduledExecutorService _handleNewPartitionsExecutor;
+  private ScheduledExecutorService _handleNewPartitionsExecutor;
   private final int _produceDelayMs;
   private final boolean _sync;
   /** This can be updated while running when new partitions are added to the monitor topic. */
@@ -106,6 +106,8 @@ public class ProduceService extends AbstractService {
       }
     }
 
+    props.forEach(_producerPropsOverride::putIfAbsent);
+
     _adminClient = AdminClient.create(props);
 
     if (producerClass.equals(NewProducer.class.getCanonicalName()) || producerClass.equals(NewProducer.class.getSimpleName())) {
@@ -113,11 +115,6 @@ public class ProduceService extends AbstractService {
     } else {
       _producerClassName = producerClass;
     }
-
-    initializeProducer(props);
-
-    _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
-    _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
 
     MetricConfig metricConfig = new MetricConfig().samples(60).timeWindow(1000, TimeUnit.MILLISECONDS);
     List<MetricsReporter> reporters = new ArrayList<>();
@@ -157,6 +154,17 @@ public class ProduceService extends AbstractService {
   @Override
   public synchronized void start() {
     if (_running.compareAndSet(false, true)) {
+      _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
+      _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
+
+      try {
+        initializeProducer(_producerPropsOverride);
+      } catch (Exception e) {
+        LOG.error("Failed to restart producer.", e);
+      }
+      _produceExecutor = Executors.newScheduledThreadPool(_threadsNum, new ProduceServiceThreadFactory());
+      _handleNewPartitionsExecutor = Executors.newSingleThreadScheduledExecutor(new HandleNewPartitionsThreadFactory());
+
       TopicDescription topicDescription = getTopicDescription(_adminClient, _topic);
       int partitionNum = topicDescription.partitions().size();
       initializeStateForPartitions(partitionNum);
