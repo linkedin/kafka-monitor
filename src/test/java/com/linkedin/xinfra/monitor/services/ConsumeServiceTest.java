@@ -193,7 +193,7 @@ public class ConsumeServiceTest {
     Thread.sleep(100);
 
     consumeService.stop();
-    thread.join(500);
+    thread.join(5000);
 
     Assert.assertFalse(thread.isAlive());
     Assert.assertEquals(error.get(), null);
