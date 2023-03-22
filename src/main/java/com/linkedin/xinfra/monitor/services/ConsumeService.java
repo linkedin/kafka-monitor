@@ -111,6 +111,9 @@ public class ConsumeService extends AbstractService {
         }
       }, name + " consume-service");
       _consumeThread.setDaemon(true);
+      _consumeThread.setUncaughtExceptionHandler((t, e) -> {
+        LOG.error(name + "/ConsumeService error", e);
+      });
     });
 
     // In a blocking fashion, waits for this topicPartitionFuture to complete, and then returns its result.
@@ -211,6 +214,9 @@ public class ConsumeService extends AbstractService {
       }
     }
     /* end of consume() while loop */
+    LOG.info("{}/ConsumeService/Consumer closing.", _name);
+    _baseConsumer.close();
+    LOG.info("{}/ConsumeService/Consumer stopped.", _name);
   }
 
   Metrics metrics() {
@@ -242,17 +248,18 @@ public class ConsumeService extends AbstractService {
   @Override
   public synchronized void stop() {
     if (_running.compareAndSet(true, false)) {
-      try {
-        _baseConsumer.close();
-      } catch (Exception e) {
-        LOG.warn(_name + "/ConsumeService while trying to close consumer.", e);
-      }
-      LOG.info("{}/ConsumeService stopped.", _name);
+      LOG.info("{}/ConsumeService stopping.", _name);
     }
   }
 
   @Override
   public void awaitShutdown(long timeout, TimeUnit unit) {
+    LOG.info("{}/ConsumeService shutdown awaiting…", _name);
+    try {
+      _consumeThread.join(unit.toMillis(timeout));
+    } catch (InterruptedException e) {
+      LOG.error(_name + "/ConsumeService interrupted", e);
+    }
     LOG.info("{}/ConsumeService shutdown completed.", _name);
   }
 
