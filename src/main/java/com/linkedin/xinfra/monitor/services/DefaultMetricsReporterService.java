@@ -84,6 +84,6 @@ public class DefaultMetricsReporterService implements Service {
         builder.append("\n");
       }
     }
-    LOG.info("{}\n{}", LOG_DIVIDER, builder.toString());
+    LOG.info("{}\n{}", LOG_DIVIDER, builder);
   }
 }

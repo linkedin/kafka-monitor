@@ -10,14 +10,19 @@
 
 package com.linkedin.xinfra.monitor;
 
+import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import com.linkedin.xinfra.monitor.services.Service;
+
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
@@ -71,16 +76,16 @@ public class XinfraMonitorTest {
 
     t.start();
     xinfraMonitor.start();
-    Thread.sleep(100);
+    Utils.delay(Duration.ofMillis(100));
     xinfraMonitor.stop();
     t.join(500);
-    org.testng.Assert.assertFalse(t.isAlive());
-    org.testng.Assert.assertEquals(error.get(), null);
+    Assert.assertFalse(t.isAlive());
+    Assert.assertNull(error.get());
   }
 
   private XinfraMonitor xinfraMonitor() throws Exception {
     FakeService.clearCounters();
-    Map<String, Map> config = new HashMap<>();
+    Map<String, Map<String, Object>> config = new HashMap<>();
     Map<String, Object> fakeServiceConfig = new HashMap<>();
 
     fakeServiceConfig.put(XinfraMonitorConstants.CLASS_NAME_CONFIG, FakeService.class.getName());
@@ -106,7 +111,7 @@ public class XinfraMonitorTest {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Service createService() throws Exception {
+    public Service createService() {
 
       return new XinfraMonitorTest.FakeService(_config, _serviceInstanceName);
 
@@ -120,7 +125,7 @@ public class XinfraMonitorTest {
     private final AtomicBoolean _isRunning = new AtomicBoolean();
 
     /** required */
-    public FakeService(Map<String, Map> config, String serviceInstanceName) {
+    public FakeService(Map<String, Map<String, Object>> config, String serviceInstanceName) {
 
     }
 

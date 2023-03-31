@@ -29,10 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -120,9 +118,9 @@ public class ConsumeService extends AbstractService {
     topicPartitionFuture.get();
   }
 
-  private void consume() throws Exception {
+  private void consume()  {
     /* Delay 1 second to reduce the chance that consumer creates topic before TopicManagementService */
-    Thread.sleep(1000);
+    Utils.delay(Duration.ofSeconds(1));
 
     Map<Integer, Long> nextIndexes = new HashMap<>();
 
@@ -135,7 +133,7 @@ public class ConsumeService extends AbstractService {
         LOG.warn(_name + "/ConsumeService failed to receive record", e);
         /* Avoid busy while loop */
         //noinspection BusyWait
-        Thread.sleep(CONSUME_THREAD_SLEEP_MS);
+        Utils.delay(Duration.ofMillis(CONSUME_THREAD_SLEEP_MS));
         continue;
       }
 
@@ -155,16 +153,13 @@ public class ConsumeService extends AbstractService {
       int partition = record.partition();
       /* Commit availability and commit latency service */
       /* Call commitAsync, wait for a NON-NULL return value (see https://issues.apache.org/jira/browse/KAFKA-6183) */
-      OffsetCommitCallback commitCallback = new OffsetCommitCallback() {
-        @Override
-        public void onComplete(Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap, Exception kafkaException) {
-          if (kafkaException != null) {
-            LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
-            _commitAvailabilityMetrics._failedCommitOffsets.record();
-          } else {
-            _commitAvailabilityMetrics._offsetsCommitted.record();
-            _commitLatencyMetrics.recordCommitComplete();
-          }
+      OffsetCommitCallback commitCallback = (topicPartitionOffsetAndMetadataMap, kafkaException) -> {
+        if (kafkaException != null) {
+          LOG.error("Exception while trying to perform an asynchronous commit.", kafkaException);
+          _commitAvailabilityMetrics._failedCommitOffsets.record();
+        } else {
+          _commitAvailabilityMetrics._offsetsCommitted.record();
+          _commitLatencyMetrics.recordCommitComplete();
         }
       };
 

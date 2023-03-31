@@ -16,7 +16,6 @@ import com.linkedin.xinfra.monitor.services.Service;
 import com.linkedin.xinfra.monitor.services.ServiceFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,11 +59,11 @@ public class XinfraMonitor {
    */
 
   @SuppressWarnings({"rawtypes"})
-  public XinfraMonitor(Map<String, Map> allClusterProps) throws Exception {
+  public XinfraMonitor(Map<String, Map<String, Object>> allClusterProps) throws Exception {
     _apps = new ConcurrentHashMap<>();
     _services = new ConcurrentHashMap<>();
 
-    for (Map.Entry<String, Map> clusterProperty : allClusterProps.entrySet()) {
+    for (Map.Entry<String, Map<String, Object>> clusterProperty : allClusterProps.entrySet()) {
       String clusterName = clusterProperty.getKey();
       Map props = clusterProperty.getValue();
       if (!props.containsKey(XinfraMonitorConstants.CLASS_NAME_CONFIG))
@@ -92,15 +91,6 @@ public class XinfraMonitor {
     Metrics metrics = new Metrics(new MetricConfig(), reporters, new SystemTime());
     metrics.addMetric(metrics.metricName("offline-runnable-count", XinfraMonitorConstants.METRIC_GROUP_NAME, "The number of Service/App that are not fully running"),
       (config, now) -> _offlineRunnables.size());
-  }
-
-  private boolean constructorContainsClass(Constructor<?>[] constructors, Class<?> classObject) {
-    for (int n = 0; n < constructors[0].getParameterTypes().length; ++n) {
-      if (constructors[0].getParameterTypes()[n].equals(classObject)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   public synchronized void start() throws Exception {
@@ -165,7 +155,6 @@ public class XinfraMonitor {
       service.awaitShutdown(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 
-  @SuppressWarnings("rawtypes")
   public static void main(String[] args) throws Exception {
     if (args.length <= 0) {
       LOG.info("USAGE: java [options] " + XinfraMonitor.class.getName() + " config/xinfra-monitor.properties");
@@ -182,7 +171,7 @@ public class XinfraMonitor {
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Map> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
+    Map<String, Map<String, Object>> props = new ObjectMapper().readValue(buffer.toString(), Map.class);
     XinfraMonitor xinfraMonitor = new XinfraMonitor(props);
     xinfraMonitor.start();
     LOG.info("Xinfra Monitor has started.");

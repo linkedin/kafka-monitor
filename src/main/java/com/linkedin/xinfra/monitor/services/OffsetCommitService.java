@@ -141,12 +141,7 @@ public class OffsetCommitService implements Service {
     _consumerNetworkClient = new ConsumerNetworkClient(logContext, kafkaClient, metadata, _time, retryBackoffMs,
         config.getInt(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG), heartbeatIntervalMs);
 
-    ThreadFactory threadFactory = new ThreadFactory() {
-      @Override
-      public Thread newThread(Runnable runnable) {
-        return new Thread(runnable, serviceName + SERVICE_SUFFIX);
-      }
-    };
+    ThreadFactory threadFactory = runnable -> new Thread(runnable, serviceName + SERVICE_SUFFIX);
     _scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
 
     LOGGER.info("OffsetCommitService's ConsumerConfig - {}", Utils.prettyPrint(config.values()));

@@ -14,6 +14,8 @@ import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.consumer.BaseConsumerRecord;
 import com.linkedin.xinfra.monitor.consumer.KMBaseConsumer;
 import com.linkedin.xinfra.monitor.services.metrics.CommitLatencyMetrics;
+
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,7 +27,6 @@ import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.Metrics;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,12 +84,9 @@ public class ConsumeServiceTest {
     consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* in milliseconds */
-    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
-
-    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+    /* delay safe to do here instead of ScheduledExecutorService
     *  We want to sleep current thread so that consumeService can start running for enough seconds. */
-    Thread.sleep(threadStartDelay);
+    Utils.delay(Duration.ofSeconds(THREAD_START_DELAY_SECONDS));
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("offsets-committed-total", METRIC_GROUP_NAME, tags)).metricValue());
     Assert.assertNotNull(metrics.metrics().get(metrics.metricName("failed-commit-offsets-total", METRIC_GROUP_NAME,
         tags)).metricValue());
@@ -112,12 +110,9 @@ public class ConsumeServiceTest {
     consumeService.startConsumeThreadForTesting();
     Assert.assertTrue(consumeService.isRunning());
 
-    /* in milliseconds */
-    long threadStartDelay = TimeUnit.SECONDS.toMillis(THREAD_START_DELAY_SECONDS);
-
-    /* Thread.sleep safe to do here instead of ScheduledExecutorService
+    /* delay safe to do here instead of ScheduledExecutorService
      *  We want to sleep current thread so that consumeService can start running for enough seconds. */
-    Thread.sleep(threadStartDelay);
+    Utils.delay(Duration.ofSeconds(THREAD_START_DELAY_SECONDS));
 
     shutdownConsumeService(consumeService);
   }
@@ -148,16 +143,13 @@ public class ConsumeServiceTest {
     /* define return value */
     Mockito.when(kmBaseConsumer.lastCommitted()).thenReturn(MOCK_LAST_COMMITTED_OFFSET);
     Mockito.when(kmBaseConsumer.committed(Mockito.any())).thenReturn(new OffsetAndMetadata(FIRST_OFFSET));
-    Mockito.doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocationOnMock) {
-        OffsetCommitCallback callback = invocationOnMock.getArgument(0);
-        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
-        committedOffsets.put(new TopicPartition(TOPIC, PARTITION), new OffsetAndMetadata(FIRST_OFFSET));
-        callback.onComplete(committedOffsets, null);
+    Mockito.doAnswer((Answer<Void>) invocationOnMock -> {
+      OffsetCommitCallback callback = invocationOnMock.getArgument(0);
+      Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+      committedOffsets.put(new TopicPartition(TOPIC, PARTITION), new OffsetAndMetadata(FIRST_OFFSET));
+      callback.onComplete(committedOffsets, null);
 
-        return null;
-      }
+      return null;
     }).when(kmBaseConsumer).commitAsync(Mockito.any(OffsetCommitCallback.class));
 
 
@@ -190,13 +182,13 @@ public class ConsumeServiceTest {
 
     thread.start();
     consumeService.startConsumeThreadForTesting();
-    Thread.sleep(100);
+    Utils.delay(Duration.ofMillis(100));
 
     consumeService.stop();
     thread.join(5000);
 
     Assert.assertFalse(thread.isAlive());
-    Assert.assertEquals(error.get(), null);
+    Assert.assertNull(error.get());
 
   }
 
@@ -207,8 +199,7 @@ public class ConsumeServiceTest {
    */
   private Metrics consumeServiceMetrics(ConsumeService consumeService) {
     setup();
-    Metrics metrics = consumeService.metrics();
-    return metrics;
+    return consumeService.metrics();
   }
 
   /**
