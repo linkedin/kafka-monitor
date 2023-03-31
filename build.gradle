@@ -30,7 +30,7 @@ allprojects {
     compile 'org.json:json:20140107'
     compile 'org.jolokia:jolokia-jvm:1.6.2'
     compile 'net.savantly:graphite-client:1.1.0-RELEASE'
-    compile 'com.timgroup:java-statsd-client:3.0.1'
+    compile 'com.timgroup:java-statsd-client:3.0.2'
     compile 'com.signalfx.public:signalfx-codahale:0.0.47'
     compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.8.2'
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.8.2'
