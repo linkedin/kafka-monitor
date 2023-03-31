@@ -97,7 +97,7 @@ public class StatsdMetricsReporterService implements Service {
 
       for (MbeanAttributeValue attributeValue: attributeValues) {
         final String statsdMetricName = generateStatsdMetricName(attributeValue.mbean(), attributeValue.attribute());
-        _statsdClient.recordGaugeValue(statsdMetricName, new Double(attributeValue.value()).longValue());
+        _statsdClient.recordGaugeValue(statsdMetricName, attributeValue.value());
       }
     }
   }
