@@ -33,7 +33,7 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
   private final int _latencyPercentileMaxMs;
   private final int _latencyPercentileGranularityMs;
   private static final String[] NON_OVERRIDABLE_PROPERTIES =
-      new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG};
+      new String[] {ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG};
   private final int _latencySlaMs;
   private static AdminClient adminClient;
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
@@ -46,7 +46,6 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
         ? (Map) props.get(ConsumeServiceConfig.CONSUMER_PROPS_CONFIG) : new HashMap<>();
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
     _topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
-    String zkConnect = config.getString(ConsumeServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = config.getString(ConsumeServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
     _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
@@ -72,7 +71,6 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
 
     /* Assign config specified for ConsumeService. */
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-    consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
 
     /* Assign config specified for consumer. This has the highest priority. */
     consumerProps.putAll(consumerPropsOverride);

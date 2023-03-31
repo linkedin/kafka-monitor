@@ -19,9 +19,6 @@ public class ConsumeServiceConfig extends AbstractConfig {
 
   private static final ConfigDef CONFIG;
 
-  public static final String ZOOKEEPER_CONNECT_CONFIG = CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG;
-  public static final String ZOOKEEPER_CONNECT_DOC = CommonServiceConfig.ZOOKEEPER_CONNECT_DOC;
-
   public static final String BOOTSTRAP_SERVERS_CONFIG = CommonServiceConfig.BOOTSTRAP_SERVERS_CONFIG;
   public static final String BOOTSTRAP_SERVERS_DOC = CommonServiceConfig.BOOTSTRAP_SERVERS_DOC;
 
@@ -48,11 +45,7 @@ public class ConsumeServiceConfig extends AbstractConfig {
                                                   + "as the fraction of messages that are either lost or whose delivery latency exceeds this value";
 
   static {
-    CONFIG = new ConfigDef().define(ZOOKEEPER_CONNECT_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.HIGH,
-                                    ZOOKEEPER_CONNECT_DOC)
-                            .define(BOOTSTRAP_SERVERS_CONFIG,
+    CONFIG = new ConfigDef().define(BOOTSTRAP_SERVERS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     ConfigDef.Importance.HIGH,
                                     BOOTSTRAP_SERVERS_DOC)

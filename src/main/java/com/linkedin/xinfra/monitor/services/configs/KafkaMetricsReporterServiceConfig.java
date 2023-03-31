@@ -27,9 +27,6 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
   public static final String REPORT_INTERVAL_SEC_CONFIG = CommonServiceConfig.REPORT_INTERVAL_SEC_CONFIG;
   public static final String REPORT_INTERVAL_SEC_DOC = CommonServiceConfig.REPORT_INTERVAL_SEC_DOC;
 
-  public static final String ZOOKEEPER_CONNECT_CONFIG = CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG;
-  public static final String ZOOKEEPER_CONNECT_DOC = CommonServiceConfig.ZOOKEEPER_CONNECT_DOC;
-
   public static final String BOOTSTRAP_SERVERS_CONFIG = CommonServiceConfig.BOOTSTRAP_SERVERS_CONFIG;
   public static final String BOOTSTRAP_SERVERS_DOC = CommonServiceConfig.BOOTSTRAP_SERVERS_DOC;
 
@@ -50,10 +47,6 @@ public class KafkaMetricsReporterServiceConfig extends AbstractConfig {
                                     1,
                                     ConfigDef.Importance.LOW,
                                     REPORT_INTERVAL_SEC_DOC)
-                            .define(ZOOKEEPER_CONNECT_CONFIG,
-                                    ConfigDef.Type.STRING,
-                                    ConfigDef.Importance.HIGH,
-                                    ZOOKEEPER_CONNECT_DOC)
                             .define(BOOTSTRAP_SERVERS_CONFIG,
                                     ConfigDef.Type.STRING,
                                     ConfigDef.Importance.HIGH,

@@ -50,8 +50,7 @@ import org.slf4j.LoggerFactory;
 public class ProduceService extends AbstractService {
   private static final Logger LOG = LoggerFactory.getLogger(ProduceService.class);
   private static final String[] NON_OVERRIDABLE_PROPERTIES = new String[]{
-    ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG,
-    ProduceServiceConfig.ZOOKEEPER_CONNECT_CONFIG
+    ProduceServiceConfig.BOOTSTRAP_SERVERS_CONFIG
   };
   private final String _name;
   private final ProduceMetrics _sensors;

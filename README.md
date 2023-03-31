@@ -102,7 +102,7 @@ Xinfra Monitor supports Apache Kafka 0.8 to 2.0:
 <code>./bin/xinfra-monitor-start.sh config/xinfra-monitor.properties</code>. The default
 xinfra-monitor.properties in the repo provides an simple example of how to
 monitor a single cluster. You probably need to change the value of
-<code>zookeeper.connect</code> and <code>bootstrap.servers</code> to point to your cluster.
+<code>bootstrap.servers</code> to point to your cluster.
   </li>
   <br />
 <li> The full list of configs and their documentation can be found in the code of
@@ -165,12 +165,12 @@ whether messages can be properly produced to and consumed from this cluster.
 See Service Overview wiki for how these metrics are derived.
 
 ```
-$ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092 --zookeeper localhost:2181
+$ ./bin/single-cluster-monitor.sh --topic test --broker-list localhost:9092
 ```
 
 ### Run MultiClusterMonitor app to monitor a pipeline of Kafka clusters connected by MirrorMaker
-Edit `config/multi-cluster-monitor.properties` to specify the right broker and
-zookeeper url as suggested by the comment in the properties file
+Edit `config/multi-cluster-monitor.properties` to specify the right broker
+as suggested by the comment in the properties file
 
 Metrics `produce-availability-avg` and `consume-availability-avg` demonstrate
 whether messages can be properly produced to the source cluster and consumed

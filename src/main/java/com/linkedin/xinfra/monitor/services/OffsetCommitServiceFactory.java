@@ -61,7 +61,6 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
   @SuppressWarnings("unchecked")
   private Properties prepareConfigs(Map<String, Object> props) {
 
-    String zkConnect = (String) props.get(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG);
     String brokerList = (String) props.get(CommonServiceConfig.BOOTSTRAP_SERVERS_CONFIG);
 
     Properties consumerProps = new Properties();
@@ -70,7 +69,6 @@ public class OffsetCommitServiceFactory implements ServiceFactory {
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
-    consumerProps.put(CommonServiceConfig.ZOOKEEPER_CONNECT_CONFIG, zkConnect);
 
     Map<String, String> customProps = (Map<String, String>) props.get(CommonServiceConfig.CONSUMER_PROPS_CONFIG);
     if (customProps != null) {

@@ -36,7 +36,6 @@ allprojects {
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.8.2'
     compile 'org.apache.commons:commons-lang3:3.12.0'
     compile 'com.linkedin.avroutil1:helper-all:0.2.118'
-    compile 'org.apache.zookeeper:zookeeper:3.8.0'
     testCompile 'org.mockito:mockito-core:2.24.0'
     testCompile 'org.testng:testng:6.8.8'
   }
