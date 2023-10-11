@@ -11,7 +11,7 @@
 # limitations under the License.
 
 
-FROM anapsix/alpine-java
+FROM eclipse-temurin:11-jre-alpine
 
 MAINTAINER coffeepac@gmail.com
 
