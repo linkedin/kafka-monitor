@@ -24,12 +24,9 @@ jobs:
     - name: Build with Gradle
         # add --info or --debug below for more details when trying to understand issues
       run: ./gradlew clean build javadoc --stacktrace --warning-mode all --no-daemon
-    - name: Branch tag
-      id: branch_tag
-      run: echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     - name: Publish to Jfrog
       env:
         JFROG_USER: ${{ secrets.JFROG_USER }}
         JFROG_KEY: ${{ secrets.JFROG_KEY }}
-        RELEASE_TAG: ${{ steps.branch_tag.outputs.RELEASE_TAG }}
+        RELEASE_TAG: ${{ github.ref_name }}
       run: ./scripts/publishToJfrog.sh
