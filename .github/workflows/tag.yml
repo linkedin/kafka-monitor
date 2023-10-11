@@ -6,8 +6,8 @@ on:
       - '*'
 
 jobs:
-  gradle-java8:
-    name: Java 8 release
+  gradle-java:
+    name: Java release
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
