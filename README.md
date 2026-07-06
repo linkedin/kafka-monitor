@@ -51,7 +51,7 @@ monitor topic. This allows Xinfra Monitor to detect performance issue on every
 broker without requiring users to manually manage the partition assignment of
 the monitor topic.
 
-Xinfra Monitor is used in conjunction with different middle-layer services such as li-apache-kafka-clients in order to monitor single clusters, pipeline desination clusters, and other types of clusters as done in Linkedin engineering for real-time cluster healthchecks.
+Xinfra Monitor is used in conjunction with different middle-layer services such as li-apache-kafka-clients in order to monitor single clusters, pipeline destination clusters, and other types of clusters as done in Linkedin engineering for real-time cluster healthchecks.
 
 These are some of the metrics emitted from a Xinfra Monitor instance.
 
